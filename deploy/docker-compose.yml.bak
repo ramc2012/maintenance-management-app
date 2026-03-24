@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: procurement_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  server:
+    build: ./server
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres:5432/procurement_db
+      JWT_SECRET: supersecretkey
+      PORT: 3000
+    depends_on:
+      - postgres
+
+  client:
+    build: ./client
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+      - cognitive
+
+  cognitive:
+    build: ./cognitive
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres:5432/procurement_db
+      OLLAMA_URL: http://ollama:11434
+    volumes:
+      - cognitive_data:/app/chroma_data
+      - ./cognitive:/app
+    depends_on:
+      - postgres
+      - ollama
+
+  ollama-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: always
+    ports:
+      - "3001:8080"
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      WEBUI_SECRET_KEY: "your-secret-key-change-in-production"
+    volumes:
+      - ollama_webui_data:/app/backend/data
+    depends_on:
+      - ollama
+
+volumes:
+  postgres_data:
+  cognitive_data:
+  ollama_webui_data:
+  ollama_data:

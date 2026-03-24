@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+deploy/client/node_modules/
+deploy/server/node_modules/
+deploy/cognitive/__pycache__/
+deploy/cognitive/venv/
+deploy/cognitive/.venv/
+
+# Build outputs
+deploy/client/dist/
+deploy/server/dist/
+
+# Environment files
+.env
+.env.local
+.env.production
+deploy/.env
+
+# Docker volumes
+postgres_data/
+redis_data/
+ollama_data/
+cognitive_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp files
+*.tmp
+*.swp
+*.swo
+
+# Docker tar files
+*.tar
+
+# Blobs and OCI artifacts
+blobs/
+image-rootfs/
+index.json
+manifest.json
+oci-layout
+
+# Test results
+test-results/
+
+# Xcode build artifacts
+maint_man_Xcode/
+
+# Maintenance_Management (legacy)
+Maintenance_Management/

@@ -1,0 +1,11 @@
+-- AlterTable
+ALTER TABLE "RunningEquipmentMaster"
+  ADD COLUMN IF NOT EXISTS "serialNumber" TEXT,
+  ADD COLUMN IF NOT EXISTS "assetCode" TEXT,
+  ADD COLUMN IF NOT EXISTS "pmFrequencyDays" INTEGER,
+  ADD COLUMN IF NOT EXISTS "operationalStatus" TEXT NOT NULL DEFAULT 'WORKING',
+  ADD COLUMN IF NOT EXISTS "statusReason" TEXT,
+  ADD COLUMN IF NOT EXISTS "statusUpdatedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "specifications" JSONB,
+  ADD COLUMN IF NOT EXISTS "equipmentTypeName" TEXT,
+  ADD COLUMN IF NOT EXISTS "serviceLine" TEXT;

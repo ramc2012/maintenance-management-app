@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Guide - Maintenance Management System</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --accent: #8b5cf6;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a202c 100%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            border-radius: 0 0 2rem 2rem;
+        }
+        header h1 { font-size: 2rem; margin-bottom: 0.3rem; }
+        header p { opacity: 0.9; font-size: 1rem; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem; color: white;
+            text-decoration: none; padding: 0.5rem 1.25rem; background: rgba(255,255,255,0.2);
+            border-radius: 2rem; margin-top: 0.75rem; transition: all 0.3s; font-size: 0.9rem;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.3); }
+        nav {
+            background: var(--bg-card); padding: 0.75rem; border-radius: 0.75rem;
+            margin-bottom: 1.5rem; position: sticky; top: 0.5rem; z-index: 100;
+            border: 1px solid var(--border);
+        }
+        nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; justify-content: center; }
+        nav a {
+            color: var(--text-muted); text-decoration: none; padding: 0.4rem 0.75rem;
+            border-radius: 0.5rem; font-size: 0.8rem; transition: all 0.2s;
+        }
+        nav a:hover { background: var(--primary); color: white; }
+        section {
+            background: var(--bg-card); border-radius: 1rem; padding: 1.75rem;
+            margin-bottom: 1.5rem; border: 1px solid var(--border);
+        }
+        section h2 {
+            color: var(--primary); font-size: 1.3rem; margin-bottom: 1rem;
+            display: flex; align-items: center; gap: 0.5rem;
+            padding-bottom: 0.5rem; border-bottom: 2px solid var(--border);
+        }
+        section h3 { color: var(--accent); margin: 1.25rem 0 0.5rem; font-size: 1rem; }
+        section h4 { color: var(--text); margin: 0.75rem 0 0.4rem; font-size: 0.95rem; }
+        section p, section li { color: var(--text-muted); font-size: 0.9rem; }
+        section ul, section ol { padding-left: 1.25rem; margin-bottom: 0.75rem; }
+        section li { margin-bottom: 0.3rem; }
+        .steps {
+            background: rgba(59,130,246,0.08); border-left: 3px solid var(--primary);
+            padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0;
+        }
+        .steps ol { padding-left: 1.25rem; margin: 0; }
+        .steps li { color: var(--text); margin-bottom: 0.4rem; }
+        .tip {
+            background: rgba(34,197,94,0.1); border-left: 3px solid var(--success);
+            padding: 0.75rem 1rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0;
+        }
+        .tip strong { color: var(--success); }
+        .warn {
+            background: rgba(245,158,11,0.1); border-left: 3px solid var(--warning);
+            padding: 0.75rem 1rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0;
+        }
+        .warn strong { color: var(--warning); }
+        kbd {
+            background: var(--bg-dark); padding: 0.15rem 0.4rem; border-radius: 0.2rem;
+            font-family: monospace; border: 1px solid var(--border); font-size: 0.8rem;
+        }
+        table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+        th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { background: var(--bg-dark); color: var(--primary); }
+        .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .module-card {
+            background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.08) 100%);
+            padding: 1.25rem; border-radius: 0.75rem; border: 1px solid var(--border); transition: all 0.3s;
+        }
+        .module-card:hover { border-color: var(--primary); }
+        .module-card h3 { color: var(--text); margin: 0 0 0.4rem; font-size: 1rem; }
+        footer { text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; }
+        @media (max-width: 768px) { .container { padding: 1rem; } header h1 { font-size: 1.5rem; } nav { position: static; } .module-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>User Guide</h1>
+        <p>Maintenance Management System - ONGC Ankleshwar Asset</p>
+        <a href="/hub" class="back-btn">&larr; Back to Application</a>
+    </header>
+
+    <div class="container">
+        <nav>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#equipment">Equipment Master</a></li>
+                <li><a href="#workorders">Work Orders</a></li>
+                <li><a href="#logbook">Digital Logbook</a></li>
+                <li><a href="#moh">Major Overhaul</a></li>
+                <li><a href="#calibration">Calibration</a></li>
+                <li><a href="#audit">Audit</a></li>
+                <li><a href="#procurement">Procurement</a></li>
+                <li><a href="#other">Other Modules</a></li>
+                <li><a href="#admin">Admin Guide</a></li>
+            </ul>
+        </nav>
+
+        <!-- Overview -->
+        <section id="overview">
+            <h2>System Overview</h2>
+            <p>The Maintenance Management System is a comprehensive platform managing all aspects of industrial maintenance at ONGC Ankleshwar Asset. It consists of 20 integrated modules covering equipment management, work orders, logbooks, calibration, audits, procurement, and more.</p>
+            <h3>Getting Started</h3>
+            <div class="steps">
+                <ol>
+                    <li>Login with your credentials at the login page</li>
+                    <li>You will land on the <strong>Hub Page</strong> showing all module tiles</li>
+                    <li>Click any module tile to navigate to that module</li>
+                    <li>Use the sidebar to navigate within each module</li>
+                    <li>Use the <strong>?</strong> icon in the top bar to return to this guide</li>
+                </ol>
+            </div>
+            <div class="tip"><strong>Tip:</strong> Each module has a sidebar with sub-sections. The sidebar collapses on smaller screens. Click the menu icon to toggle it.</div>
+        </section>
+
+        <!-- Equipment Master -->
+        <section id="equipment">
+            <h2>Equipment Master</h2>
+            <p>Central registry for all mechanical and electrical equipment across installations.</p>
+
+            <h3>Viewing Equipment</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Equipment Master</strong> from the hub</li>
+                    <li>Click <strong>Equipment Registry</strong> in the sidebar</li>
+                    <li>Use the tabs: <strong>Mechanical</strong>, <strong>Electrical</strong>, <strong>Instruments</strong></li>
+                    <li>Use the installation and status filters to narrow down</li>
+                    <li>Click any equipment tag to view its full details</li>
+                </ol>
+            </div>
+
+            <h3>Adding New Equipment</h3>
+            <div class="steps">
+                <ol>
+                    <li>Go to Equipment Registry and select the appropriate category tab</li>
+                    <li>Click <strong>+ Add Equipment</strong> button</li>
+                    <li>Fill in: Equipment Tag, Description, Installation, Make, Model, Serial No, Status</li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+
+            <h3>Updating Equipment Status</h3>
+            <div class="steps">
+                <ol>
+                    <li>Find the equipment in the registry</li>
+                    <li>Click the <strong>Edit</strong> icon in the row</li>
+                    <li>Update the Status field (Working / Not Working / Under MOH)</li>
+                    <li>If Not Working, provide the Reason</li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+
+            <h3>Equipment History</h3>
+            <div class="steps">
+                <ol>
+                    <li>Go to <strong>Equipment History</strong> in the sidebar</li>
+                    <li>Select type (Instrument or Equipment)</li>
+                    <li>Search and select the equipment tag</li>
+                    <li>View calibration history, replacement records, and maintenance logs</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Work Orders -->
+        <section id="workorders">
+            <h2>Work Orders</h2>
+            <p>Create, track, and close maintenance work orders.</p>
+
+            <h3>Creating a Work Order</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Work Orders</strong> from the hub</li>
+                    <li>Click <strong>+ New Work Order</strong></li>
+                    <li>Fill in: Title, Description, Priority, Type, Department, Equipment Tag</li>
+                    <li>Set Scheduled Date and Assigned To</li>
+                    <li>Click <strong>Create</strong></li>
+                </ol>
+            </div>
+
+            <h3>Managing Work Orders</h3>
+            <div class="steps">
+                <ol>
+                    <li>Toggle between <strong>Kanban</strong> and <strong>List</strong> views</li>
+                    <li>Click any work order card to view details</li>
+                    <li>To close a WO: click <strong>Close Work Order</strong> and enter completion notes</li>
+                    <li>Admin users can delete work orders from the detail panel</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Digital Logbook -->
+        <section id="logbook">
+            <h2>Digital Logbook</h2>
+            <p>Record daily equipment running hours, gas compression logs, and electrical test data.</p>
+
+            <h3>Running Hours Log</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Digital Logbook</strong> from the hub</li>
+                    <li>Select <strong>Running Hours</strong> tab</li>
+                    <li>Filter by installation using the dropdown</li>
+                    <li>Click <strong>+ Add Entry</strong></li>
+                    <li>Select <strong>Installation</strong> first - this filters the equipment dropdown</li>
+                    <li>Select <strong>Equipment</strong> from the filtered list</li>
+                    <li>Fill in: Date, Shift, Run Hours, Cumulative Hours, Status</li>
+                    <li>Enter operating parameters (Temp, Pressure, etc.)</li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+
+            <h3>Gas Compression Log</h3>
+            <div class="steps">
+                <ol>
+                    <li>Select <strong>Compression Log</strong> tab</li>
+                    <li>Filter by installation</li>
+                    <li>Click <strong>+ Add Entry</strong></li>
+                    <li>Select <strong>Installation</strong> first - this populates gas compressors (GCP/GLC/GAS only)</li>
+                    <li>Select <strong>Gas Compressor</strong> from the filtered list</li>
+                    <li>Enter compression data: Gas Volume, Run Hours, Flow Rate, Pressures, Temperatures</li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+            <div class="tip"><strong>Tip:</strong> Click any compressor tag in the table to view its full equipment history in the Equipment Master module.</div>
+
+            <h3>Configuring Parameters</h3>
+            <div class="steps">
+                <ol>
+                    <li>Click the <strong>Columns</strong> button in Running Hours Log</li>
+                    <li>Load a preset (Motor, Pump, Compressor, Generator) or add custom parameters</li>
+                    <li>Save your configuration as a template for future use</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Major Overhaul -->
+        <section id="moh">
+            <h2>Major Overhaul (MOH)</h2>
+            <p>Plan, track, and execute major equipment overhauls based on D-check intervals.</p>
+
+            <h3>Viewing MOH Records</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Major Overhaul</strong> from the hub</li>
+                    <li>The dashboard shows upcoming and overdue MOH based on running hours vs D-check interval</li>
+                    <li>Click <strong>MOH Records</strong> in the sidebar to see all records</li>
+                    <li>Filter by status (Planned, In Progress, Completed) or installation</li>
+                </ol>
+            </div>
+
+            <h3>Initiating a New MOH</h3>
+            <div class="steps">
+                <ol>
+                    <li>Click <strong>+ Initiate MOH</strong></li>
+                    <li>Enter: MOH Number, Equipment Tag, Installation, Priority</li>
+                    <li>Set planned dates and estimated cost</li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+
+            <h3>Updating MOH Progress</h3>
+            <div class="steps">
+                <ol>
+                    <li>Find the MOH record in the table</li>
+                    <li>Click <strong>Edit</strong> icon to open the full edit form</li>
+                    <li>Update: Status, Priority, Assigned To, Running Hours, D-Check Interval</li>
+                    <li>Add: Scope of Work, Findings, Actions Taken</li>
+                    <li>Set actual dates and costs as work progresses</li>
+                    <li>Click <strong>Update</strong></li>
+                </ol>
+            </div>
+
+            <h3>Quick Status Changes</h3>
+            <div class="steps">
+                <ol>
+                    <li>For PLANNED records: Click the <strong>Play</strong> icon to start (moves to IN_PROGRESS)</li>
+                    <li>For IN_PROGRESS records: Click the <strong>Check</strong> icon to complete</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Calibration -->
+        <section id="calibration">
+            <h2>Calibration</h2>
+            <p>Track instrument calibration schedules, record results, and monitor compliance.</p>
+
+            <h3>Calibration Dashboard</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Calibration</strong> from the hub</li>
+                    <li>The dashboard shows: Total Instruments, Due for Calibration, Overdue, Calibrated This Month</li>
+                    <li>Tables show due and overdue instruments with their last calibration dates</li>
+                </ol>
+            </div>
+
+            <h3>Recording a Calibration Event</h3>
+            <div class="steps">
+                <ol>
+                    <li>Go to <strong>Calibration Records</strong> in the sidebar</li>
+                    <li>Click <strong>+ New Calibration</strong></li>
+                    <li>Select Instrument Tag (searches by tag ID or description)</li>
+                    <li>Fill in: Calibration Date, Standard Used, Result (PASS/FAIL), Performed By</li>
+                    <li>Add calibration points if needed</li>
+                    <li>Click <strong>Save</strong></li>
+                </ol>
+            </div>
+
+            <h3>Instrument Master</h3>
+            <div class="steps">
+                <ol>
+                    <li>Go to <strong>Instruments</strong> in the Equipment Master sidebar</li>
+                    <li>View all instruments with their calibration status and frequency</li>
+                    <li>Add new instruments or update existing ones</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Audit -->
+        <section id="audit">
+            <h2>Audit</h2>
+            <p>Track audit observations, assign corrective actions, and monitor compliance.</p>
+
+            <h3>Creating an Audit Observation</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Audit</strong> from the hub</li>
+                    <li>Go to the <strong>Observations</strong> tab</li>
+                    <li>Click <strong>+ New Observation</strong></li>
+                    <li>Fill in: Agency, Audit Date, Installation, Department, Service, Category, Severity</li>
+                    <li>Enter the observation details, reference, and target date</li>
+                    <li>Click <strong>Create</strong></li>
+                </ol>
+            </div>
+
+            <h3>Managing Actions</h3>
+            <div class="steps">
+                <ol>
+                    <li>Click <strong>View</strong> on any observation to see its details</li>
+                    <li>Use <strong>Add Action</strong> to assign corrective actions</li>
+                    <li>Track action status from the <strong>Action Tracking</strong> tab</li>
+                    <li>Update action status using the dropdown in the table</li>
+                </ol>
+            </div>
+
+            <h3>Dashboard</h3>
+            <p>The Audit Dashboard shows total observations, open/closed counts, overdue items, and breakdowns by agency, service, and severity.</p>
+        </section>
+
+        <!-- Procurement -->
+        <section id="procurement">
+            <h2>Procurement</h2>
+            <p>Manage procurement cases from request to purchase order.</p>
+
+            <h3>Creating a Procurement Case</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Procurement</strong> from the hub</li>
+                    <li>Click <strong>+ Create Case</strong></li>
+                    <li>Fill in: Title, Description, Department, Budget, Priority</li>
+                    <li>Add line items with quantities and specifications</li>
+                    <li>Submit for approval</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Other Modules -->
+        <section id="other">
+            <h2>Other Modules</h2>
+
+            <div class="module-grid">
+                <div class="module-card">
+                    <h3>Energy</h3>
+                    <p>Monitor energy consumption and efficiency. Enter meter readings, track trends, and generate energy reports.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Workshop</h3>
+                    <p>Manage workshop operations, engine overhauls, and repair tracking with ISO 14224 compliance.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Stock & Inventory</h3>
+                    <p>Track material stock levels, generate MRP requirements, and manage reorder points.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Contracts</h3>
+                    <p>Manage AMC contracts, track expiry dates, and monitor contract compliance.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Manuals & Drawings</h3>
+                    <p>Central document repository. Upload, organize, and search technical manuals and drawings.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Training</h3>
+                    <p>Track employee training records, certifications, and upcoming training schedules.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Reports</h3>
+                    <p>Generate cross-module reports with export to Excel/PDF. Includes dashboards and analytics.</p>
+                </div>
+                <div class="module-card">
+                    <h3>Collaboration & Feedback</h3>
+                    <p>Team messaging, task assignments, and feedback collection.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Guide -->
+        <section id="admin">
+            <h2>Admin Guide</h2>
+            <p>Administrative functions available only to users with the <strong>ADMIN</strong> role.</p>
+
+            <h3>User Management</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Manpower</strong> from the hub</li>
+                    <li>View all users and their roles</li>
+                    <li>Create new users or update existing user permissions</li>
+                </ol>
+            </div>
+
+            <h3>Deleting Records</h3>
+            <div class="warn">
+                <strong>Admin Only:</strong> Delete buttons are visible only to ADMIN users. All deletions are permanent and require confirmation.
+            </div>
+            <p>Available delete operations:</p>
+            <table>
+                <tr><th>Module</th><th>What Can Be Deleted</th><th>How</th></tr>
+                <tr><td>Work Orders</td><td>Work orders and associated checklists/team</td><td>Open WO detail &rarr; Click "Delete Work Order"</td></tr>
+                <tr><td>MOH Records</td><td>Individual MOH records</td><td>Click trash icon in the Actions column</td></tr>
+                <tr><td>Logbook</td><td>Running hours and compression log entries</td><td>Click trash icon in the row</td></tr>
+                <tr><td>Audit</td><td>Observations and actions</td><td>Click trash icon in the row</td></tr>
+                <tr><td>Equipment</td><td>Equipment from registry</td><td>Click trash icon in the row</td></tr>
+                <tr><td>Calibration</td><td>Calibration events</td><td>Via calibration records management</td></tr>
+                <tr><td>Contracts</td><td>Contract records</td><td>Via contracts management</td></tr>
+            </table>
+
+            <h3>Data Seeding</h3>
+            <p>Initial data (equipment, instruments, installations, calibration history) is seeded during system deployment. Contact the system administrator to re-run seed scripts if data needs to be refreshed.</p>
+
+            <h3>Settings</h3>
+            <div class="steps">
+                <ol>
+                    <li>Navigate to <strong>Settings</strong> from the hub</li>
+                    <li>Configure system-wide parameters</li>
+                    <li>Manage notification preferences</li>
+                    <li>View system health and diagnostics</li>
+                </ol>
+            </div>
+
+            <h3>Theme Preferences</h3>
+            <p>Switch between Light, Dark, and Sepia themes using the theme selector in the sidebar footer.</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>Maintenance Management System v2.0 | ONGC Ankleshwar Asset</p>
+    </footer>
+</body>
+</html>

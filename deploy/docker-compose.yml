@@ -1,0 +1,116 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    restart: always
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  server:
+    build: ./server
+    restart: always
+    ports:
+      - "${SERVER_PORT:-3000}:3000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - server_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  client:
+    build: ./client
+    restart: always
+    ports:
+      - "${CLIENT_PORT:-8080}:80"
+    depends_on:
+      - server
+      - cognitive
+
+  cognitive:
+    build: ./cognitive
+    restart: always
+    ports:
+      - "${COGNITIVE_PORT:-8001}:8000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      OLLAMA_URL: ${DOCKER_OLLAMA_URL:-http://ollama:11434}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - cognitive_data:/app/chroma_data
+      - ./cognitive:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  ollama-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: always
+    ports:
+      - "${OLLAMA_WEBUI_PORT:-3001}:8080"
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+    volumes:
+      - ollama_webui_data:/app/backend/data
+    depends_on:
+      ollama:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  cognitive_data:
+  ollama_webui_data:
+  ollama_data:
+  redis_data:
+  server_storage:

@@ -1,0 +1,134 @@
+================================================================================
+     MAINTENANCE MANAGEMENT SYSTEM - WINDOWS DEPLOYMENT GUIDE
+     ONGC Ankleshwar Asset
+================================================================================
+
+PRE-REQUISITES
+==============
+1. Windows 10/11 or Windows Server 2019/2022
+2. Docker Desktop for Windows (with WSL2)
+   Download: https://www.docker.com/products/docker-desktop
+
+3. Ollama for Windows
+   Download: https://ollama.com/download/windows
+
+4. System Requirements:
+   - RAM: 8GB minimum (16GB recommended)
+   - Storage: 20GB+ free space
+   - CPU: 4 cores recommended
+
+
+INSTALLATION STEPS
+==================
+
+Step 1: Install Docker Desktop
+------------------------------
+a) Download Docker Desktop from https://www.docker.com/products/docker-desktop
+b) Run the installer
+c) Enable WSL2 when prompted
+d) Restart computer if required
+e) Start Docker Desktop and wait for it to be "Running"
+
+
+Step 2: Install Ollama
+----------------------
+a) Download Ollama from https://ollama.com/download/windows
+b) Run OllamaSetup.exe
+c) Follow installation wizard
+d) Ollama will start automatically as a service
+
+
+Step 3: Extract Application Files
+---------------------------------
+a) Copy backup_2025_12_29_v5.tar.gz to C:\maintenance-system\
+b) Open PowerShell as Administrator
+c) Run:
+   cd C:\maintenance-system
+   tar -xzvf backup_2025_12_29_v5.tar.gz
+
+
+Step 4: Configure Firewall (if needed)
+--------------------------------------
+Run PowerShell as Administrator:
+
+New-NetFirewallRule -DisplayName "Maintenance Web 8080" -Direction Inbound -Port 8080 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Maintenance API 5000" -Direction Inbound -Port 5000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Maintenance AI 8001" -Direction Inbound -Port 8001 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Ollama 11434" -Direction Inbound -Port 11434 -Protocol TCP -Action Allow
+
+
+Step 5: Start the Application
+-----------------------------
+a) Navigate to C:\maintenance-system\
+b) Double-click "start.bat"
+c) Wait for all services to start (about 2-3 minutes first time)
+d) Browser will open automatically to http://localhost:8080
+
+
+Step 6: First-Time Database Setup
+---------------------------------
+Open PowerShell in C:\maintenance-system\ and run:
+
+docker-compose exec server npx prisma migrate deploy
+docker-compose exec server npx prisma db seed
+
+
+DAILY USAGE
+===========
+- To START: Double-click start.bat
+- To STOP:  Double-click stop.bat
+
+
+ACCESS POINTS
+=============
+Web Application:  http://localhost:8080    (or http://<server-ip>:8080)
+User Guide:       http://localhost:8080/help.html
+API Server:       http://localhost:5000
+Kelvin AI:        http://localhost:8001
+
+
+DEFAULT LOGIN
+=============
+Username: admin
+Password: admin123
+
+
+TROUBLESHOOTING
+===============
+
+Problem: Docker won't start
+Solution: 
+- Enable Hyper-V in Windows Features
+- Enable WSL2 in Windows Features
+- Restart computer
+
+Problem: "Port already in use" error
+Solution: Run in PowerShell:
+  netstat -ano | findstr :8080
+  taskkill /PID <process_id> /F
+
+Problem: Ollama not connecting
+Solution:
+- Check Ollama is running: ollama list
+- Restart Ollama: ollama serve
+- Verify in browser: http://localhost:11434
+
+Problem: AI responses are slow
+Solution:
+- Use TinyLlama model for faster responses
+- Ensure at least 8GB RAM available
+- Close unnecessary applications
+
+Problem: Database connection failed
+Solution:
+  docker-compose down
+  docker-compose up -d postgres
+  timeout /t 30
+  docker-compose up -d
+
+
+SUPPORT
+=======
+For technical support, contact your system administrator.
+
+================================================================================

@@ -1,0 +1,328 @@
+"""Cognitive Layer API - FastAPI application for cross-module intelligence."""
+import os
+import json
+import re
+from typing import Optional, Dict, Any, List
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import httpx
+
+import mcp_tools
+import rag_engine
+import db_connector as db
+import llm_service
+
+app = FastAPI(
+    title="Kelvin AI API",
+    description="Cross-module natural language interface for Procurement, Maintenance, and Assets",
+    version="2.0.0"
+)
+
+# CORS for frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ═══════════════════════════════════════════════════════════════
+# REQUEST/RESPONSE MODELS
+# ═══════════════════════════════════════════════════════════════
+
+class ChatRequest(BaseModel):
+    query: str
+    context: Optional[str] = None # Added simple context string
+    model: Optional[str] = "llama3.3"
+    use_llm: Optional[bool] = False
+    current_path: Optional[str] = None # Added path context
+
+class ChatResponse(BaseModel):
+    response: str
+    tool_used: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
+    sources: Optional[List[str]] = None
+    model_used: Optional[str] = None
+    llm_enhanced: Optional[bool] = False
+
+# ═══════════════════════════════════════════════════════════════
+# QUERY INTENT DETECTION (Rule-based, no external LLM needed)
+# ═══════════════════════════════════════════════════════════════
+
+def detect_intent(query: str) -> Dict[str, Any]:
+    """Detect user intent from query using pattern matching."""
+    query_lower = query.lower()
+    
+    # 1. MAINTENANCE & WORK ORDERS
+    wo_keywords = ["work order", "job", "repair", "breakdown", "maintenance", "task"]
+    if any(w in query_lower for w in wo_keywords):
+        if "priority" in query_lower or "urgent" in query_lower:
+             return {"tool": "search_work_orders", "params": {"priority": "HIGH"}}
+        if "emergency" in query_lower:
+             return {"tool": "search_work_orders", "params": {"priority": "EMERGENCY"}}
+        if "preventive" in query_lower or "pm" in query_lower.split():
+             return {"tool": "search_work_orders", "params": {"wo_type": "PREVENTIVE"}}
+        return {"tool": "search_work_orders", "params": {}}
+        
+    # 2. ASSETS & EQUIPMENT
+    asset_keywords = ["asset", "equipment", "motor", "pump", "compressor", "valve", "machine"]
+    if any(w in query_lower for w in asset_keywords) or re.search(r"[a-z]+-\d+", query_lower):
+        # Extract tag if present (simple regex for AA-000 format)
+        tag_match = re.search(r"([a-z]+-[0-9a-z-]+)", query_lower)
+        if tag_match:
+            return {"tool": "get_asset_details", "params": {"asset_tag": tag_match.group(1).upper()}}
+        if "status" in query_lower or "health" in query_lower:
+            # Fallback if no specific tag, maybe list critical assets (not implemented yet, default to open high priority)
+             return {"tool": "search_work_orders", "params": {"priority": "HIGH"}}
+
+    # 3. PROCUREMENT STAGES
+    stage_keywords = {
+        "requirement": "Requirement Raised",
+        "approval": "Approval",
+        "pr release": "PR Release",
+        "tendering": "Tendering",
+        "tender": "Tendering",
+        "bid evaluation": "Post Bid Evaluation",
+        "po release": "PO Released",
+        "qcc": "QCC",
+        "grv": "GRV",
+        "payment": "Payment",
+        "closed": "Closed"
+    }
+    
+    for keyword, stage in stage_keywords.items():
+        if keyword in query_lower:
+            if any(w in query_lower for w in ["cases", "show", "list", "get", "find", "what"]):
+                return {"tool": "search_cases", "params": {"stage": stage}}
+    
+    # 4. DEPARTMENT QUERIES
+    dept_patterns = [
+        r"(?:for|in|of)\s+(\w+)\s+(?:department|dept)",
+        r"(\w+)\s+(?:department|dept)",
+    ]
+    for pattern in dept_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            dept = match.group(1)
+            if dept not in ["the", "a", "all", "each", "every", "maintenance"]: # Exclude functional words
+                return {"tool": "search_cases", "params": {"department": dept}}
+    
+    # 5. PROCUREMENT TYPES
+    type_keywords = ["stores", "spares", "capital", "services", "petty"]
+    for t in type_keywords:
+        if t in query_lower and any(w in query_lower for w in ["cases", "show", "list", "procurements"]):
+            return {"tool": "search_cases", "params": {"case_type": t.upper()}}
+    
+    # 6. PROCUREMENT AGE
+    age_match = re.search(r"older than (\d+)\s*(?:days|d)", query_lower)
+    if age_match:
+        return {"tool": "search_cases", "params": {"aged_days": int(age_match.group(1))}}
+    
+    if any(w in query_lower for w in ["aged", "old", "delayed", "stuck", "pending"]):
+        return {"tool": "search_cases", "params": {"aged_days": 30}}
+    
+    # 7. BUDGET
+    if any(w in query_lower for w in ["budget", "spend", "spending", "allocation", "utilization"]):
+        fy_match = re.search(r"(\d{4}-\d{2})", query_lower)
+        return {"tool": "get_budget_summary", "params": {"fiscal_year": fy_match.group(1) if fy_match else None}}
+    
+    # 8. VENDOR
+    if any(w in query_lower for w in ["vendor", "supplier"]):
+        return {"tool": "get_vendor_analysis", "params": {}}
+    
+    # 9. ANALYTICS
+    if any(w in query_lower for w in ["summary", "analytics", "statistics", "overview", "report", "dashboard"]):
+        return {"tool": "get_analytics", "params": {}}
+    
+    # Default: search cases (fallback)
+    return {"tool": "search_cases", "params": {}}
+
+# ═══════════════════════════════════════════════════════════════
+# RESPONSE FORMATTER
+# ═══════════════════════════════════════════════════════════════
+
+def format_response(tool_name: str, result: Dict[str, Any], query: str) -> str:
+    """Format tool results into a natural language response."""
+    if not result.get("success", False):
+        return f"I encountered an error: {result.get('error', 'Unknown error')}"
+    
+    response_parts = []
+    
+    if tool_name == "search_work_orders":
+        orders = result.get("work_orders", [])
+        summary = result.get("summary", "")
+        response_parts.append(f"🛠️ {summary}")
+        if orders:
+            response_parts.append("\n**Open Work Orders:**")
+            for i, wo in enumerate(orders[:10], 1):
+                prio = wo.get('priority', 'NORMAL')
+                status = wo.get('status', 'OPEN')
+                prio_icon = "🔴" if prio == "EMERGENCY" else "🟠" if prio == "HIGH" else "��"
+                response_parts.append(f"{i}. {prio_icon} **{wo.get('woNumber')}**: {wo.get('description')} ({status}) - Loc: {wo.get('functional_location')}")
+    
+    elif tool_name == "get_asset_details":
+        details = result.get("details", {})
+        history = result.get("work_history", [])
+        response_parts.append(f"🏭 **Asset Details: {details.get('name')}**")
+        response_parts.append(f"Tag: `{details.get('flId')}` | Type: {details.get('flType')} | System: {details.get('system_name')}")
+        response_parts.append(f"Description: {details.get('description')}")
+        
+        if history:
+            response_parts.append("\n**Recent Activity:**")
+            for wo in history[:5]:
+                response_parts.append(f"• {wo.get('completionDate') or 'Open'}: {wo.get('description')} ({wo.get('woType')})")
+
+    elif tool_name == "search_cases":
+        cases = result.get("cases", [])
+        summary = result.get("summary", "")
+        response_parts.append(f"📋 {summary}")
+        
+        if cases:
+            response_parts.append("\n**Cases:**")
+            for i, case in enumerate(cases[:10], 1):
+                title = case.get('title', 'Untitled')
+                stage = case.get('currentStage', 'Unknown')
+                dept = case.get('department_name', 'N/A')
+                value = case.get('prValue', 0)
+                response_parts.append(f"{i}. **{title}** - {stage} | Dept: {dept or 'N/A'} | ₹{(value or 0):,.0f}")
+            
+            if len(cases) > 10:
+                response_parts.append(f"\n_...and {len(cases) - 10} more cases_")
+    
+    elif tool_name == "get_budget_summary":
+        spend = result.get("department_spend", [])
+        response_parts.append("💰 **Budget Summary**\n")
+        
+        for dept in spend[:5]:
+            name = dept.get('department', 'Unknown')
+            count = dept.get('case_count', 0)
+            pr_val = dept.get('total_pr_value', 0)
+            response_parts.append(f"• **{name}**: {count} cases, ₹{(pr_val or 0):,.0f} total PR value")
+    
+    elif tool_name == "get_analytics":
+        stage_dist = result.get("stage_distribution", [])
+        type_dist = result.get("type_distribution", [])
+        
+        response_parts.append("📊 **Procurement Analytics**\n")
+        
+        response_parts.append("**By Stage:**")
+        for s in stage_dist[:6]:
+            response_parts.append(f"• {s['stage']}: {s['count']} cases")
+        
+        response_parts.append("\n**By Type:**")
+        for t in type_dist:
+            response_parts.append(f"• {t['type']}: {t['count']} cases (₹{(t.get('total_value') or 0):,.0f})")
+    
+    elif tool_name == "get_vendor_analysis":
+        vendors = result.get("vendors", [])
+        response_parts.append("🏢 **Vendor Summary**\n")
+        
+        for v in vendors[:10]:
+            name = v.get('vendor', 'Unknown')
+            count = v.get('case_count', 0)
+            value = v.get('total_value', 0)
+            response_parts.append(f"• **{name}**: {count} cases, ₹{(value or 0):,.0f}")
+    
+    else:
+        response_parts.append(json.dumps(result, indent=2, default=str))
+    
+    return "\n".join(response_parts)
+
+# ═══════════════════════════════════════════════════════════════
+# API ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "service": "cognitive", "version": "2.0.0"}
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """Main chat endpoint - process natural language queries."""
+    query = request.query.strip()
+    
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    
+    # 1. Detect intent
+    intent = detect_intent(query)
+    tool_name = intent["tool"]
+    params = intent["params"]
+    
+    # 2. Execute tool
+    result = mcp_tools.execute_tool(tool_name, params)
+    
+    # 3. Format response
+    response_text = format_response(tool_name, result, query)
+    
+    return ChatResponse(
+        response=response_text,
+        tool_used=tool_name,
+        data=result if result.get("success") else None
+    )
+
+@app.post("/index")
+async def index_documents():
+    """Trigger document indexing for RAG."""
+    try:
+        # Index both Cases and Work Orders (Not yet implemented, keeping hook)
+        result = rag_engine.index_cases()
+        return {"success": True, "indexed": result["indexed"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/models")
+async def list_models():
+    """List available LLM models."""
+    models = await llm_service.get_available_models()
+    ollama_available = await llm_service.check_ollama_available()
+    return {
+        "ollama_available": ollama_available,
+        "models": models,
+        "default": llm_service.DEFAULT_MODEL
+    }
+
+@app.post("/chat/enhanced")
+async def chat_enhanced(request: ChatRequest):
+    """Chat with LLM enhancement for natural responses."""
+    query = request.query.strip()
+    model = request.model or llm_service.DEFAULT_MODEL
+    
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    
+    # 1. Get structured data from tools
+    intent = detect_intent(query)
+    tool_name = intent["tool"]
+    params = intent["params"]
+    result = mcp_tools.execute_tool(tool_name, params)
+    
+    # 2. Format tool response
+    tool_response = format_response(tool_name, result, query)
+    
+    # 3. Enhance with LLM if available
+    try:
+        enhanced = await llm_service.enhance_response_with_llm(
+            tool_response, query, model=model
+        )
+        return ChatResponse(
+            response=enhanced,
+            tool_used=tool_name,
+            data=result if result.get("success") else None,
+            model_used=model,
+            llm_enhanced=True
+        )
+    except Exception as e:
+        return ChatResponse(
+            response=tool_response,
+            tool_used=tool_name,
+            data=result if result.get("success") else None,
+            llm_enhanced=False
+        )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,0 +1,1898 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String        @id @default(uuid())
+  username             String        @unique
+  password             String
+  role                 String
+  departmentId         String?
+  department           Department?   @relation(fields: [departmentId], references: [id])
+  createdAt            DateTime      @default(now())
+  lastLogin            DateTime?
+  comments             CaseComment[]
+  canCreateWorkOrder   Boolean       @default(false)
+  canCloseWorkOrder    Boolean       @default(false)
+  uploadedDocuments    RepositoryDocument[]
+}
+
+model Company {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  departments Department[]
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  users     User[]
+  budgets   Budget[]
+  cases     Case[]
+}
+
+model Budget {
+  id           String      @id @default(uuid())
+  departmentId String?
+  fy           String
+  category     String
+  amount       Float
+  isIndicative Boolean     @default(false)
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([departmentId, fy, category])
+}
+
+model CaseComment {
+  id            String    @id @default(uuid())
+  content       String
+  timestamp     DateTime  @default(now())
+  effectiveDate DateTime?
+  caseId        String
+  userId        String
+  stageSnapshot String?
+  case          Case      @relation(fields: [caseId], references: [id])
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+model Case {
+  id                  String        @id @default(uuid())
+  title               String
+  type                String
+  currentStage        String
+  updatedAt           DateTime      @updatedAt
+  createdAt           DateTime      @default(now())
+  createdBy           String
+  vendor              String?
+  vendorCode          String?
+  prValue             Float?
+  poValue             Float?
+  currency            String        @default("INR")
+  prNumber            String?
+  poNumber            String?
+  sanctionFileNumber  String?
+  tenderingFileNumber String?
+  procurementMethod   String?
+  category            String?
+  value               Float?
+  tag                 String?
+  processedBy         String?
+  departmentId        String?
+  department          Department?   @relation(fields: [departmentId], references: [id])
+  comments            CaseComment[]
+}
+// --- EQUIPMENT & CALIBRATION MODULE ---
+
+model Installation {
+  id             String  @id @default(uuid())
+  installationId String  @unique
+  location       String
+  type           String // Surface, Drilling Rig, Workover Rig, Mobile Units
+  isActive       Boolean @default(true)
+
+  instruments      InstrumentMaster[]
+  runningEquipment RunningEquipmentMaster[]
+  maintenanceLogs  MaintenanceLog[]
+  trainings        TrainingRecord[]        @relation("InstallationTrainings")
+  energyLogs       DailyEnergyLog[]        @relation("InstallationEnergyLogs")
+  electricBills    MonthlyElectricityBill[] @relation("InstallationElectricBills")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InstrumentMaster {
+  tagId       String  @id
+  type        String
+  serviceLine String? // PT, TT, FT
+  description String
+  make        String?
+  model       String?
+  serialNo    String?
+  rangeMin    Float?
+  rangeMax    Float?
+  unit        String?
+  modelYear   Int?
+
+  installationId String
+  installation   Installation @relation(fields: [installationId], references: [id])
+
+  calibrationFreqMonths Int @default(12)
+
+  // Tiered Calibration Routing: INTERNAL (manual) or AUTOMATED (external system)
+  calSystemType String @default("INTERNAL") // INTERNAL, AUTOMATED
+
+  calibrationLogs    CalibrationLog[]
+  replacementHistory ReplacementHistory[]
+  custodyMeterId     String?
+  custodyMeter       CustodyTransferMeter? @relation(fields: [custodyMeterId], references: [id])
+  internalMeterId    String?
+  internalMeter      InternalFlowMeter?    @relation(fields: [internalMeterId], references: [id])
+
+  purchaseDate          DateTime?
+  commissioningDate     DateTime?
+  warrantyExpiry        DateTime?
+  criticality           String?     // A, B, C
+  safetyClassification  String?     // SIS, PROCESS, UTILITY
+  processConnection     String?     // 1/2" NPT, Flanged, etc.
+  mountingLocation      String?
+  drawingRef            String?     // P&ID reference
+  healthStatus          String      @default("OK") // OK, WARNING, CRITICAL
+
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  CalibrationEvent          CalibrationEvent[]
+  UnifiedCalibrationHistory UnifiedCalibrationHistory[]
+}
+
+model EquipmentType {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  category    String // STATIC, RUNNING
+  make        String?
+  model       String?
+  description String?
+
+  pmSchedules PMSchedule[]
+  equipment   RunningEquipmentMaster[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RunningEquipmentMaster {
+  equipmentTag    String  @id
+  category        String // STATIC, RUNNING
+  description     String
+  make            String?
+  model           String?
+  powerRating     String?
+  pmFrequencyDays Int? // PM frequency in days
+
+  // JSONB for flexible specifications
+  specifications    Json? // Voltage, RPM, Range, etc.
+  equipmentTypeName String?
+  serviceLine       String? // PT, TT, Motor, Pump, etc.
+
+  installationId String
+  installation   Installation @relation(fields: [installationId], references: [id])
+
+  equipmentTypeId String?
+  equipmentType   EquipmentType? @relation(fields: [equipmentTypeId], references: [id])
+
+  commissioningDate    DateTime?
+  warrantyExpiry       DateTime?
+  criticality          String?    // A, B, C
+  ratedPressure        Float?
+  ratedTemperature     Float?
+  ratedFlow            Float?
+  purchaseDate         DateTime?
+  mountingLocation     String?
+  drawingRef           String?    // P&ID reference
+  purchaseOrderNo      String?
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  logs             EquipmentLog[]
+  pmsInitialStates PMSInitialState[]
+}
+
+model CalibrationStandard {
+  tagId       String    @id
+  description String
+  make        String?
+  model       String?
+  category    String // Lab, Field
+  modelYear   Int?
+  lastCalDate DateTime?
+  dueDate     DateTime?
+  reportUrl   String?
+  parameters  Json? // Parameters this standard can calibrate
+  isActive    Boolean   @default(true)
+
+  calibrationLogs CalibrationLog[]
+
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  CalibrationEvent        CalibrationEvent[]
+  CalibrationTraceability CalibrationTraceability[]
+}
+
+model CalibrationLog {
+  id String @id @default(uuid())
+
+  instrumentTagId String
+  instrument      InstrumentMaster @relation(fields: [instrumentTagId], references: [tagId])
+
+  masterStdId    String
+  masterStandard CalibrationStandard @relation(fields: [masterStdId], references: [tagId])
+
+  lastCalDate    DateTime
+  currentCalDate DateTime
+  nextDueDate    DateTime
+  result         String // PASS, FAIL
+  performedBy    String
+  reportFileUrl  String?
+
+  fivePointData Json
+
+  createdAt DateTime @default(now())
+}
+
+model ReplacementHistory {
+  id String @id @default(uuid())
+
+  instrumentTagId String
+  instrument      InstrumentMaster @relation(fields: [instrumentTagId], references: [tagId])
+
+  oldSerialNo String?
+  newSerialNo String
+  replacedBy  String
+  date        DateTime @default(now())
+  reason      String?
+}
+
+model InstrumentType {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  pmSchedules PMSchedule[]
+  createdAt   DateTime     @default(now())
+}
+
+model MeterType {
+  id           String   @id @default(uuid())
+  name         String   @unique // Orifice, Turbine, Ultrasonic, Coriolis
+  configSchema Json // Dynamic fields configuration
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model CustodyTransferMeter {
+  id           String  @id @default(uuid())
+  meterId      String  @unique
+  customerId   String
+  customerName String
+  meterType    String? // Reference to MeterType.name
+  product      String?
+  fluidType    String  @default("LIQUID")
+
+  pipeSize    String?
+  elementSize String?
+  configData  Json? // Dynamic config based on MeterType
+  details     String?
+
+  instruments InstrumentMaster[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PMSchedule {
+  id              String @id @default(uuid())
+  frequency       String
+  taskDescription String
+
+  instrumentTypeId String?
+  instrumentType   InstrumentType? @relation(fields: [instrumentTypeId], references: [id], onDelete: Cascade)
+
+  equipmentTypeId String?
+  equipmentType   EquipmentType? @relation(fields: [equipmentTypeId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  alertLeadTime   Float             @default(50)
+  initialStates   PMSInitialState[]
+  maintenanceLogs MaintenanceLog[]
+}
+
+model InternalFlowMeter {
+  id          String  @id @default(uuid())
+  meterId     String  @unique
+  description String
+  location    String?
+  meterType   String? // Reference to MeterType.name
+  fluidType   String  @default("LIQUID")
+  product     String?
+
+  pipeSize    String?
+  elementSize String?
+  configData  Json? // Dynamic config based on MeterType
+
+  instruments InstrumentMaster[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- MASTER DATA TABLES ---
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CalibrationPerformer {
+  id             String   @id @default(uuid())
+  employeeId     String   @unique
+  name           String
+  employmentType String // Regular, Contractual
+  company        String   @default("ONGC")
+  designation    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// --- MAINTENANCE & REPORTS MODULE ---
+
+model Manpower {
+  id              String               @id @default(uuid())
+  employeeId      String               @unique
+  name            String
+  department      String // DS, Electrical, Mechanical
+  section         String? // Instrumentation, Power, Drilling
+  designation     String?
+  isActive        Boolean              @default(true)
+  maintenanceLogs MaintenanceLogTeam[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model MaintenanceLog {
+  id             String       @id @default(uuid())
+  date           DateTime
+  installationId String
+  installation   Installation @relation(fields: [installationId], references: [id])
+  department     String // DS, Electrical, Mechanical
+  section        String // Instrumentation, Power, Drilling
+
+  // Job Classification
+  jobType           String // PM, BD
+  reportCriticality Int // 1=Routine, 2=Significant(Monthly), 3=Critical(Annual)
+
+  // Job Details
+  equipmentTag      String? // Reference to equipment
+  equipmentTypeName String?
+  serviceLine       String? // INSTRUMENT or RUNNING_EQUIPMENT
+  notificationNo    String?
+  description       String
+
+  // Status & Time
+  status        String // Open, In Progress, Closed
+  startTime     DateTime
+  endTime       DateTime
+  durationHours Float
+  remarks       String?
+  assignedBy      String?  @default("System")
+  assignedAt      DateTime @default(now())
+
+  // BD-specific time fields (only used when jobType = BD)
+  bdReportTime      DateTime?
+  teamReportTime    DateTime?
+  jobCompletionTime DateTime?
+
+  // Team Assignment (many-to-many)
+  teamMembers MaintenanceLogTeam[]
+
+  createdBy     String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  pmsScheduleId String? // Link to specific PMS task
+  pmsSchedule   PMSchedule? @relation(fields: [pmsScheduleId], references: [id])
+}
+
+model MaintenanceLogTeam {
+  id               String         @id @default(uuid())
+  maintenanceLogId String
+  maintenanceLog   MaintenanceLog @relation(fields: [maintenanceLogId], references: [id], onDelete: Cascade)
+  manpowerId       String
+  manpower         Manpower       @relation(fields: [manpowerId], references: [id])
+
+  @@unique([maintenanceLogId, manpowerId])
+}
+
+// Note: BD-specific time fields added to MaintenanceLog
+// bdReportTime, teamReportTime, jobCompletionTime are used when jobType = 'BD'
+
+model EquipmentLog {
+  id    String   @id @default(uuid())
+  date  DateTime
+  shift String
+
+  equipmentTag String
+  equipment    RunningEquipmentMaster @relation(fields: [equipmentTag], references: [equipmentTag])
+
+  runStatus              Boolean
+  startTime              DateTime?
+  stopTime               DateTime?
+  totalRunHours          Float?
+  cumulativeMeterReading Float?
+
+  parameters Json?
+  remarks       String?
+  assignedBy      String?  @default("System")
+  assignedAt      DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GasCompressionLog {
+  id               String   @id @default(uuid())
+  date             DateTime
+  compressorId     String
+  installationId   String?
+  gasCompressed    Float?
+  runHours         Float?
+  flowRate         Float?
+  suctionPressure  Float?
+  dischargePressure Float?
+  suctionTemp      Float?
+  dischargeTemp    Float?
+  remarks          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model PMSInitialState {
+  id String @id @default(uuid())
+
+  equipmentTag String
+  equipment    RunningEquipmentMaster @relation(fields: [equipmentTag], references: [equipmentTag])
+
+  pmsScheduleId String
+  pmsSchedule   PMSchedule @relation(fields: [pmsScheduleId], references: [id])
+
+  initialLastDoneHours Float // The meter reading when it was last done before system start
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([equipmentTag, pmsScheduleId])
+}
+
+// ============================================================================
+// ISO 14224 ASSET HIERARCHY SYSTEM
+// ============================================================================
+
+// === HIERARCHY: Site → Area → System → Functional Location ===
+
+model Site {
+  id       String  @id @default(uuid())
+  siteId   String  @unique // e.g., "VAD-PLANT-A"
+  name     String
+  location String?
+  isActive Boolean @default(true)
+
+  areas Area[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Area {
+  id     String @id @default(uuid())
+  areaId String @unique // e.g., "UNIT-1"
+  name   String
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  systems System[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model System {
+  id        String @id @default(uuid())
+  systemTag String @unique // e.g., "FEED-WATER-SYS"
+  name      String
+  areaId    String
+  area      Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  functionalLocations FunctionalLocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FunctionalLocation {
+  id           String  @id @default(uuid())
+  flId         String  @unique // e.g., "P-101-M" (Motor slot)
+  name         String
+  description  String?
+  flType       String // 'SKID', 'POSITION', 'PROTECTION'
+  positionType String? // 'DRIVER', 'DRIVEN' for pairing
+
+  // Self-referencing hierarchy (Parent/Child)
+  parentFlId String?
+  parentFl   FunctionalLocation?  @relation("FL_Hierarchy", fields: [parentFlId], references: [id])
+  childFls   FunctionalLocation[] @relation("FL_Hierarchy")
+
+  // Link to System
+  systemId String
+  system   System @relation(fields: [systemId], references: [id], onDelete: Cascade)
+
+  // Current installed asset (denormalized for performance)
+  currentAssetId String?
+  currentAsset   Asset?  @relation("CurrentInstallation", fields: [currentAssetId], references: [id])
+
+  // Relations
+  installations          AssetInstallation[]
+  maintenanceAssignments MaintenancePlanAssignment[]
+  readings               OperationalReading[]
+  workOrders             WorkOrder[]
+
+  // Multi-Driver Skid Configuration relations
+  skidConfigurations SkidConfiguration[] @relation("SkidConfig")
+  asDriverIn         SkidDriveTrain[]    @relation("DriveTrainDriver")
+  asDrivenIn         SkidDriveTrain[]    @relation("DriveTrainDriven")
+  assetAssignments   FLAssetAssignment[] @relation("FLAssets")
+
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  AssignmentAuditLog AssignmentAuditLog[]
+}
+
+// === ASSETS (Physical Equipment with JSONB Specs) ===
+
+model Asset {
+  id           String  @id @default(uuid())
+  assetCode    String  @unique // Internal asset code
+  serialNumber String?
+  manufacturer String?
+  model        String?
+  modelYear    Int?
+
+  assetClass String // 'MOTOR', 'PUMP', 'COMPRESSOR', 'INSTRUMENT', etc.
+  status     String @default("IN_STORE") // IN_STORE, INSTALLED, REPAIR, SCRAPPED
+
+  // JSONB for flexible specifications
+  specifications Json? // Rating, voltage, kW, head, etc.
+
+  // Current location (denormalized for quick lookup)
+  currentFlId String?
+  currentFl   FunctionalLocation[] @relation("CurrentInstallation")
+
+  // Installation history
+  installations AssetInstallation[]
+
+  commissioningDate  DateTime?
+  warrantyExpiry     DateTime?
+  criticality        String?    // A, B, C
+  purchaseDate       DateTime?
+  nextInspectionDue  DateTime?
+  certifications     Json?      // {PESO: true, IBR: false, ATEX: true}
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AssetInstallation {
+  id String @id @default(uuid())
+
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  flId               String
+  functionalLocation FunctionalLocation @relation(fields: [flId], references: [id])
+
+  installDate DateTime
+  removalDate DateTime? // NULL if currently installed
+  installedBy String?
+  removedBy   String?
+  reason      String? // SCHEDULED_PM, FAILURE, UPGRADE
+
+  meterReadingAtInstall Float?
+  meterReadingAtRemoval Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([flId, installDate])
+  @@index([assetId, installDate])
+}
+
+// === MAINTENANCE STRATEGY LIBRARY ===
+
+model MaintenanceStrategy {
+  id          String  @id @default(uuid())
+  name        String  @unique // "MV Motor - Annual Service"
+  assetClass  String? // Applicable asset class
+  description String?
+  isActive    Boolean @default(true)
+
+  tasks       StrategyTask[]
+  assignments MaintenancePlanAssignment[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  RCMAnalysis RCMAnalysis[]
+}
+
+model StrategyTask {
+  id         String              @id @default(uuid())
+  strategyId String
+  strategy   MaintenanceStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  taskCode       String // "CHK-TERM", "MEG-TEST", "GRS-BRG"
+  description    String
+  sequence       Int     @default(0)
+  estimatedHours Float?
+  skillRequired  String? // ELECTRICAL, MECHANICAL, INSTRUMENTATION
+
+  createdAt DateTime @default(now())
+}
+
+model MaintenancePlanAssignment {
+  id String @id @default(uuid())
+
+  flId               String
+  functionalLocation FunctionalLocation @relation(fields: [flId], references: [id])
+
+  strategyId String
+  strategy   MaintenanceStrategy @relation(fields: [strategyId], references: [id])
+
+  triggerType   String // 'TIME', 'USAGE', 'CONDITION'
+  intervalValue Int // e.g., 6 (months) or 2000 (hours)
+  intervalUnit  String // 'MONTHS', 'DAYS', 'HOURS', 'KM'
+
+  lastDoneDate    DateTime?
+  lastDoneReading Float? // Meter reading when last done
+  nextDueDate     DateTime?
+  nextDueReading  Float?
+
+  alertLeadDays Int     @default(14) // Alert X days before due
+  isActive      Boolean @default(true)
+
+  workOrders WorkOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([flId, strategyId])
+}
+
+// === OPERATIONAL DATA ===
+
+model OperationalReading {
+  id String @id @default(uuid())
+
+  flId               String
+  functionalLocation FunctionalLocation @relation(fields: [flId], references: [id])
+
+  timestamp  DateTime @default(now())
+  metricType String // 'RUN_HOURS', 'AMPS', 'VIBRATION', 'TEMP'
+  value      Float
+  unit       String?
+
+  recordedBy String?
+  source     String  @default("MANUAL") // 'MANUAL', 'SCADA', 'IOT'
+
+  @@index([flId, metricType, timestamp])
+}
+
+// === WORK ORDERS (Execution & History) ===
+
+model WorkOrder {
+  id       String @id @default(uuid())
+  woNumber String @unique
+
+  flId               String
+  functionalLocation FunctionalLocation @relation(fields: [flId], references: [id])
+
+  assignmentId String?
+  assignment   MaintenancePlanAssignment? @relation(fields: [assignmentId], references: [id])
+
+  woType   String // 'PREVENTIVE', 'CORRECTIVE', 'PREDICTIVE'
+  priority String @default("NORMAL") // LOW, NORMAL, HIGH, EMERGENCY
+  status   String @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CLOSED
+
+  description    String
+  scheduledDate  DateTime?
+  startDate      DateTime?
+  completionDate DateTime?
+
+  // ISO 14224 Closing Codes
+  failureMode String? // BRD, LKG, STK, SHV, OHT, etc.
+  causeCode   String? // LUB, WER, OVL, AGE, etc.
+  actionTaken String? // REPLACE, REPAIR, ADJUST, CLEAN
+
+  meterReading Float? // Reading at close (for usage-based triggers)
+  labourHours  Float?
+  downtime     Float? // Hours of downtime
+
+  remarks       String?
+  assignedBy      String?  @default("System")
+  assignedAt      DateTime @default(now())
+  closedBy  String?
+  createdBy String
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  // ISO 14224 Relations
+  failureModeRel     FailureMode?      @relation("WOFailureMode", fields: [failureMode], references: [code])
+  mechanismRel       FailureMechanism? @relation("WOMechanism", fields: [failureMechanism], references: [code])
+  causeCodeRel       CauseCode?        @relation("WOCause", fields: [causeCode], references: [code])
+  actionCodeRel      ActionCode?       @relation("WOAction", fields: [actionTaken], references: [code])
+  failureMechanism   String?
+
+  maintenanceRequestId String?
+  teamMembers          WorkOrderTeam[]
+  checklist            WorkOrderChecklist[]
+
+  @@index([flId, status])
+  @@index([status, scheduledDate])
+}
+
+
+// === ISO 14224 REFERENCE TABLES ===
+
+model FailureMode {
+  code        String        @id // 'BRD', 'LKG', 'STK'
+  name        String // 'Bearing Damage', 'Leakage', 'Stuck'
+  description String?
+  category    String? // 'ROTATING', 'STATIC', 'ELECTRICAL', 'INSTRUMENT'
+  assetClass  String? // Applicable to specific classes
+  createdAt   DateTime      @default(now())
+  RCMAnalysis RCMAnalysis[]
+  workOrders  WorkOrder[]   @relation("WOFailureMode")
+}
+
+model FailureMechanism {
+  code        String   @id // 'WEA', 'FAT', 'COR', 'OVS'
+  name        String // 'Wear', 'Fatigue', 'Corrosion', 'Overstress'
+  description String?
+  category    String? // 'MECHANICAL', 'ELECTRICAL', 'PROCESS'
+  createdAt   DateTime @default(now())
+  workOrders  WorkOrder[] @relation("WOMechanism")
+}
+
+model CauseCode {
+  code        String   @id // 'LUB', 'WER', 'OVL'
+  name        String // 'Lubrication Failure', 'Wear', 'Overload'
+  description String?
+  category    String? // 'HUMAN', 'EQUIPMENT', 'EXTERNAL'
+  createdAt   DateTime @default(now())
+  workOrders  WorkOrder[] @relation("WOCause")
+}
+
+model ActionCode {
+  code        String   @id // 'REPLACE', 'REPAIR'
+  name        String
+  description String?
+  category    String? // 'CORRECTIVE', 'PREVENTIVE'
+  createdAt   DateTime @default(now())
+  workOrders  WorkOrder[] @relation("WOAction")
+}
+
+// ============================================================================
+// ISO 10012 CALIBRATION SYSTEM (Enhanced)
+// ============================================================================
+
+// CalibrationEvent: The certificate (As Found / As Left)
+model CalibrationEvent {
+  id            String @id @default(uuid())
+  certificateNo String @unique // Auto-generated CAL-2024-0001
+
+  // Links
+  instrumentTagId String
+  instrument      InstrumentMaster @relation(fields: [instrumentTagId], references: [tagId])
+
+  standardUsedId String
+  standardUsed   CalibrationStandard @relation(fields: [standardUsedId], references: [tagId])
+
+  // Dates
+  calibrationDate DateTime
+  previousCalDate DateTime?
+  nextDueDate     DateTime
+
+  // ISO 10012: Environmental Conditions (mandatory)
+  ambientTemp         Float? // Celsius
+  humidity            Float? // %RH
+  atmosphericPressure Float? // mbar
+
+  // Results
+  overallResultAsFound String // 'PASS', 'FAIL', 'OUT_OF_TOLERANCE'
+  overallResultAsLeft  String // 'PASS', 'FAIL', 'ADJUSTED'
+
+  maxErrorFoundPct Float? // Worst error found
+  maxErrorLeftPct  Float? // Worst error after adjustment
+
+  // Workflow
+  status         String  @default("COMPLETED") // DRAFT, IN_PROGRESS, COMPLETED, APPROVED
+  adjustmentMade Boolean @default(false)
+  repairRequired Boolean @default(false)
+
+  // Sign-off
+  performedBy  String
+  approvedBy   String?
+  approvalDate DateTime?
+
+  remarks       String?
+  assignedBy      String?  @default("System")
+  assignedAt      DateTime @default(now())
+  reportFileUrl String?
+
+  // Calibration Points (5-point or multi-point)
+  points CalibrationPoint[]
+
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  UnifiedCalibrationHistory UnifiedCalibrationHistory[]
+
+  @@index([instrumentTagId, calibrationDate])
+}
+
+// CalibrationPoint: The actual readings (As Found / As Left)
+model CalibrationPoint {
+  id String @id @default(uuid())
+
+  eventId String
+  event   CalibrationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  sequence    Int // 1, 2, 3, 4, 5
+  stepPercent Float // 0, 25, 50, 75, 100
+  direction   String @default("UP") // 'UP' or 'DOWN' (for hysteresis check)
+
+  // Input Applied (from standard)
+  inputApplied Float // The known value applied
+  inputUnit    String? // 'Bar', 'PSI', etc.
+
+  // Expected Reading (calculated from instrument range)
+  expectedReading Float // What the instrument SHOULD show
+  expectedUnit    String? // 'mA', 'Bar', etc.
+
+  // AS FOUND (before adjustment)
+  asFoundReading Float // Actual reading before touch
+  asFoundError   Float? // Calculated: |asFound - expected| / span * 100
+  asFoundResult  String? // 'PASS', 'FAIL' (auto-calculated)
+
+  // AS LEFT (after adjustment)
+  asLeftReading Float? // Only if adjustment was made
+  asLeftError   Float? // Calculated error
+  asLeftResult  String? // 'PASS', 'FAIL'
+
+  @@unique([eventId, sequence, direction])
+  @@index([eventId])
+}
+
+// ============================================================================
+// ISO 14224 FULL COMPLIANCE: 9-Level Taxonomy & Failure Coding
+// ============================================================================
+
+// ISO 14224 Hierarchy Level Reference
+model ISO14224Level {
+  id          Int     @id
+  name        String // Industry, Business Category, Installation, etc.
+  description String?
+  example     String? // Petrochemical, Upstream, Vadodara Plant A
+}
+
+// Enhanced Cause Code (Root cause - WHY it happened)
+// Already exists as CauseCode, keeping for backward compatibility
+
+// ============================================================================
+// SAE JA1011 RCM (Reliability Centered Maintenance) Analysis
+// ============================================================================
+
+model RCMAnalysis {
+  id String @id @default(uuid())
+
+  strategyId String
+  strategy   MaintenanceStrategy @relation(fields: [strategyId], references: [id])
+
+  // RCM Question 1: Functions
+  assetFunction String // "Pump 500m3/hr @ 40 bar"
+
+  // RCM Question 2: Functional Failures
+  functionalFailures String? // "Fails to pump, Low pressure output"
+
+  // RCM Question 3: Failure Modes (links to FailureMode table)
+  failureModeCode String?
+  failureMode     FailureMode? @relation(fields: [failureModeCode], references: [code])
+
+  // RCM Question 4: Failure Effects
+  failureEffects String? // "Production stop, 50K/hr loss"
+
+  // RCM Question 5: Consequences (Criticality)
+  consequence String // 'SAFETY', 'ENVIRONMENTAL', 'OPERATIONAL', 'NON_OPERATIONAL'
+  criticality String // 'A', 'B', 'C' (High/Medium/Low)
+
+  // RCM Question 6: Task Selection Justification
+  taskJustification String? // "Visual check selected because vibration monitoring too expensive"
+
+  // RCM Question 7: Interval Determination
+  intervalBasis String? // "P-F Interval = 6 months, Task interval = 3 months"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([strategyId])
+}
+
+// ============================================================================
+// CALIBRATION TRACEABILITY CHAIN (ISO 10012 Enhanced)
+// ============================================================================
+
+// Traceability Level for calibration chain
+// Level 1: National Standard (NIST/NPL)
+// Level 2: Reference Standard (External Lab)
+// Level 3: Working Standard (Your Fluke)
+// Level 4: Process Instrument
+
+model CalibrationTraceability {
+  id String @id @default(uuid())
+
+  standardId String
+  standard   CalibrationStandard @relation(fields: [standardId], references: [tagId])
+
+  traceabilityLevel Int // 1, 2, 3, or 4
+
+  // Parent in the traceability chain
+  parentStandardId String?
+
+  // Certificate from higher level
+  externalCertificateNo String?
+  externalLabName       String?
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================================
+// TIERED CALIBRATION SYSTEM (Hybrid Integration)
+// ============================================================================
+// Tier 1: AUTOMATED - Custody Transfer, Safety (SIS), Environmental (fiscal metering)
+// Tier 2: INTERNAL - Process Control, Utility Meters, Local Gauges
+
+// Unified Calibration History View
+// Merges both AUTOMATED external and INTERNAL calibration results
+model UnifiedCalibrationHistory {
+  id String @id @default(uuid())
+
+  instrumentTagId String
+  instrument      InstrumentMaster @relation(fields: [instrumentTagId], references: [tagId])
+
+  calDate      DateTime
+  resultStatus String // 'PASS', 'FAIL', 'OOT' (Out of Tolerance)
+
+  // The Hybrid Router
+  sourceSystem String // 'INTERNAL' or 'AUTOMATED'
+
+  // If INTERNAL - link to our CalibrationEvent
+  internalEventId String?
+  internalEvent   CalibrationEvent? @relation(fields: [internalEventId], references: [id])
+
+  // If AUTOMATED - external certificate reference
+  externalCertRef String? // Beamex Certificate ID
+  externalPdfLink String? // Link to Beamex-generated PDF
+
+  // Common fields
+  performedBy String?
+  maxError    Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([instrumentTagId, calDate])
+  @@index([sourceSystem])
+}
+
+// ============================================================================
+// SKID CONFIGURATION (Multi-Driver Support)
+// ============================================================================
+// Supports: 2 engines (A/B) driving 1 compressor, or 1 engine driving 2 compressors
+// This is a many-to-many relationship between driver FLs and driven FLs
+
+model SkidConfiguration {
+  id String @id @default(uuid())
+
+  // The parent skid (FL with type SKID)
+  skidFlId String
+  skidFl   FunctionalLocation @relation("SkidConfig", fields: [skidFlId], references: [id])
+
+  name     String // "K-101 Compressor Train A"
+  isActive Boolean @default(true)
+
+  // Drive Train Links (many-to-many through SkidDriveTrain)
+  driveTrains SkidDriveTrain[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([skidFlId])
+}
+
+model SkidDriveTrain {
+  id String @id @default(uuid())
+
+  skidConfigId String
+  skidConfig   SkidConfiguration @relation(fields: [skidConfigId], references: [id], onDelete: Cascade)
+
+  // Driver (Prime Mover) - can be ENGINE, MOTOR, TURBINE
+  driverFlId String
+  driverFl   FunctionalLocation @relation("DriveTrainDriver", fields: [driverFlId], references: [id])
+
+  // Driven (Load) - can be COMPRESSOR, GENERATOR, PUMP
+  drivenFlId String
+  drivenFl   FunctionalLocation @relation("DriveTrainDriven", fields: [drivenFlId], references: [id])
+
+  // Drive ratio / coupling info
+  couplingType String? // 'DIRECT', 'GEARBOX', 'BELT', 'CLUTCH'
+  gearRatio    Float? // e.g., 1.5:1
+  designation  String? // 'PRIMARY', 'STANDBY', 'TRAIN_A', 'TRAIN_B'
+
+  createdAt DateTime @default(now())
+
+  @@index([driverFlId])
+  @@index([drivenFlId])
+}
+
+// ============================================================================
+// ENGINE SPECIFICATIONS (Prime Mover Type)
+// ============================================================================
+
+model EngineRegistry {
+  id          String @id @default(uuid())
+  tagId       String @unique
+  description String
+
+  // Engine Classification
+  engineType String // 'RECIPROCATING', 'GAS_TURBINE', 'STEAM_TURBINE'
+  fuelType   String // 'NATURAL_GAS', 'DIESEL', 'DUAL_FUEL', 'STEAM'
+
+  // Manufacturer Info
+  manufacturer String?
+  model        String?
+  serialNo     String?
+
+  // Performance Specs
+  ratedPowerHP Float?
+  ratedPowerKW Float?
+  ratedRPM     Float?
+  cylinders    Int? // For reciprocating engines
+  displacement Float? // Liters
+
+  // Operating Conditions
+  fuelConsumption Float? // Nm3/hr or L/hr
+  oilCapacity     Float? // Liters
+  coolantType     String? // 'WATER', 'GLYCOL', 'AIR'
+
+  // Linked to FL
+  flId String?
+
+  status String @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([engineType])
+}
+
+// ============================================================================
+// FL ASSET ASSIGNMENT (Link Equipment/Instruments to Functional Locations)
+// ============================================================================
+// Supports: VFD → Motor → Pump trains, instrument mapping, driver/driven relationships
+
+model FLAssetAssignment {
+  id String @id @default(uuid())
+
+  // Functional Location link
+  flId String
+  fl   FunctionalLocation @relation("FLAssets", fields: [flId], references: [id], onDelete: Cascade)
+
+  // Asset Reference (from any registry)
+  assetType String // 'RUNNING_EQUIPMENT', 'INSTRUMENT', 'CUSTODY_METER', 'INTERNAL_METER'
+  assetTag  String // The tag from respective registry
+
+  // Function in the equipment train
+  function String // 'DRIVER', 'DRIVEN', 'CONTROLLER', 'SENSOR', 'PROTECTION'
+  trainId  String? // Groups assets in same train (e.g., "TRAIN_A", "BOOSTER")
+  sequence Int     @default(0) // Order in train: 1=VFD, 2=Motor, 3=Pump
+
+  // Position context for instruments
+  position String? // 'SUCTION', 'DISCHARGE', 'BEARING', 'SEAL', 'INLET', 'OUTLET'
+
+  isActive      Boolean  @default(true)
+  installedDate DateTime @default(now())
+  remarks       String?
+  assignedBy      String?  @default("System")
+  assignedAt      DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([flId, assetTag])
+  @@index([flId])
+  @@index([assetTag])
+}
+
+// ============================================================================
+// ASSIGNMENT AUDIT LOG (Tracking History of Changes)
+// ============================================================================
+
+model AssignmentAuditLog {
+  id String @id @default(uuid())
+
+  // Link to the specific assignment record (if it still exists) or just FL
+  flId String
+  fl   FunctionalLocation @relation(fields: [flId], references: [id], onDelete: Cascade)
+
+  action String // 'ASSIGN', 'UNASSIGN', 'REPLACE', 'MODIFY'
+
+  assetTag  String // Tag of the asset involved
+  assetType String
+
+  // For Replacement
+  previousAssetTag String?
+
+  performedBy String // User (Admin/Engineer)
+  role        String? // 'ADMIN', 'ENGINEER'
+  timestamp   DateTime @default(now())
+  reason      String?
+
+  details Json? // Snapshot of changes (before/after state)
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================================
+// TRAINING MODULE
+// ============================================================================
+
+model TrainingRecord {
+  id             String   @id @default(uuid())
+  installationId String
+  installation   Installation @relation("InstallationTrainings", fields: [installationId], references: [id])
+  
+  trainingType   String   // SAFETY, TECHNICAL, SOFT_SKILLS, INDUCTION, HSE
+  title          String
+  description    String?
+  
+  trainerId      String?
+  trainerName    String?  // External trainer name if not internal
+  
+  startDate      DateTime
+  endDate        DateTime
+  durationHours  Float?
+  
+  venue          String?
+  maxAttendees   Int?
+  
+  status         String   @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
+  
+  attendees      TrainingAttendee[]
+  
+  remarks        String?
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model TrainingAttendee {
+  id           String   @id @default(uuid())
+  trainingId   String
+  training     TrainingRecord @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  
+  employeeId   String
+  employeeName String
+  department   String?
+  
+  attended     Boolean  @default(false)
+  score        Float?   // Test score if applicable
+  certified    Boolean  @default(false)
+  
+  feedback     String?
+  
+  createdAt    DateTime @default(now())
+  
+  @@unique([trainingId, employeeId])
+}
+
+// ============================================================================
+// ENERGY DASHBOARD MODULE
+// ============================================================================
+
+model DailyEnergyLog {
+  id             String   @id @default(uuid())
+  installationId String
+  installation   Installation @relation("InstallationEnergyLogs", fields: [installationId], references: [id])
+  
+  date           DateTime
+  
+  // Fuel consumption
+  fuelType       String?  // DIESEL, NATURAL_GAS, LPG
+  fuelQuantity   Float?   // Liters or m³
+  fuelUnit       String?  // LITERS, CUBIC_METERS
+  fuelCost       Float?
+  
+  // Electrical consumption
+  electricityKwh Float?
+  electricityCost Float?
+  
+  // Generator runtime (if applicable)
+  generatorHours Float?
+  
+  remarks        String?
+  loggedBy       String
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([installationId, date])
+}
+
+model MonthlyElectricityBill {
+  id             String   @id @default(uuid())
+  installationId String
+  installation   Installation @relation("InstallationElectricBills", fields: [installationId], references: [id])
+  
+  month          Int      // 1-12
+  year           Int
+  
+  unitsConsumed  Float    // kWh
+  demandKva      Float?   // Maximum demand
+  
+  billAmount     Float
+  taxAmount      Float?
+  totalAmount    Float
+  
+  billNumber     String?
+  billDate       DateTime?
+  dueDate        DateTime?
+  paidDate       DateTime?
+  
+  status         String   @default("PENDING") // PENDING, PAID, OVERDUE
+  
+  remarks        String?
+  createdBy      String
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([installationId, month, year])
+}
+
+// ============================================================================
+// WORKSHOP JOB TRACKING MODULE
+// ============================================================================
+
+model WorkshopJob {
+  id             String   @id @default(uuid())
+  jobNumber      String   @unique
+  
+  shopType       String   // FABRICATION, DIESEL, MACHINE, ELECTRICAL
+  
+  installationId String?
+  
+  title          String
+  description    String?
+  
+  requestedBy    String
+  requestDate    DateTime
+  
+  priority       String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  
+  estimatedHours Float?
+  actualHours    Float?
+  
+  materialCost   Float?
+  laborCost      Float?
+  totalCost      Float?
+  
+  status         String   @default("PENDING") // PENDING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+  
+  assignedTo     String?
+  startDate      DateTime?
+  completedDate  DateTime?
+  
+  equipmentTag   String?
+  workOrderRef   String?
+  
+  remarks        String?
+  
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ============================================================================
+// MOH (MAJOR OVERHAUL) MODULE
+// ============================================================================
+
+model MOHRecord {
+  id               String   @id @default(uuid())
+  mohNumber        String   @unique
+  
+  installationId   String
+  equipmentId      String?  // Link to RunningEquipmentMaster
+  equipmentTag     String
+  equipmentName    String
+  
+  lastMOHDate      DateTime?
+  currentRunHours  Float?
+  dCheckInterval   Float?   // D check hours interval from PMS
+  nextMOHDue       DateTime?
+  
+  status           String   @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  priority         String   @default("NORMAL")  // LOW, NORMAL, HIGH, CRITICAL
+  
+  plannedStartDate DateTime?
+  actualStartDate  DateTime?
+  completedDate    DateTime?
+  
+  estimatedCost    Float?
+  actualCost       Float?
+  
+  procurementCaseId String?  // Link to procurement case
+  workOrderId       String?  // Link to work order
+  
+  scopeOfWork      String?
+  findings         String?
+  actionsTaken     String?
+  
+  assignedTo       String?
+  createdBy        String
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ============================================================================
+// COLLABORATION & FEEDBACK MODULE
+// ============================================================================
+
+model Discussion {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  category    String?  // GENERAL, TECHNICAL, SAFETY, IDEAS, etc.
+  
+  authorId    String
+  authorName  String
+  
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  
+  viewCount   Int      @default(0)
+  
+  replies     DiscussionReply[]
+  reactions   DiscussionReaction[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DiscussionReply {
+  id           String   @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  
+  parentId     String?  // For nested replies
+  
+  content      String
+  authorId     String
+  authorName   String
+  
+  reactions    ReplyReaction[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model DiscussionReaction {
+  id           String   @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  
+  userId       String
+  reactionType String   // LIKE, LOVE, HELPFUL, INSIGHTFUL
+  
+  createdAt    DateTime @default(now())
+  
+  @@unique([discussionId, userId])
+}
+
+model ReplyReaction {
+  id       String   @id @default(uuid())
+  replyId  String
+  reply    DiscussionReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  
+  userId   String
+  reactionType String
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([replyId, userId])
+}
+
+model Feedback {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String   // FEATURE, IMPROVEMENT, BUG, PROCESS
+  priority    String   @default("NORMAL")
+  
+  authorId    String
+  authorName  String
+  
+  status      String   @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, APPROVED, IMPLEMENTED, REJECTED
+  
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  
+  reactions   FeedbackReaction[]
+  comments    FeedbackComment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FeedbackReaction {
+  id         String   @id @default(uuid())
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  
+  userId     String
+  voteType   String   // UP, DOWN
+  
+  createdAt  DateTime @default(now())
+  
+  @@unique([feedbackId, userId])
+}
+
+model FeedbackComment {
+  id         String   @id @default(uuid())
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  
+  content    String
+  authorId   String
+  authorName String
+  
+  createdAt  DateTime @default(now())
+}
+
+// ============================================================================
+// STATIC EQUIPMENT (Vessels, Separators, Tanks)
+// ============================================================================
+
+model StaticEquipment {
+  id               String   @id @default(uuid())
+  tagNumber        String   @unique
+  name             String
+  
+  equipmentType    String   // VESSEL, SEPARATOR, TANK, HEAT_EXCHANGER, COLUMN, REACTOR
+  
+  installationId   String
+  functionalLocId  String?
+  
+  designPressure   Float?
+  designTemp       Float?
+  operatingPressure Float?
+  operatingTemp    Float?
+  
+  material         String?
+  capacity         Float?
+  capacityUnit     String?  // m³, BBL, L
+  
+  manufacturer     String?
+  serialNumber     String?
+  
+  installDate      DateTime?
+  lastInspection   DateTime?
+  nextInspection   DateTime?
+  
+  status           String   @default("OPERATIONAL") // OPERATIONAL, UNDER_MAINTENANCE, SHUTDOWN
+
+  remarks          String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ============================================================================
+// MAINTENANCE REQUEST (Work Order Initiation Workflow)
+// ============================================================================
+
+model MaintenanceRequest {
+  id          String @id @default(uuid())
+  reqNumber   String @unique
+
+  title       String
+  description String
+
+  equipmentTag String?
+  flId         String?
+  installationId String?
+
+  requestType  String // CORRECTIVE, PREVENTIVE, INSPECTION, MODIFICATION
+  priority     String @default("NORMAL") // LOW, NORMAL, HIGH, EMERGENCY
+
+  status       String @default("PENDING") // PENDING, APPROVED, REJECTED, CONVERTED, CANCELLED
+
+  requestedBy  String
+  requestedAt  DateTime @default(now())
+
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  workOrderId  String?
+
+  remarks      String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ============================================================================
+// WORK ORDER TEAM (People Involved in Work Orders)
+// ============================================================================
+
+model WorkOrderTeam {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  employeeId   String?
+  employeeName String
+  designation  String?
+  department   String?
+
+  role         String // SUPERVISOR, TECHNICIAN, HELPER, CONTRACTOR, SAFETY_OFFICER
+  isContractor Boolean @default(false)
+  companyName  String?
+
+  startTime    DateTime?
+  endTime      DateTime?
+  hoursWorked  Float?
+
+  remarks      String?
+
+  createdAt    DateTime @default(now())
+}
+
+// ============================================================================
+// WORK ORDER CHECKLIST (Tasks within Work Orders)
+// ============================================================================
+
+model WorkOrderChecklist {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  sequence    Int    @default(0)
+  taskCode    String?
+  description String
+
+  isCompleted Boolean  @default(false)
+  completedBy String?
+  completedAt DateTime?
+
+  remarks     String?
+
+  createdAt   DateTime @default(now())
+}
+
+// ============================================================================
+// CONTRACTS MODULE
+// ============================================================================
+
+model Contract {
+  id             String @id @default(uuid())
+  contractNumber String @unique
+
+  title          String
+  scope          String
+  workType       String // OPERATION, MAINTENANCE, CONSTRUCTION, INSPECTION, SUPPLY, CONSULTANCY
+
+  contractorName  String
+  contractorCode  String?
+  contactPerson   String?
+  contactEmail    String?
+  contactPhone    String?
+
+  contractValue   Float
+  currency        String @default("INR")
+  paymentTerms    String?
+
+  startDate       DateTime
+  endDate         DateTime
+
+  status          String @default("ACTIVE") // DRAFT, ACTIVE, COMPLETED, TERMINATED, EXPIRED, ON_HOLD
+
+  installationId  String?
+  departmentId    String?
+
+  documentRef     String?
+
+  ongcOfficer     String?
+  approvedBy      String?
+  approvalDate    DateTime?
+
+  remarks         String?
+  createdBy       String
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  milestones      ContractMilestone[]
+  documents       ContractDocument[]
+}
+
+model ContractMilestone {
+  id         String   @id @default(uuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+
+  dueDate     DateTime
+
+  paymentPct  Float?
+  paymentAmt  Float?
+
+  status      String @default("PENDING") // PENDING, COMPLETED, DELAYED, WAIVED
+  completedAt DateTime?
+
+  remarks     String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ContractDocument {
+  id         String   @id @default(uuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  title        String
+  docType      String // CONTRACT, AMENDMENT, INVOICE, BOQ, DRAWING, SAFETY
+  originalName String
+  storedName   String
+  filePath     String
+  fileSize     Int
+  mimeType     String?
+
+  uploadedBy  String
+  uploadedAt  DateTime @default(now())
+}
+
+// ============================================================================
+// PRESENTATIONS MODULE
+// ============================================================================
+
+model Presentation {
+  id          String @id @default(uuid())
+
+  title       String
+  category    String // SAFETY, TECHNICAL, MANAGEMENT, TRAINING, POLICY, OTHER
+  description String?
+
+  originalName String
+  storedName   String
+  filePath     String
+  fileSize     Int
+  mimeType     String?
+
+  author      String?
+  version     String?
+  tags        String[]
+
+  installationId String?
+  departmentId   String?
+
+  isPublic    Boolean @default(true)
+
+  uploadedBy  String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// --- MANUALS & DRAWINGS REPOSITORY ---
+
+model ManualFolder {
+  id         String   @id @default(uuid())
+  name       String
+  category   String   // mechanical, electrical, instrumentation
+  parentId   String?
+  parent     ManualFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children   ManualFolder[] @relation("FolderTree")
+  documents  RepositoryDocument[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model RepositoryDocument {
+  id              String   @id @default(uuid())
+  originalName    String
+  storedName      String
+  mimeType        String
+  extension       String?
+  size            Int
+  repositoryPath  String
+
+  folderId        String
+  folder          ManualFolder @relation(fields: [folderId], references: [id])
+
+  uploadedById    String?
+  uploadedBy      User?    @relation(fields: [uploadedById], references: [id])
+
+  uploadedAt      DateTime @default(now())
+}
+
+// ============================================================================
+// AUDIT OBSERVATIONS MODULE (Internal, QHSE, DGMS, OISD)
+// ============================================================================
+
+model AuditObservation {
+  id              String   @id @default(uuid())
+  observationNo   String   @unique
+
+  agency          String   // INTERNAL, QHSE, DGMS, OISD, OTHER
+  agencyName      String?  // Custom name if OTHER
+
+  auditDate       DateTime
+  installationId  String?
+  department      String?
+  service         String?  // DS, Electrical, Mechanical, Instrumentation, Production
+
+  category        String?  // SAFETY, PROCESS, EQUIPMENT, DOCUMENTATION, COMPLIANCE
+  severity        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+
+  observation     String
+  reference       String?  // Standard reference (e.g., "OISD-STD-154 Cl.4.3")
+
+  status          String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED, OVERDUE
+
+  targetDate      DateTime?
+  closedDate      DateTime?
+
+  reportedBy      String
+  assignedTo      String?
+
+  remarks         String?
+
+  actions         AuditAction[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agency, status])
+  @@index([installationId])
+  @@index([status])
+}
+
+model AuditAction {
+  id              String   @id @default(uuid())
+
+  observationId   String
+  observation     AuditObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+
+  actionNo        Int      // Sequential within observation
+  description     String
+
+  responsiblePerson String
+  department        String?
+
+  targetDate      DateTime
+  completedDate   DateTime?
+
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, OVERDUE
+
+  evidence        String?  // File reference or description of proof
+  verifiedBy      String?
+  verifiedAt      DateTime?
+
+  remarks         String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([observationId])
+  @@index([status])
+}
+
+// ============================================================================
+// NOTIFICATION SYSTEM
+// ============================================================================
+
+model Notification {
+  id           String   @id @default(uuid())
+
+  userId       String?  // NULL = broadcast to all
+  username     String?
+  role         String?
+
+  module       String   // PMS, WORKORDER, CALIBRATION, AUDIT, etc.
+  type         String   // PM_DUE, WO_CREATED, AUDIT_OBSERVATION, etc.
+  title        String
+  message      String
+
+  severity     String   @default("INFO") // INFO, MEDIUM, HIGH, CRITICAL
+
+  entityType   String?  // WorkOrder, AuditObservation, etc.
+  entityId     String?
+
+  status       String   @default("UNREAD") // UNREAD, READ
+  readAt       DateTime?
+
+  dedupeKey    String?  @unique
+  metadata     Json?
+  scheduledFor DateTime?
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId, status])
+  @@index([module])
+  @@index([status, createdAt])
+}
+
+// ============================================================================
+// ACTIVITY AUDIT LOG (System-wide tracking)
+// ============================================================================
+
+model ActivityAuditLog {
+  id        String   @id @default(uuid())
+
+  requestId  String?
+  userId     String?
+  username   String?
+  role       String?
+
+  module     String   // WORKORDER, CALIBRATION, PMS, AUDIT, etc.
+  action     String   // CREATE, UPDATE, DELETE, CLOSE, APPROVE
+  method     String?  // HTTP method
+  path       String?  // Request path
+
+  entityType String?  // WorkOrder, Presentation, etc.
+  entityId   String?
+
+  statusCode Int?
+  details    Json?    // Snapshot of changes
+
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([module, action])
+  @@index([userId])
+  @@index([createdAt])
+}
