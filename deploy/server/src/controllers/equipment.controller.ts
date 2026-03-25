@@ -310,13 +310,7 @@ export const getInstrumentHistory = async (req: Request, res: Response) => {
 // --- Running Equipment ---
 export const getRunningEquipment = async (req: Request, res: Response) => {
   try {
-    const { installationId, category } = req.query;
-    const where: any = {};
-    if (installationId) where.installationId = String(installationId);
-    if (category) where.category = String(category);
-
     const equip = await prisma.runningEquipmentMaster.findMany({
-      where,
       include: { installation: true, equipmentType: true },
       orderBy: { createdAt: 'desc' }
     });
@@ -622,5 +616,38 @@ export const deleteCategoryEquipment = async (req: Request, res: Response) => {
     res.json({ message: 'Deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete equipment' });
+  }
+};
+
+
+// ============================================================================
+// QR CODE GENERATION
+// ============================================================================
+
+export const getEquipmentQR = async (req: Request, res: Response) => {
+  try {
+    const QRCode = require('qrcode');
+    const { tag } = req.params;
+    const qrData = JSON.stringify({ type: 'equipment', tag, app: 'ONGC-MMS' });
+    const buffer = await QRCode.toBuffer(qrData, { type: 'png', width: 300, margin: 2 });
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate QR code' });
+  }
+};
+
+export const getInstrumentQR = async (req: Request, res: Response) => {
+  try {
+    const QRCode = require('qrcode');
+    const { tagId } = req.params;
+    const qrData = JSON.stringify({ type: 'instrument', tagId, app: 'ONGC-MMS' });
+    const buffer = await QRCode.toBuffer(qrData, { type: 'png', width: 300, margin: 2 });
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate QR code' });
   }
 };

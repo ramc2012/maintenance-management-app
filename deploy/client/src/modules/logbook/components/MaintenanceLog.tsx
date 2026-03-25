@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Input, Button, Select, DatePicker, message, Card, Statistic, Row, Col, Tabs, Empty } from 'antd';
-import { Search, Wrench, Zap, Filter, History } from 'lucide-react';
+import { Search, Wrench, Zap, Filter, History, Download } from 'lucide-react';
 import axios from 'axios';
 
 const { Option } = Select;
@@ -135,6 +135,20 @@ export const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ category = 'mech
             {installations.map(i => <Option key={i.id} value={i.id}>{i.installationId}</Option>)}
           </Select>
           <Input prefix={<Search className="w-4 h-4 text-gray-400" />} placeholder="Search..." className="w-40" />
+          <Button
+            icon={<Download className="w-4 h-4" />}
+            onClick={async () => {
+              try {
+                const params = filterInstallation ? `?installationId=${filterInstallation}` : '';
+                const res = await fetch(`/api/maintenance/logs/export${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+                if (!res.ok) throw new Error();
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `Maintenance_Logs_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
+                URL.revokeObjectURL(url);
+              } catch { message.error('Export failed'); }
+            }}
+          >Export</Button>
           {viewMode === 'equipment' && (
             <Button onClick={() => { setViewMode('all'); setSelectedEquipment(null); }}>
               Back to All

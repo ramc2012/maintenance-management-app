@@ -2,183 +2,143 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ShoppingCart, Activity, Users, BookOpen,
-  Wrench, BarChart2, Database, Package,
-  MessageSquare, FileText, GraduationCap, Zap, Hammer,
-  HelpCircle, Briefcase, Monitor, ClipboardList,
-  Settings, ThumbsUp, Shield,
+  Wrench, Clipboard, BarChart2, Database,
+  MessageSquare, FileText, GraduationCap, Zap, Hammer, HelpCircle,
+  ClipboardList, Briefcase, Monitor, BarChart, ClipboardCheck,
+  AlertTriangle, CheckCircle, Clock, TrendingUp
 } from "lucide-react";
-import { useTheme } from "../../../context/ThemeContext";
 import { Layout } from "../components/Layout";
+import { useAuth } from "../../../context/AuthContext";
+import { Tag } from "antd";
 
-interface AppTile {
-  id: string;
-  name: string;
-  icon: React.ElementType;
-  color: string;
-  bg: string;
-  link: string;
-  external?: boolean;
-}
+const token = () => localStorage.getItem('token');
+const jsonHeaders = () => ({ Authorization: `Bearer ${token()}` });
 
-// ── 5 × 4 = 20 tiles, organised by function ──────────────────────────────
-const APPS: AppTile[] = [
-  // Row 1 — Core Maintenance Operations
-  { id: "workorders",    name: "Work Orders",       icon: ClipboardList, color: "text-rose-600",    bg: "bg-rose-50",    link: "/workorders" },
-  { id: "assets",        name: "Equipment Master",  icon: Database,      color: "text-blue-600",    bg: "bg-blue-50",    link: "/assets" },
-  { id: "logbook",       name: "Digital Logbook",   icon: BookOpen,      color: "text-amber-600",   bg: "bg-amber-50",   link: "/logbooks" },
-  { id: "overhaul",      name: "Major Overhaul",    icon: Wrench,        color: "text-orange-600",  bg: "bg-orange-50",  link: "/moh" },
-  { id: "workshop",      name: "Workshop",          icon: Hammer,        color: "text-slate-600",   bg: "bg-slate-50",   link: "/workshop" },
-
-  // Row 2 — Inspection, Monitoring & Compliance
-  { id: "calibration",   name: "Calibration",       icon: Activity,      color: "text-cyan-600",    bg: "bg-cyan-50",    link: "/calibration" },
-  { id: "energy",        name: "Energy",            icon: Zap,           color: "text-yellow-500",  bg: "bg-yellow-50",  link: "/energy" },
-  { id: "manuals",       name: "Manuals & Drawings",icon: FileText,      color: "text-teal-600",    bg: "bg-teal-50",    link: "/manuals" },
-  { id: "training",      name: "Training",          icon: GraduationCap, color: "text-fuchsia-600", bg: "bg-fuchsia-50", link: "/training" },
-  { id: "reports",       name: "Reports",           icon: BarChart2,     color: "text-emerald-600", bg: "bg-emerald-50", link: "/reports" },
-  { id: "audit",         name: "Audit",             icon: Shield,        color: "text-red-600",     bg: "bg-red-50",     link: "/audit" },
-
-  // Row 3 — Procurement & Resources
-  { id: "procurement",   name: "Procurement",       icon: ShoppingCart,  color: "text-purple-600",  bg: "bg-purple-50",  link: "/procurement" },
-  { id: "stock",         name: "Stock & Inventory", icon: Package,       color: "text-indigo-600",  bg: "bg-indigo-50",  link: "/stock" },
-  { id: "contracts",     name: "Contracts",         icon: Briefcase,     color: "text-sky-600",     bg: "bg-sky-50",     link: "/contracts" },
-  { id: "manpower",      name: "Manpower",          icon: Users,         color: "text-pink-600",    bg: "bg-pink-50",    link: "/manpower" },
-  { id: "presentations", name: "Presentations",     icon: Monitor,       color: "text-violet-600",  bg: "bg-violet-50",  link: "/presentations" },
-
-  // Row 4 — Communication & System
-  { id: "collab",        name: "Collaboration",     icon: MessageSquare, color: "text-blue-500",    bg: "bg-blue-50",    link: "/collaboration" },
-  { id: "feedback",      name: "Feedback",          icon: ThumbsUp,      color: "text-teal-500",    bg: "bg-teal-50",    link: "/feedback" },
-  { id: "settings",      name: "Settings",          icon: Settings,      color: "text-gray-600",    bg: "bg-gray-100",   link: "/settings" },
+const ALL_APPS = [
+  { id: "assets", name: "Equipment Master", icon: Database, color: "text-blue-600", bg: "bg-blue-50", link: "/assets", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR'] },
+  { id: "workorders", name: "Work Orders", icon: ClipboardList, color: "text-teal-600", bg: "bg-teal-50", link: "/workorders", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "calibration", name: "Calibration", icon: Activity, color: "text-green-600", bg: "bg-green-50", link: "/calibration", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN'] },
+  { id: "logbook", name: "Digital Logbook", icon: BookOpen, color: "text-amber-600", bg: "bg-amber-50", link: "/logbooks", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "overhaul", name: "Major Overhaul", icon: Wrench, color: "text-orange-600", bg: "bg-orange-50", link: "/moh", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR'] },
+  { id: "workshop", name: "Workshop", icon: Hammer, color: "text-yellow-500", bg: "bg-yellow-50", link: "/workshop", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN'] },
+  { id: "inspections", name: "Inspections", icon: ClipboardCheck, color: "text-teal-700", bg: "bg-teal-50", link: "/inspections", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "kpis", name: "KPI Dashboard", icon: BarChart, color: "text-violet-600", bg: "bg-violet-50", link: "/kpis", roles: ['ADMIN', 'HOD', 'ENGINEER'] },
+  { id: "procurement", name: "Procurement", icon: ShoppingCart, color: "text-purple-600", bg: "bg-purple-50", link: "/procurement", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR'] },
+  { id: "contracts", name: "Contracts", icon: Briefcase, color: "text-blue-700", bg: "bg-blue-50", link: "/contracts", roles: ['ADMIN', 'HOD'] },
+  { id: "energy", name: "Energy", icon: Zap, color: "text-red-600", bg: "bg-red-50", link: "/energy", roles: ['ADMIN', 'HOD', 'ENGINEER'] },
+  { id: "stock", name: "Stock / MRP", icon: Clipboard, color: "text-indigo-600", bg: "bg-indigo-50", link: "/stock", roles: ['ADMIN', 'HOD', 'ENGINEER'] },
+  { id: "training", name: "Training", icon: GraduationCap, color: "text-cyan-600", bg: "bg-cyan-50", link: "/training", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "manpower", name: "Manpower", icon: Users, color: "text-pink-600", bg: "bg-pink-50", link: "/manpower", roles: ['ADMIN', 'HOD'] },
+  { id: "reports", name: "Reports", icon: BarChart2, color: "text-emerald-600", bg: "bg-emerald-50", link: "/reports", roles: ['ADMIN', 'HOD', 'ENGINEER'] },
+  { id: "collab", name: "Collaboration", icon: MessageSquare, color: "text-violet-600", bg: "bg-violet-50", link: "/collaboration", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "manuals", name: "Manuals & Drawings", icon: FileText, color: "text-teal-500", bg: "bg-teal-50", link: "/manuals", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "presentations", name: "Presentations", icon: Monitor, color: "text-orange-500", bg: "bg-orange-50", link: "/presentations", roles: ['ADMIN', 'HOD', 'ENGINEER'] },
 ];
 
-// Row labels shown as subtle dividers between groups
-const ROW_LABELS: Record<number, string> = {
-  0:  "Core Maintenance Operations",
-  5:  "Inspection, Monitoring & Compliance",
-  11: "Procurement & Resources",
-  16: "Communication & System",
-};
-
-const API = (import.meta as any).env?.VITE_API_URL || "http://localhost:3003/api";
+interface KPIStrip {
+  pmCompliance: number;
+  overdueWOs: number;
+  availability: number;
+  openWOs: number;
+}
 
 export const EnterpriseHub = () => {
-  const { themeMode } = useTheme();
-  const [moduleCounts, setModuleCounts] = useState<Record<string, number>>({});
+  const { user } = useAuth();
+  const role = user?.role || 'USER';
+  const [kpiStrip, setKpiStrip] = useState<KPIStrip | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    const headers = { Authorization: `Bearer ${token}` };
-
-    const fetchCounts = async () => {
-      const counts: Record<string, number> = {};
-      try {
-        const endpoints: [string, string][] = [
-          ['workorders', '/api/maintenance-requests'],
-          ['assets', '/api/equipment/running-equip'],
-          ['calibration', '/api/instruments'],
-          ['contracts', '/api/contracts'],
-          ['presentations', '/api/presentations'],
-          ['training', '/api/training'],
-          ['energy', '/api/energy/daily-logs'],
-          ['workshop', '/api/workshop'],
-          ['moh', '/api/moh'],
-          ['audit', '/api/audit/observations'],
-          ['manuals', '/api/manuals/repository'],
-        ];
-
-        await Promise.all(endpoints.map(async ([key, url]) => {
-          try {
-            const res = await fetch(`${API}${url}`, { headers });
-            if (res.ok) {
-              const data = await res.json();
-              if (Array.isArray(data)) counts[key] = data.length;
-              else if (data.data) counts[key] = data.pagination?.total || data.data.length;
-              else if (data.folders) counts[key] = data.folders.length;
-              else if (data.total !== undefined) counts[key] = data.total;
-              else if (data.requests) counts[key] = data.requests.length;
-            }
-          } catch {}
-        }));
-
-        setModuleCounts(counts);
-      } catch {}
-    };
-
-    fetchCounts();
+    // Fetch quick KPI summary for strip (last 30 days)
+    const from = new Date(Date.now() - 30 * 86400000).toISOString();
+    const to = new Date().toISOString();
+    fetch(`/api/kpi/summary?from=${from}&to=${to}`, { headers: jsonHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setKpiStrip({
+            pmCompliance: data.pmCompliance ?? 0,
+            overdueWOs: data.overdueWOs ?? 0,
+            availability: data.availability ?? 0,
+            openWOs: data.overdueList?.length ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
-  const isDark  = themeMode === "dark";
-  const isSepia = themeMode === "sepia";
 
-  const cardBg  = isDark ? "bg-gray-800 border-gray-700" : isSepia ? "bg-amber-100/60 border-amber-200" : "bg-white border-gray-200";
-  const titleCls = isDark ? "text-white" : isSepia ? "text-amber-900" : "text-gray-900";
-  const subCls   = isDark ? "text-gray-400" : isSepia ? "text-amber-700" : "text-gray-500";
-  const labelCls = isDark ? "text-gray-500" : isSepia ? "text-amber-600" : "text-gray-400";
-
-  const renderTile = (app: AppTile) => {
-    const inner = (
-      <>
-        {moduleCounts[app.id] > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold shadow-sm">
-            {moduleCounts[app.id] > 999 ? '999+' : moduleCounts[app.id]}
-          </span>
-        )}
-        <div className={`p-3 rounded-xl ${app.bg} mb-3 group-hover:scale-110 transition-transform duration-200`}>
-          <app.icon className={`w-7 h-7 ${app.color}`} />
-        </div>
-        <span className={`text-xs font-semibold text-center leading-tight ${titleCls}`}>{app.name}</span>
-      </>
-    );
-    const cls = `relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer ${cardBg}`;
-
-    return app.external ? (
-      <a key={app.id} href={app.link} target="_blank" rel="noopener noreferrer" className={cls}>
-        {inner}
-      </a>
-    ) : (
-      <Link key={app.id} to={app.link} className={cls}>
-        {inner}
-      </Link>
-    );
-  };
+  // Filter apps visible for this role
+  const visibleApps = ALL_APPS.filter(app => app.roles.includes(role));
 
   return (
     <Layout>
-      {/* Page scrolls inside Layout's <main> */}
-      <div className="p-6 max-w-screen-xl mx-auto w-full">
-
-        {/* ── Header ──────────────────────────────────────────── */}
-        <div className={`flex items-center justify-between mb-6 pb-5 border-b ${isDark ? "border-gray-700" : isSepia ? "border-amber-200" : "border-gray-200"}`}>
-          <div className="flex items-center gap-4">
-            <img src="/ongc_logo.jpg" alt="ONGC" className="w-14 h-14 object-contain flex-none" />
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <img src="/ongc_logo.jpg" alt="ONGC" className="w-20 h-20 object-contain" />
             <div>
-              <h1 className={`text-xl font-bold leading-tight ${titleCls}`}>
-                Maintenance Information System
-              </h1>
-              <p className="text-sm font-semibold text-red-600 mt-0.5">ONGC · Ankleshwar Asset</p>
-              <p className={`text-xs mt-0.5 ${subCls}`}>Integrated Operations & Maintenance Platform</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Maintenance Management System</h1>
+              <p className="text-lg text-red-600 font-semibold mt-1">ONGC Ankleshwar Asset</p>
+              <p className="text-gray-500">Integrated platform for maintenance operations</p>
             </div>
           </div>
-          <a
-            href="/help.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors border border-purple-200 dark:border-purple-700 text-sm font-medium"
-          >
-            <HelpCircle className="w-4 h-4" /> User Guide
-          </a>
+          <div className="flex items-center gap-3">
+            {user && (
+              <div className="text-right">
+                <div className="text-sm font-semibold text-gray-700 dark:text-gray-200">{user.username}</div>
+                <Tag color="blue" className="text-xs">{role}</Tag>
+              </div>
+            )}
+            <a
+              href="/help.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors border border-purple-200 dark:border-purple-700"
+            >
+              <HelpCircle className="w-5 h-5" />
+              <span className="text-sm font-medium">User Guide</span>
+            </a>
+          </div>
         </div>
 
-        {/* ── Tile grid with section labels ───────────────────── */}
-        <div className="space-y-5">
-          {[0, 5, 10, 15].map((startIdx) => (
-            <div key={startIdx}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${labelCls}`}>
-                {ROW_LABELS[startIdx]}
-              </p>
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                {APPS.slice(startIdx, startIdx + 5).map(renderTile)}
+        {/* KPI Strip — visible for ADMIN/HOD/ENGINEER */}
+        {kpiStrip && ['ADMIN', 'HOD', 'ENGINEER'].includes(role) && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'PM Compliance', value: `${kpiStrip.pmCompliance.toFixed(1)}%`, icon: CheckCircle, color: 'bg-green-500', good: kpiStrip.pmCompliance >= 80 },
+              { label: 'Equipment Availability', value: `${kpiStrip.availability.toFixed(1)}%`, icon: TrendingUp, color: 'bg-blue-500', good: kpiStrip.availability >= 90 },
+              { label: 'Overdue WOs', value: kpiStrip.overdueWOs, icon: AlertTriangle, color: 'bg-red-500', good: kpiStrip.overdueWOs === 0 },
+              { label: 'Avg Response Time', value: '—', icon: Clock, color: 'bg-amber-500', good: null },
+            ].map(item => (
+              <Link key={item.label} to="/kpis" className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+                <div className={`p-2 rounded-lg ${item.color}`}>
+                  <item.icon className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-white">{item.value}</div>
+                  <div className="text-xs text-gray-500">{item.label}</div>
+                </div>
+                {item.good !== null && (
+                  <div className={`ml-auto w-2 h-2 rounded-full ${item.good ? 'bg-green-500' : 'bg-red-500'}`} />
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* App Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          {visibleApps.map((app) => (
+            <Link
+              key={app.id}
+              to={app.link}
+              className="flex flex-col items-center justify-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow group"
+            >
+              <div className={`p-4 rounded-full ${app.bg} dark:bg-opacity-10 mb-4 group-hover:scale-110 transition-transform`}>
+                <app.icon className={`w-8 h-8 ${app.color}`} />
               </div>
-            </div>
+              <h3 className="font-semibold text-gray-900 dark:text-white text-center">{app.name}</h3>
+            </Link>
           ))}
         </div>
       </div>

@@ -3,7 +3,7 @@ import {
   getCalibrationEvents, getCalibrationEventById, createCalibrationEvent, updateCalibrationEvent,
   addCalibrationPoint, addMultiplePoints, calculateResults,
   approveEvent, getDueInstruments, getOverdueInstruments,
-  getCertificate, generate5PointTemplate
+  getCertificate, generate5PointTemplate, exportCalibrationEvents
 } from '../controllers/calibration.controller';
 
 const router = Router();
@@ -31,6 +31,9 @@ router.get('/certificate/:id', getCertificate);
 
 // Template Generator
 router.get('/template', generate5PointTemplate);
+
+// Excel Export
+router.get('/export', exportCalibrationEvents);
 
 export default router;
 

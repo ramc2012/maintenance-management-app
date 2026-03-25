@@ -46,7 +46,9 @@ import {
   getEquipmentByCategory,
   createCategoryEquipment,
   updateCategoryEquipment,
-  deleteCategoryEquipment
+  deleteCategoryEquipment,
+  getEquipmentQR,
+  getInstrumentQR,
 } from '../controllers/equipment.controller';
 
 const router = Router();
@@ -125,5 +127,9 @@ router.get('/category/:category', getEquipmentByCategory);
 router.post('/category', createCategoryEquipment);
 router.put('/category/:id', updateCategoryEquipment);
 router.delete('/category/:id', deleteCategoryEquipment);
+
+// QR Codes
+router.get('/qr/:tag', getEquipmentQR);
+router.get('/instruments/:tagId/qr', getInstrumentQR);
 
 export default router;

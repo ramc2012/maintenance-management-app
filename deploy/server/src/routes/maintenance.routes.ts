@@ -8,19 +8,16 @@ import {
   updateManpower,
   getMonthlyReportLogs,
   getAnnualReportLogs,
-  getEquipmentMaintenanceHistory
+  exportMaintenanceLogs,
 } from '../controllers/maintenance.controller';
 
 const router = Router();
 
 // Maintenance Logs
 router.get('/logs', getMaintenanceLogs);
+router.get('/logs/export', exportMaintenanceLogs);
 router.post('/logs', createMaintenanceLog);
 router.put('/logs/:id', updateMaintenanceLog);
-
-// Unified equipment maintenance history (instruments + running equipment)
-// GET /api/maintenance/equipment/:tag/history
-router.get('/equipment/:tag/history', getEquipmentMaintenanceHistory);
 
 // Manpower
 router.get('/manpower', getManpower);

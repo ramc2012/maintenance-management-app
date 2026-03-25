@@ -30,25 +30,21 @@ import workshopRoutes from "./routes/workshop.routes";
 import mohRoutes from "./routes/moh.routes";
 import collaborationRoutes from "./routes/collaboration.routes";
 import staticEquipmentRoutes from "./routes/staticEquipment.routes";
+import contractRoutes from './routes/contracts.routes';
+import presentationRoutes from './routes/presentations.routes';
+import maintenanceRequestRoutes from './routes/maintenanceRequest.routes';
 
-// New Modules: Contracts, Presentations, Maintenance Requests, Manuals
-import contractRoutes from "./routes/contracts.routes";
-import presentationRoutes from "./routes/presentations.routes";
-import maintenanceRequestRoutes from "./routes/maintenanceRequest.routes";
-import manualsRoutes from "./routes/manuals.routes";
-
-// Logbook extended routes
-import logbookExtRoutes from "./routes/logbookExt.routes";
-
-// Audit, Notification, Auto-WO
-import auditRoutes from "./routes/audit.routes";
-import notificationRoutes from "./routes/notification.routes";
-import autoWORoutes from "./routes/autoWO.routes";
-
-import { authenticateToken } from './middleware/auth';
+// New Gap-Closure Routes
+import notificationRoutes from './routes/notification.routes';
+import auditRoutes from './routes/audit.routes';
+import kpiRoutes from './routes/kpi.routes';
+import inspectionRoutes from './routes/inspection.routes';
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import cron from 'node-cron';
+import { sweepNotifications, getNotificationSweepCron } from './services/notificationService';
+import { runPMAutoScheduler } from './services/pmSchedulerService';
 
 dotenv.config();
 
@@ -68,7 +64,6 @@ app.use('/api/org', orgRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/equipment-logs', logbookRoutes);
-app.use('/api/logbook', logbookExtRoutes);
 
 // ISO 14224 Asset Hierarchy Routes
 app.use('/api/fl', flRoutes);
@@ -90,17 +85,20 @@ app.use('/api/workshop', workshopRoutes);
 app.use('/api/moh', mohRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/static-equipment', staticEquipmentRoutes);
-
-// New Modules
 app.use('/api/contracts', contractRoutes);
 app.use('/api/presentations', presentationRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestRoutes);
-app.use('/api/manuals', manualsRoutes);
 
-// Audit, Notification & Auto-WO
-app.use('/api/audit', auditRoutes);
+// Gap-Closure Routes
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/auto-wo', autoWORoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/kpi', kpiRoutes);
+app.use('/api/inspections', inspectionRoutes);
+
+// Static file serving for WO attachments
+app.use('/storage/wo-attachments', express.static(
+  process.env.WO_STORAGE_PATH || require('path').join(process.cwd(), 'storage', 'wo-attachments')
+));
 
 const seedAdmin = async () => {
     const userCount = await prisma.user.count();
@@ -121,6 +119,19 @@ const seedAdmin = async () => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   seedAdmin();
+
+  // Start notification sweep cron (default: every 30 minutes)
+  const sweepCron = getNotificationSweepCron();
+  cron.schedule(sweepCron, () => {
+    sweepNotifications().catch(err => console.error('[Notification Sweep] Error:', err));
+  });
+  console.log(`[Cron] Notification sweep scheduled: ${sweepCron}`);
+
+  // Start PM auto-scheduler (daily at 6:00 AM)
+  cron.schedule('0 6 * * *', () => {
+    runPMAutoScheduler().catch(err => console.error('[PM Scheduler] Error:', err));
+  });
+  console.log('[Cron] PM auto-scheduler scheduled: daily at 06:00');
 });
 
 export default app;

@@ -137,6 +137,20 @@ export const CalibrationRecords: React.FC = () => {
             <p className="text-gray-400 text-sm">Browse all calibration certificates</p>
           </div>
         </div>
+        <Button
+          icon={<Download className="w-4 h-4" />}
+          onClick={async () => {
+            try {
+              const res = await fetch('/api/calibration/export', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+              if (!res.ok) throw new Error();
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = `Calibration_Records_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
+              URL.revokeObjectURL(url);
+            } catch { alert('Export failed'); }
+          }}
+        >Export Excel</Button>
       </div>
 
       {/* Filters */}

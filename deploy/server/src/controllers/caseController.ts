@@ -6,11 +6,11 @@ const prisma = new PrismaClient();
 export const getCases = async (req: Request, res: Response) => {
   try {
     const { type, departmentId } = req.query;
-
+    
     const where: any = {};
     if (type) where.type = type;
     if (departmentId) where.departmentId = departmentId;
-
+    
     const cases = await prisma.case.findMany({
       where,
       include: {
@@ -57,7 +57,7 @@ export const getCaseById = async (req: Request, res: Response) => {
 };
 
 export const createCase = async (req: Request, res: Response) => {
-  const { title, type, vendor, prValue, poValue, currency, prNumber, poNumber, sanctionFileNumber, tenderingFileNumber, procurementMethod, category, value, createdAt, departmentId, vendorCode, tag, processedBy } = req.body;
+  const { title, type, vendor, prValue, poValue, currency, prNumber, poNumber, sanctionFileNumber, tenderingFileNumber, procurementMethod, category, value, createdAt, departmentId, vendorCode, tag, processedBy, equipmentTag, maintenanceRelated } = req.body;
 
   // Strict Auth Check
   if (!(req as any).user || !(req as any).user.username) {
@@ -88,6 +88,8 @@ export const createCase = async (req: Request, res: Response) => {
         tag,
         processedBy,
         departmentId: departmentId || null,
+        equipmentTag: equipmentTag || null,
+        maintenanceRelated: maintenanceRelated === true || maintenanceRelated === 'true',
         createdAt: createdAt ? new Date(createdAt) : new Date(),
       },
     });
@@ -101,7 +103,7 @@ export const createCase = async (req: Request, res: Response) => {
 export const addComment = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { content, effectiveDate } = req.body;
-  const userId = (req as any).user.id;
+  const userId = (req as any).user.id; 
 
   try {
     const caseItem = await prisma.case.findUnique({ where: { id } });
@@ -121,7 +123,7 @@ export const addComment = async (req: Request, res: Response) => {
         },
       },
     });
-
+    
     // Update case timestamp
     await prisma.case.update({
         where: { id },
@@ -167,8 +169,16 @@ export const updateStage = async (req: Request, res: Response) => {
 export const deleteCase = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    await prisma.caseComment.deleteMany({ where: { caseId: id } });
-    await prisma.case.delete({ where: { id } });
+    // First delete all comments associated with the case
+    await prisma.caseComment.deleteMany({
+      where: { caseId: id },
+    });
+
+    // Then delete the case itself
+    await prisma.case.delete({
+      where: { id },
+    });
+
     res.json({ message: "Case deleted successfully" });
   } catch (error) {
     console.error("Error deleting case:", error);
@@ -178,7 +188,7 @@ export const deleteCase = async (req: Request, res: Response) => {
 
 export const updateCase = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { vendor, prValue, poValue, currency, prNumber, poNumber, sanctionFileNumber, tenderingFileNumber, procurementMethod, category, value } = req.body;
+    const { vendor, prValue, poValue, currency, prNumber, poNumber, sanctionFileNumber, tenderingFileNumber, procurementMethod, category, value, equipmentTag, maintenanceRelated } = req.body;
 
     try {
         const updatedCase = await prisma.case.update({
@@ -194,7 +204,9 @@ export const updateCase = async (req: Request, res: Response) => {
                 tenderingFileNumber,
                 procurementMethod,
                 category,
-                value: value ? parseFloat(value) : null
+                value: value ? parseFloat(value) : null,
+                equipmentTag: equipmentTag || null,
+                maintenanceRelated: maintenanceRelated === true || maintenanceRelated === 'true',
             }
         });
         res.json(updatedCase);
@@ -204,104 +216,83 @@ export const updateCase = async (req: Request, res: Response) => {
     }
 };
 
-const CASE_TYPES = ["STORES", "SPARES", "SERVICES", "CAPITAL", "PETTY"];
-
-function computeCaseValue(c: { type: string; currentStage: string; value: number | null; poValue: number | null; prValue: number | null }): number {
-  if (c.type === "PETTY") return c.value || 0;
-  const isPostPO = ["PO Released", "QCC", "GRV", "Payment", "Closed", "Receipt"].includes(c.currentStage);
-  return isPostPO ? (c.poValue || 0) : (c.prValue || 0);
-}
-
 export const getDashboardAnalytics = async (req: Request, res: Response) => {
     try {
-        const { departmentId } = req.query;
         const today = new Date();
         const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
+        const currentMonth = today.getMonth(); // 0-11
 
+        // Financial Year Calculation (Apr 1 - Mar 31)
         let startYear = currentYear;
-        if (currentMonth < 3) startYear = currentYear - 1;
+        if (currentMonth < 3) { // Jan, Feb, Mar
+            startYear = currentYear - 1;
+        }
+        
+        const startDate = new Date(startYear, 3, 1); // April 1st
+        const endDate = new Date(startYear + 1, 2, 31, 23, 59, 59); // March 31st
 
-        const startDate = new Date(startYear, 3, 1);
-        const endDate = new Date(startYear + 1, 2, 31, 23, 59, 59);
-
-        const where: any = { createdAt: { gte: startDate, lte: endDate } };
-        if (departmentId) where.departmentId = departmentId as string;
-
+        // Fetch all cases created in this FY
         const cases = await prisma.case.findMany({
-            where,
-            include: { department: true }
+            where: {
+                createdAt: {
+                    gte: startDate,
+                    lte: endDate
+                }
+            }
         });
 
-        // --- Summary counters ---
+        // 1. Active vs Closed
         let activeCount = 0;
         let closedCount = 0;
-        const valueBreakdown: Record<string, number> = { STORES: 0, SPARES: 0, CAPITAL: 0, SERVICES: 0, PETTY: 0 };
 
-        // --- Department breakdown: { [deptId]: { name, countByType, valueByType } } ---
-        const deptMap: Record<string, {
-            name: string;
-            countByType: Record<string, number>;
-            valueByType: Record<string, number>;
-        }> = {};
+        // 2. Value Breakdown
+        const valueBreakdown: Record<string, number> = {
+            "STORES": 0,
+            "SPARES": 0,
+            "CAPITAL": 0,
+            "SERVICES": 0,
+            "PETTY": 0
+        };
 
-        // --- Asset (tag) breakdown: { [tag]: { countByType, valueByType } } ---
-        const assetMap: Record<string, {
-            countByType: Record<string, number>;
-            valueByType: Record<string, number>;
-        }> = {};
+        const PO_STAGES = ["PO Released", "QCC", "GRV", "Payment", "Closed", "Receipt"]; // Receipt is for Petty
 
         cases.forEach(c => {
-            const caseValue = computeCaseValue(c);
-
-            // Summary
-            if (c.currentStage === "Closed") closedCount++;
-            else activeCount++;
-
-            if (valueBreakdown[c.type] !== undefined) valueBreakdown[c.type] += caseValue;
-
-            // Department breakdown
-            if (c.departmentId && c.department) {
-                if (!deptMap[c.departmentId]) {
-                    deptMap[c.departmentId] = {
-                        name: c.department.name,
-                        countByType: {},
-                        valueByType: {}
-                    };
-                }
-                const d = deptMap[c.departmentId];
-                d.countByType[c.type] = (d.countByType[c.type] || 0) + 1;
-                d.valueByType[c.type] = (d.valueByType[c.type] || 0) + caseValue;
+            // Count Status
+            if (c.currentStage === "Closed") {
+                closedCount++;
+            } else {
+                activeCount++;
             }
 
-            // Asset (tag) breakdown
-            if (c.tag) {
-                if (!assetMap[c.tag]) {
-                    assetMap[c.tag] = { countByType: {}, valueByType: {} };
+            // Calculate Value
+            let caseValue = 0;
+            if (c.type === "PETTY") {
+                caseValue = c.value || 0;
+            } else {
+                // For other types: Use PO Value if stage >= PO Released, else PR Value
+                
+                const isPostPO = ["PO Released", "QCC", "GRV", "Payment", "Closed"].includes(c.currentStage);
+                
+                if (isPostPO) {
+                    caseValue = c.poValue || 0;
+                } else {
+                    caseValue = c.prValue || 0;
                 }
-                const a = assetMap[c.tag];
-                a.countByType[c.type] = (a.countByType[c.type] || 0) + 1;
-                a.valueByType[c.type] = (a.valueByType[c.type] || 0) + caseValue;
+            }
+
+            // Add to breakdown
+            if (valueBreakdown[c.type] !== undefined) {
+                valueBreakdown[c.type] += caseValue;
+            } else {
+                valueBreakdown[c.type] = (valueBreakdown[c.type] || 0) + caseValue;
             }
         });
-
-        const departmentBreakdown = Object.entries(deptMap).map(([id, data]) => ({ id, ...data }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        const assetBreakdown = Object.entries(assetMap).map(([tag, data]) => ({ tag, ...data }))
-            .sort((a, b) => {
-                const totalA = Object.values(a.valueByType).reduce((s, v) => s + v, 0);
-                const totalB = Object.values(b.valueByType).reduce((s, v) => s + v, 0);
-                return totalB - totalA;
-            });
 
         res.json({
             fy: `${startYear}-${startYear + 1}`,
             activeCount,
             closedCount,
-            valueBreakdown,
-            departmentBreakdown,
-            assetBreakdown
+            valueBreakdown
         });
 
     } catch (error) {

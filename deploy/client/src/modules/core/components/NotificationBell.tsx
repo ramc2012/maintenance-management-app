@@ -1,306 +1,124 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Badge, Popover, List, Button, Tag, Typography, Empty, Spin } from 'antd';
-import { Bell, Check, CheckCheck, Clock } from 'lucide-react';
-import axios from 'axios';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Badge, Dropdown, List, Tag, Button, Spin, Empty } from 'antd';
+import { Bell, CheckCheck, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 
-dayjs.extend(relativeTime);
+const API = '/api/notifications';
+const token = () => localStorage.getItem('token');
+const jsonHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` });
 
-const { Text, Title } = Typography;
-
-interface Notification {
-  id: string;
-  module: string;
-  type: string;
-  title: string;
-  message: string;
-  severity: string;
-  status: string;
-  createdAt: string;
-  entityType?: string;
-  entityId?: string;
-}
-
-const SEVERITY_COLORS: Record<string, string> = {
-  INFO: 'blue',
-  MEDIUM: 'gold',
-  HIGH: 'orange',
-  CRITICAL: 'red',
+const SEVERITY_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
+  HIGH: { color: 'red', icon: <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> },
+  MEDIUM: { color: 'orange', icon: <AlertCircle className="w-3.5 h-3.5 text-orange-500" /> },
+  INFO: { color: 'blue', icon: <Info className="w-3.5 h-3.5 text-blue-500" /> },
 };
-
-const MODULE_COLORS: Record<string, string> = {
-  maintenance: 'purple',
-  assets: 'cyan',
-  inventory: 'green',
-  procurement: 'geekblue',
-  users: 'magenta',
-  reports: 'volcano',
-  scheduling: 'lime',
-  dashboard: 'blue',
-};
-
-const POLL_INTERVAL = 60_000;
 
 export const NotificationBell: React.FC = () => {
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [open, setOpen] = useState<boolean>(false);
-  const [markingAllRead, setMarkingAllRead] = useState<boolean>(false);
-  const [readingIds, setReadingIds] = useState<Set<string>>(new Set());
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const { data } = await axios.get<{ count: number }>('/api/notifications/unread-count');
-      setUnreadCount(data.count);
-    } catch {
-      // silently ignore polling errors
-    }
-  }, []);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}?status=UNREAD&limit=20`, { headers: jsonHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const items = Array.isArray(data.notifications) ? data.notifications : Array.isArray(data) ? data : [];
+      setNotifications(items);
+      setUnreadCount(items.length);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const markRead = async (id: string) => {
+    try {
+      await fetch(`${API}/${id}/read`, { method: 'PATCH', headers: jsonHeaders() });
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {}
+  };
+
+  const markAllRead = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get<{ data: Notification[]; pagination: unknown }>(
-        '/api/notifications',
-        { params: { pageSize: 20 } }
-      );
-      setNotifications(data.data);
-    } catch {
-      // keep existing list on error
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const markAsRead = useCallback(async (id: string) => {
-    setReadingIds((prev) => new Set(prev).add(id));
-    try {
-      await axios.post(`/api/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, status: 'READ' } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch {
-      // ignore
-    } finally {
-      setReadingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-  }, []);
-
-  const markAllAsRead = useCallback(async () => {
-    setMarkingAllRead(true);
-    try {
-      await axios.post('/api/notifications/read-all');
-      setNotifications((prev) => prev.map((n) => ({ ...n, status: 'READ' })));
+      await fetch(`${API}/read-all`, { method: 'PATCH', headers: jsonHeaders() });
+      setNotifications([]);
       setUnreadCount(0);
-    } catch {
-      // ignore
-    } finally {
-      setMarkingAllRead(false);
-    }
-  }, []);
-
-  // Poll for unread count
-  useEffect(() => {
-    fetchUnreadCount();
-    pollRef.current = setInterval(fetchUnreadCount, POLL_INTERVAL);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [fetchUnreadCount]);
-
-  // Fetch notifications when popover opens
-  useEffect(() => {
-    if (open) {
-      fetchNotifications();
-    }
-  }, [open, fetchNotifications]);
-
-  const handleOpenChange = (visible: boolean) => {
-    setOpen(visible);
+    } catch {}
+    setLoading(false);
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (notification.status !== 'READ') {
-      markAsRead(notification.id);
-    }
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  const getModuleColor = (module: string): string => {
-    return MODULE_COLORS[module.toLowerCase()] || 'default';
-  };
-
-  const content = (
-    <div style={{ width: 380 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '8px 0 12px',
-          borderBottom: '1px solid #f0f0f0',
-        }}
-      >
-        <Title level={5} style={{ margin: 0 }}>
-          Notifications
-        </Title>
-        {unreadCount > 0 && (
-          <Button
-            type="link"
-            size="small"
-            icon={<CheckCheck size={14} />}
-            loading={markingAllRead}
-            onClick={markAllAsRead}
-          >
-            Mark all as read
+  const dropdownContent = (
+    <div className="w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <span className="font-semibold text-sm text-gray-900 dark:text-white">Notifications</span>
+        {notifications.length > 0 && (
+          <Button size="small" type="link" onClick={markAllRead} loading={loading} className="text-xs text-blue-600 p-0 h-auto">
+            <CheckCheck className="w-3.5 h-3.5 inline mr-1" />Mark all read
           </Button>
         )}
       </div>
-
-      <div style={{ maxHeight: 440, overflowY: 'auto' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin />
-          </div>
-        ) : notifications.length === 0 ? (
-          <Empty
-            description="No notifications"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            style={{ padding: '40px 0' }}
-          />
-        ) : (
-          <List
-            dataSource={notifications}
-            renderItem={(item) => {
-              const isUnread = item.status !== 'READ';
-              const isReading = readingIds.has(item.id);
-              return (
-                <List.Item
-                  onClick={() => handleNotificationClick(item)}
-                  style={{
-                    cursor: 'pointer',
-                    padding: '10px 4px',
-                    backgroundColor: isUnread ? '#f6f8ff' : 'transparent',
-                    transition: 'background-color 0.3s ease',
-                    borderRadius: 4,
-                  }}
-                >
-                  <div style={{ width: '100%' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        marginBottom: 4,
-                      }}
-                    >
-                      <Text
-                        strong={isUnread}
-                        style={{ fontSize: 13, flex: 1, marginRight: 8 }}
-                      >
-                        {item.title}
-                      </Text>
-                      {isUnread && !isReading && (
-                        <div
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            backgroundColor: '#1677ff',
-                            flexShrink: 0,
-                            marginTop: 5,
-                          }}
-                        />
-                      )}
-                      {isReading && <Spin size="small" />}
+      {loading ? (
+        <div className="p-6 text-center"><Spin /></div>
+      ) : notifications.length === 0 ? (
+        <div className="p-6"><Empty description="No new notifications" imageStyle={{ height: 40 }} /></div>
+      ) : (
+        <div className="max-h-80 overflow-y-auto">
+          {notifications.map(n => {
+            const sev = SEVERITY_CONFIG[n.severity] || SEVERITY_CONFIG.INFO;
+            return (
+              <div
+                key={n.id}
+                className="px-4 py-3 border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                onClick={() => markRead(n.id)}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 flex-shrink-0">{sev.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white truncate">{n.title}</span>
+                      <Tag color={sev.color} className="text-[10px] flex-shrink-0">{n.module}</Tag>
                     </div>
-
-                    <Text
-                      type="secondary"
-                      style={{
-                        fontSize: 12,
-                        display: 'block',
-                        marginBottom: 6,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {item.message}
-                    </Text>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <Tag
-                        color={SEVERITY_COLORS[item.severity] || 'default'}
-                        style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}
-                      >
-                        {item.severity}
-                      </Tag>
-                      <Tag
-                        color={getModuleColor(item.module)}
-                        style={{ margin: 0, fontSize: 11, lineHeight: '18px' }}
-                      >
-                        {item.module}
-                      </Tag>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: '#8c8c8c',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          marginLeft: 'auto',
-                        }}
-                      >
-                        <Clock size={11} />
-                        {dayjs(item.createdAt).fromNow()}
-                      </span>
-                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                    <span className="text-[10px] text-gray-400 mt-1 block">{timeAgo(n.createdAt)}</span>
                   </div>
-                </List.Item>
-              );
-            }}
-          />
-        )}
-      </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
   return (
-    <Popover
-      content={content}
-      trigger="click"
+    <Dropdown
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={v => { setOpen(v); if (v) fetchNotifications(); }}
+      dropdownRender={() => dropdownContent}
+      trigger={['click']}
       placement="bottomRight"
-      overlayStyle={{ maxWidth: 400 }}
-      overlayInnerStyle={{ padding: '8px 12px' }}
     >
-      <Badge count={unreadCount} size="small" offset={[-2, 2]}>
-        <Button
-          type="text"
-          icon={<Bell size={20} color="white" />}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: 36,
-            width: 36,
-          }}
-        />
-      </Badge>
-    </Popover>
+      <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+        <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+          <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+        </Badge>
+      </button>
+    </Dropdown>
   );
 };

@@ -20,7 +20,6 @@ import { CollaborationHub } from "./modules/collaboration/pages/CollaborationHub
 import { MRPHub } from "./modules/mrp/pages/MRPHub";
 import { ManualsHub } from "./modules/manuals/pages/ManualsHub";
 import { ChatInterface } from "./modules/cognitive/ChatInterface";
-import { AuditHub } from "./modules/audit/pages/AuditHub";
 
 // Procurement Pages
 import { DashboardPage } from "./modules/procurement/pages/DashboardPage";
@@ -34,6 +33,8 @@ import { UserManagement } from "./modules/manpower/pages/UserManagement";
 import { ContractsHub } from "./modules/contracts/pages/ContractsHub";
 import { PresentationsHub } from "./modules/presentations/pages/PresentationsHub";
 import { WorkOrderHub } from "./modules/workorders/pages/WorkOrderHub";
+import { KPIDashboard } from "./modules/kpi/pages/KPIDashboard";
+import { InspectionHub } from "./modules/inspections/pages/InspectionHub";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, token } = useAuth();
@@ -62,11 +63,6 @@ const AppContent = () => {
           
           {/* Main Hub */}
           <Route path="/" element={
-            <ProtectedRoute>
-              <Navigate to="/hub" replace />
-            </ProtectedRoute>
-          } />
-          <Route path="/hub" element={
             <ProtectedRoute>
               <EnterpriseHub />
             </ProtectedRoute>
@@ -134,15 +130,12 @@ const AppContent = () => {
           
                   <Route path="/stock" element={<ProtectedRoute><MRPHub /></ProtectedRoute>} />
           <Route path="/manuals" element={<ProtectedRoute><ManualsHub /></ProtectedRoute>} />
-          <Route path="/manpower" element={
-            <ProtectedRoute>
-              <UserManagement />
-            </ProtectedRoute>
-          } />
+          <Route path="/manpower" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/contracts" element={<ProtectedRoute><ContractsHub /></ProtectedRoute>} />
           <Route path="/presentations" element={<ProtectedRoute><PresentationsHub /></ProtectedRoute>} />
           <Route path="/workorders" element={<ProtectedRoute><WorkOrderHub /></ProtectedRoute>} />
-          <Route path="/audit" element={<ProtectedRoute><AuditHub /></ProtectedRoute>} />
+          <Route path="/kpis" element={<ProtectedRoute><KPIDashboard /></ProtectedRoute>} />
+          <Route path="/inspections" element={<ProtectedRoute><InspectionHub /></ProtectedRoute>} />
         </Routes>
         <ChatInterface />
       </AuthProvider>

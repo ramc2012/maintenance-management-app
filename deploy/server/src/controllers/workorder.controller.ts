@@ -1,7 +1,38 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const prisma = new PrismaClient();
+
+// ============================================================================
+// MULTER CONFIG FOR WO ATTACHMENTS
+// ============================================================================
+
+const WO_STORAGE_PATH = process.env.WO_STORAGE_PATH || path.join(process.cwd(), 'storage', 'wo-attachments');
+
+const woStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(WO_STORAGE_PATH, req.params.id || 'temp');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  }
+});
+
+export const woUpload = multer({
+  storage: woStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
 
 // ============================================================================
 // WORK ORDERS CRUD
@@ -452,14 +483,170 @@ export const updateChecklistItem = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteWorkOrder = async (req: Request, res: Response) => {
+// ============================================================================
+// WO ATTACHMENTS
+// ============================================================================
+
+export const uploadAttachments = async (req: Request, res: Response) => {
   try {
-    // Delete related records first
-    await prisma.workOrderTeam.deleteMany({ where: { workOrderId: req.params.id } });
-    await prisma.workOrderChecklist.deleteMany({ where: { workOrderId: req.params.id } });
-    await prisma.maintenanceRequest.delete({ where: { id: req.params.id } });
-    res.json({ message: 'Work order deleted' });
+    const { id } = req.params;
+    const files = (req as any).files as Express.Multer.File[];
+    if (!files || files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+
+    const attachments = await Promise.all(files.map(file => {
+      const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      const ext = path.extname(file.originalname).toLowerCase();
+      const fileType = imageExts.includes(ext) ? 'PHOTO' : 'DOCUMENT';
+      const fileUrl = `wo-attachments/${id}/${file.filename}`;
+
+      return prisma.wOAttachment.create({
+        data: {
+          workOrderId: id,
+          fileName: file.originalname,
+          fileUrl,
+          fileType,
+          mimeType: file.mimetype,
+          fileSize: file.size,
+          caption: (req.body.caption as string) || '',
+          uploadedBy: (req as any).user?.username || 'system',
+        }
+      });
+    }));
+
+    res.json({ uploaded: attachments.length, attachments });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete work order' });
+    console.error('Upload Error:', error);
+    res.status(500).json({ error: 'Failed to upload attachments' });
+  }
+};
+
+export const getAttachments = async (req: Request, res: Response) => {
+  try {
+    const attachments = await prisma.wOAttachment.findMany({
+      where: { workOrderId: req.params.id },
+      orderBy: { uploadedAt: 'desc' }
+    });
+    res.json(attachments);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch attachments' });
+  }
+};
+
+export const deleteAttachment = async (req: Request, res: Response) => {
+  try {
+    const { attachId } = req.params;
+    const attachment = await prisma.wOAttachment.findUnique({ where: { id: attachId } });
+    if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
+
+    // Delete file from disk
+    const filePath = path.join(WO_STORAGE_PATH, attachment.fileUrl.replace('wo-attachments/', ''));
+    fs.unlink(filePath, () => {}); // silently ignore if file doesn't exist
+
+    await prisma.wOAttachment.delete({ where: { id: attachId } });
+    res.json({ message: 'Deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete attachment' });
+  }
+};
+
+export const serveAttachment = async (req: Request, res: Response) => {
+  try {
+    const { attachId } = req.params;
+    const attachment = await prisma.wOAttachment.findUnique({ where: { id: attachId } });
+    if (!attachment) return res.status(404).json({ error: 'Not found' });
+
+    const filePath = path.join(WO_STORAGE_PATH, attachment.fileUrl.replace('wo-attachments/', ''));
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
+
+    res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to serve file' });
+  }
+};
+
+// ============================================================================
+// EXCEL EXPORT
+// ============================================================================
+
+export const exportWorkOrders = async (req: Request, res: Response) => {
+  try {
+    const ExcelJS = require('exceljs');
+    const { from, to, status, woType } = req.query;
+
+    const where: any = {};
+    if (status) where.status = String(status);
+    if (woType) where.woType = String(woType);
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(String(from));
+      if (to) where.createdAt.lte = new Date(String(to));
+    }
+
+    const workOrders = await prisma.workOrder.findMany({
+      where,
+      include: {
+        functionalLocation: { select: { flId: true, name: true } },
+        teamMembers: { select: { employeeName: true, role: true, hoursWorked: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'ONGC MMS';
+    const sheet = workbook.addWorksheet('Work Orders');
+
+    sheet.columns = [
+      { header: 'WO Number', key: 'woNumber', width: 18 },
+      { header: 'Type', key: 'woType', width: 14 },
+      { header: 'Priority', key: 'priority', width: 12 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Functional Location', key: 'fl', width: 25 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'Scheduled Date', key: 'scheduledDate', width: 18 },
+      { header: 'Completion Date', key: 'completionDate', width: 18 },
+      { header: 'Failure Mode', key: 'failureMode', width: 16 },
+      { header: 'Cause Code', key: 'causeCode', width: 14 },
+      { header: 'Action Taken', key: 'actionTaken', width: 16 },
+      { header: 'Labour Hours', key: 'labourHours', width: 14 },
+      { header: 'Downtime (hrs)', key: 'downtime', width: 16 },
+      { header: 'Team', key: 'team', width: 35 },
+      { header: 'Created By', key: 'createdBy', width: 16 },
+      { header: 'Created At', key: 'createdAt', width: 18 },
+    ];
+
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4E8FF' } };
+
+    workOrders.forEach(wo => {
+      sheet.addRow({
+        woNumber: wo.woNumber,
+        woType: wo.woType,
+        priority: wo.priority,
+        status: wo.status,
+        fl: wo.functionalLocation ? `${wo.functionalLocation.flId} - ${wo.functionalLocation.name}` : '',
+        description: wo.description,
+        scheduledDate: wo.scheduledDate ? wo.scheduledDate.toISOString().slice(0, 10) : '',
+        completionDate: wo.completionDate ? wo.completionDate.toISOString().slice(0, 10) : '',
+        failureMode: wo.failureMode || '',
+        causeCode: wo.causeCode || '',
+        actionTaken: wo.actionTaken || '',
+        labourHours: wo.labourHours || '',
+        downtime: wo.downtime || '',
+        team: wo.teamMembers.map(m => `${m.employeeName}(${m.role})`).join('; '),
+        createdBy: wo.createdBy,
+        createdAt: wo.createdAt.toISOString().slice(0, 10),
+      });
+    });
+
+    const filename = `WorkOrders_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await workbook.xlsx.write(res);
+  } catch (error) {
+    console.error('Export Error:', error);
+    res.status(500).json({ error: 'Failed to export work orders' });
   }
 };

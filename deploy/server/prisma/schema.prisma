@@ -8,18 +8,15 @@ datasource db {
 }
 
 model User {
-  id                   String        @id @default(uuid())
-  username             String        @unique
-  password             String
-  role                 String
-  departmentId         String?
-  department           Department?   @relation(fields: [departmentId], references: [id])
-  createdAt            DateTime      @default(now())
-  lastLogin            DateTime?
-  comments             CaseComment[]
-  canCreateWorkOrder   Boolean       @default(false)
-  canCloseWorkOrder    Boolean       @default(false)
-  uploadedDocuments    RepositoryDocument[]
+  id            String        @id @default(uuid())
+  username      String        @unique
+  password      String
+  role          String
+  departmentId  String?
+  department    Department?   @relation(fields: [departmentId], references: [id])
+  createdAt     DateTime      @default(now())
+  lastLogin     DateTime?
+  comments      CaseComment[]
 }
 
 model Company {
@@ -89,6 +86,8 @@ model Case {
   departmentId        String?
   department          Department?   @relation(fields: [departmentId], references: [id])
   comments            CaseComment[]
+  equipmentTag        String?       // link spend to specific equipment
+  maintenanceRelated  Boolean       @default(false) // flag for maintenance cost reports
 }
 // --- EQUIPMENT & CALIBRATION MODULE ---
 
@@ -449,23 +448,6 @@ model EquipmentLog {
   updatedAt DateTime @updatedAt
 }
 
-model GasCompressionLog {
-  id               String   @id @default(uuid())
-  date             DateTime
-  compressorId     String
-  installationId   String?
-  gasCompressed    Float?
-  runHours         Float?
-  flowRate         Float?
-  suctionPressure  Float?
-  dischargePressure Float?
-  suctionTemp      Float?
-  dischargeTemp    Float?
-  remarks          String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
 model PMSInitialState {
   id String @id @default(uuid())
 
@@ -751,6 +733,7 @@ model WorkOrder {
   maintenanceRequestId String?
   teamMembers          WorkOrderTeam[]
   checklist            WorkOrderChecklist[]
+  attachments          WOAttachment[]
 
   @@index([flId, status])
   @@index([status, scheduledDate])
@@ -1724,175 +1707,99 @@ model Presentation {
   updatedAt   DateTime @updatedAt
 }
 
-// --- MANUALS & DRAWINGS REPOSITORY ---
-
-model ManualFolder {
-  id         String   @id @default(uuid())
-  name       String
-  category   String   // mechanical, electrical, instrumentation
-  parentId   String?
-  parent     ManualFolder?  @relation("FolderTree", fields: [parentId], references: [id])
-  children   ManualFolder[] @relation("FolderTree")
-  documents  RepositoryDocument[]
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-model RepositoryDocument {
-  id              String   @id @default(uuid())
-  originalName    String
-  storedName      String
-  mimeType        String
-  extension       String?
-  size            Int
-  repositoryPath  String
-
-  folderId        String
-  folder          ManualFolder @relation(fields: [folderId], references: [id])
-
-  uploadedById    String?
-  uploadedBy      User?    @relation(fields: [uploadedById], references: [id])
-
-  uploadedAt      DateTime @default(now())
-}
-
 // ============================================================================
-// AUDIT OBSERVATIONS MODULE (Internal, QHSE, DGMS, OISD)
-// ============================================================================
-
-model AuditObservation {
-  id              String   @id @default(uuid())
-  observationNo   String   @unique
-
-  agency          String   // INTERNAL, QHSE, DGMS, OISD, OTHER
-  agencyName      String?  // Custom name if OTHER
-
-  auditDate       DateTime
-  installationId  String?
-  department      String?
-  service         String?  // DS, Electrical, Mechanical, Instrumentation, Production
-
-  category        String?  // SAFETY, PROCESS, EQUIPMENT, DOCUMENTATION, COMPLIANCE
-  severity        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
-
-  observation     String
-  reference       String?  // Standard reference (e.g., "OISD-STD-154 Cl.4.3")
-
-  status          String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED, OVERDUE
-
-  targetDate      DateTime?
-  closedDate      DateTime?
-
-  reportedBy      String
-  assignedTo      String?
-
-  remarks         String?
-
-  actions         AuditAction[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([agency, status])
-  @@index([installationId])
-  @@index([status])
-}
-
-model AuditAction {
-  id              String   @id @default(uuid())
-
-  observationId   String
-  observation     AuditObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
-
-  actionNo        Int      // Sequential within observation
-  description     String
-
-  responsiblePerson String
-  department        String?
-
-  targetDate      DateTime
-  completedDate   DateTime?
-
-  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, OVERDUE
-
-  evidence        String?  // File reference or description of proof
-  verifiedBy      String?
-  verifiedAt      DateTime?
-
-  remarks         String?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([observationId])
-  @@index([status])
-}
-
-// ============================================================================
-// NOTIFICATION SYSTEM
+// NOTIFICATION MODEL (for PM due, calibration due, overdue WOs)
 // ============================================================================
 
 model Notification {
-  id           String   @id @default(uuid())
-
-  userId       String?  // NULL = broadcast to all
+  id           String    @id @default(cuid())
+  userId       String?
   username     String?
   role         String?
-
-  module       String   // PMS, WORKORDER, CALIBRATION, AUDIT, etc.
-  type         String   // PM_DUE, WO_CREATED, AUDIT_OBSERVATION, etc.
+  module       String
+  type         String
   title        String
   message      String
-
-  severity     String   @default("INFO") // INFO, MEDIUM, HIGH, CRITICAL
-
-  entityType   String?  // WorkOrder, AuditObservation, etc.
+  severity     String    @default("INFO") // HIGH, MEDIUM, INFO
+  entityType   String?
   entityId     String?
-
-  status       String   @default("UNREAD") // UNREAD, READ
-  readAt       DateTime?
-
-  dedupeKey    String?  @unique
+  status       String    @default("UNREAD") // UNREAD, READ
+  dedupeKey    String    @unique
   metadata     Json?
   scheduledFor DateTime?
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
 
-  createdAt    DateTime @default(now())
-
-  @@index([userId, status])
-  @@index([module])
-  @@index([status, createdAt])
+  @@index([userId, status, createdAt])
+  @@index([module, type, createdAt])
 }
 
 // ============================================================================
-// ACTIVITY AUDIT LOG (System-wide tracking)
+// WORK ORDER ATTACHMENTS (Photos & Documents on Work Orders)
 // ============================================================================
 
-model ActivityAuditLog {
-  id        String   @id @default(uuid())
+model WOAttachment {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String    // relative path under storage/wo-attachments/
+  fileType    String    // PHOTO, DOCUMENT
+  mimeType    String?
+  fileSize    Int?
+  caption     String?
+  uploadedBy  String
+  uploadedAt  DateTime  @default(now())
 
-  requestId  String?
-  userId     String?
-  username   String?
-  role       String?
+  @@index([workOrderId])
+}
 
-  module     String   // WORKORDER, CALIBRATION, PMS, AUDIT, etc.
-  action     String   // CREATE, UPDATE, DELETE, CLOSE, APPROVE
-  method     String?  // HTTP method
-  path       String?  // Request path
+// ============================================================================
+// INSPECTION ROUNDS (Shift walkdown / patrol routes)
+// ============================================================================
 
-  entityType String?  // WorkOrder, Presentation, etc.
-  entityId   String?
+model InspectionRound {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  flIds        Json     // ordered array: [{flId, flName, description}]
+  frequency    String   // DAILY, WEEKLY, MONTHLY, SHIFT
+  assignedDept String?
+  isActive     Boolean  @default(true)
+  executions   InspectionExecution[]
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
 
-  statusCode Int?
-  details    Json?    // Snapshot of changes
+model InspectionExecution {
+  id          String          @id @default(uuid())
+  roundId     String
+  round       InspectionRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  executedBy  String
+  executedAt  DateTime        @default(now())
+  completedAt DateTime?
+  status      String          @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  readings    Json            // [{flId, flName, value, unit, status: OK|WARNING|CRITICAL, notes, photoUrl}]
+  flaggedItems Json?          // [{flId, flName, note, severity}]
+  createdAt   DateTime        @default(now())
 
-  ipAddress  String?
-  userAgent  String?
+  @@index([roundId, executedAt])
+}
 
-  createdAt  DateTime @default(now())
+// ============================================================================
+// LABOR RATE (for indirect maintenance cost calculation)
+// ============================================================================
 
-  @@index([module, action])
-  @@index([userId])
-  @@index([createdAt])
+model LaborRate {
+  id            String   @id @default(uuid())
+  department    String
+  designation   String?
+  dailyRate     Float    // Rate per day (8hrs)
+  currency      String   @default("INR")
+  effectiveFrom DateTime @default(now())
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@unique([department, designation, effectiveFrom])
 }
