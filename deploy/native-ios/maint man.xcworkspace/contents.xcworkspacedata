@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <Group
+      location = "group:MaintenanceApp"
+      name = "MaintenanceApp">
+      <Group
+         location = "group:App"
+         name = "App">
+         <FileRef
+            location = "group:MaintenanceApp.swift">
+         </FileRef>
+      </Group>
+      <Group
+         location = "group:Core"
+         name = "Core">
+         <Group
+            location = "group:Network"
+            name = "Network">
+            <FileRef
+               location = "group:APIEndpoints.swift">
+            </FileRef>
+            <FileRef
+               location = "group:APIClient.swift">
+            </FileRef>
+            <FileRef
+               location = "group:NetworkMonitor.swift">
+            </FileRef>
+            <FileRef
+               location = "group:QUICK_START_GUIDE.md">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Storage"
+            name = "Storage">
+            <FileRef
+               location = "group:KeychainManager.swift">
+            </FileRef>
+            <FileRef
+               location = "group:CacheManager.swift">
+            </FileRef>
+            <FileRef
+               location = "group:CoreDataStack.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Models"
+            name = "Models">
+            <FileRef
+               location = "group:User.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Organization.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Asset.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Equipment.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Maintenance.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Calibration.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Procurement.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Training.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Energy.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Workshop.swift">
+            </FileRef>
+            <FileRef
+               location = "group:MOH.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Collaboration.swift">
+            </FileRef>
+            <FileRef
+               location = "group:MRP.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Report.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Utilities"
+            name = "Utilities">
+            <FileRef
+               location = "group:Constants.swift">
+            </FileRef>
+            <FileRef
+               location = "group:Models.swift">
+            </FileRef>
+         </Group>
+      </Group>
+      <Group
+         location = "group:Features"
+         name = "Features">
+         <Group
+            location = "group:Authentication"
+            name = "Authentication">
+            <FileRef
+               location = "group:AuthManager.swift">
+            </FileRef>
+            <FileRef
+               location = "group:LoginView.swift">
+            </FileRef>
+            <FileRef
+               location = "group:ThemeManager.swift">
+            </FileRef>
+            <FileRef
+               location = "group:AuthManager 2.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Dashboard"
+            name = "Dashboard">
+            <FileRef
+               location = "group:EnterpriseHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Assets"
+            name = "Assets">
+            <FileRef
+               location = "group:AssetsHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Logbook"
+            name = "Logbook">
+            <FileRef
+               location = "group:LogbookHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Procurement"
+            name = "Procurement">
+            <FileRef
+               location = "group:ProcurementHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Calibration"
+            name = "Calibration">
+            <FileRef
+               location = "group:CalibrationHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Workshop"
+            name = "Workshop">
+            <FileRef
+               location = "group:WorkshopHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Training"
+            name = "Training">
+            <FileRef
+               location = "group:TrainingHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:MOH"
+            name = "MOH">
+            <FileRef
+               location = "group:MOHHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Energy"
+            name = "Energy">
+            <FileRef
+               location = "group:EnergyHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Reports"
+            name = "Reports">
+            <FileRef
+               location = "group:ReportsHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Collaboration"
+            name = "Collaboration">
+            <FileRef
+               location = "group:CollaborationHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:MRP"
+            name = "MRP">
+            <FileRef
+               location = "group:MRPHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Manuals"
+            name = "Manuals">
+            <FileRef
+               location = "group:ManualsHubView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:UserManagement"
+            name = "UserManagement">
+            <FileRef
+               location = "group:UserManagementView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Settings"
+            name = "Settings">
+            <FileRef
+               location = "group:SettingsView.swift">
+            </FileRef>
+         </Group>
+      </Group>
+      <Group
+         location = "group:SharedComponents"
+         name = "SharedComponents">
+         <Group
+            location = "group:Navigation"
+            name = "Navigation">
+            <FileRef
+               location = "group:MainTabView.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:UI"
+            name = "UI">
+            <FileRef
+               location = "group:SharedUIComponents.swift">
+            </FileRef>
+         </Group>
+         <Group
+            location = "group:Charts"
+            name = "Charts">
+         </Group>
+      </Group>
+      <Group
+         location = "group:Resources"
+         name = "Resources">
+      </Group>
+   </Group>
+</Workspace>

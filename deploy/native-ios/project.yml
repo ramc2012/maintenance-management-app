@@ -1,0 +1,56 @@
+name: MaintenanceNative
+options:
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 5.0
+    PRODUCT_BUNDLE_IDENTIFIER: com.ramc.maintenance.native
+    DEVELOPMENT_TEAM: ""
+targets:
+  MaintenanceNativeApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MaintenanceApp/App
+      - path: MaintenanceApp/Features/Manuals
+      - path: MaintenanceApp/Features/Training
+      - path: MaintenanceApp/Features/Collaboration
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_NAME: MaintenanceNativeApp
+        INFOPLIST_KEY_CFBundleDisplayName: Maintenance Native
+        INFOPLIST_KEY_LSRequiresIPhoneOS: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleDefault
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        SUPPORTS_MACCATALYST: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+  MaintenanceNativeAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/MaintenanceNativeAppTests
+    dependencies:
+      - target: MaintenanceNativeApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MaintenanceNativeApp:
+    build:
+      targets:
+        MaintenanceNativeApp: all
+    test:
+      targets:
+        - name: MaintenanceNativeAppTests
