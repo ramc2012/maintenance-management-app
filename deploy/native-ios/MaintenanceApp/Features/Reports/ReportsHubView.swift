@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // MARK: - Report Period
 enum ReportsPeriodFilter: String, CaseIterable, Identifiable {
@@ -15,7 +16,6 @@ struct ReportsHubView: View {
     @StateObject private var viewModel = ReportsViewModel()
     @State private var showingNewReport = false
     @State private var showingFilters = false
-    @EnvironmentObject var networkMonitor: NetworkMonitor
     
     var body: some View {
         VStack(spacing: 0) {
@@ -29,9 +29,9 @@ struct ReportsHubView: View {
             .padding()
             
             // Sync Status Banner (if offline or pending sync)
-            if !networkMonitor.isConnected || viewModel.pendingCount > 0 {
+            if !viewModel.isOnline || viewModel.pendingCount > 0 {
                 SyncStatusBanner(
-                    isConnected: networkMonitor.isConnected,
+                    isConnected: viewModel.isOnline,
                     pendingCount: viewModel.pendingCount,
                     syncStatus: viewModel.syncStatus
                 ) {
@@ -77,8 +77,18 @@ struct ReportsHubView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    showingFilters = true
+                Menu {
+                    Button {
+                        showingFilters = true
+                    } label: {
+                        Label("Filters", systemImage: viewModel.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                    }
+
+                    Button {
+                        viewModel.toggleConnectivity()
+                    } label: {
+                        Label(viewModel.isOnline ? "Go Offline" : "Go Online", systemImage: viewModel.isOnline ? "wifi.slash" : "wifi")
+                    }
                 } label: {
                     Image(systemName: viewModel.hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                 }
@@ -105,6 +115,9 @@ struct ReportsHubView: View {
         .onChange(of: selectedPeriod) { _, newValue in
             viewModel.filter.period = newValue
             Task { await viewModel.loadReports(period: newValue) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .reportsDidChange)) { _ in
+            Task { await viewModel.loadReports(period: selectedPeriod) }
         }
         .task {
             await viewModel.loadReports(period: selectedPeriod)
@@ -296,7 +309,7 @@ struct ReportDetailView: View {
             Section("Time") {
                 LabeledContent("Start Time", value: report.startTime.formatted(date: .omitted, time: .shortened))
                 LabeledContent("End Time", value: report.endTime.formatted(date: .omitted, time: .shortened))
-                LabeledContent("Duration", value: "\(report.durationHours, specifier: "%.1f") hours")
+                LabeledContent("Duration", value: String(format: "%.1f hours", report.durationHours))
             }
             
             if let remarks = report.remarks {
@@ -341,7 +354,6 @@ struct DailyLogFormView: View {
     @ObservedObject var viewModel: ReportsViewModel
     @StateObject private var formViewModel = DailyLogFormViewModel()
     @State private var showingSuccess = false
-    @EnvironmentObject var networkMonitor: NetworkMonitor
     
     var body: some View {
         Form {
@@ -395,7 +407,7 @@ struct DailyLogFormView: View {
                     .frame(minHeight: 60)
             }
             
-            if !networkMonitor.isConnected {
+            if !viewModel.isOnline {
                 Section {
                     HStack {
                         Image(systemName: "info.circle.fill")
@@ -417,7 +429,7 @@ struct DailyLogFormView: View {
                     Task {
                         await formViewModel.save(
                             viewModel: viewModel,
-                            isOnline: networkMonitor.isConnected
+                            isOnline: viewModel.isOnline
                         )
                         if formViewModel.error == nil {
                             showingSuccess = true
@@ -430,7 +442,7 @@ struct DailyLogFormView: View {
         .alert("Success", isPresented: $showingSuccess) {
             Button("OK") { dismiss() }
         } message: {
-            Text(networkMonitor.isConnected ? "Report saved successfully!" : "Report saved locally. It will sync when you're back online.")
+            Text(viewModel.isOnline ? "Report saved successfully!" : "Report saved locally. It will sync when you're back online.")
         }
     }
 }
@@ -530,90 +542,44 @@ class ReportsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var pendingCount = 0
     @Published var syncStatus: SyncStatus = .idle
-    
-    private let apiClient = APIClient.shared
-    private let syncManager = ReportsSyncManager.shared
-    private let cacheManager = CacheManager.shared
+    @Published var isOnline = true
     
     var hasActiveFilters: Bool {
         filter.department != nil || filter.section != nil || filter.jobType != nil || filter.startDate != nil
     }
     
     init() {
-        pendingCount = syncManager.getPendingCount()
+        pendingCount = LocalReportsStore.shared.getPendingCount()
     }
     
     func loadReports(period: ReportsPeriodFilter) async {
         isLoading = true
         filter.period = period
-        
-        // Load from cache first for offline support
-        let cacheKey = "reports_\(period.rawValue)"
-        if let cached: [Report] = cacheManager.retrieve(for: cacheKey) {
-            reports = applyFilters(to: cached)
-        }
-        
-        // Try to fetch from server
-        do {
-            let response: [Report] = try await apiClient.request(
-                .reports,
-                queryItems: filter.queryItems
-            )
-            
-            // Merge with pending local changes
-            let merged = syncManager.mergeWithPending(serverReports: response)
-            reports = applyFilters(to: merged)
-            
-            // Cache for offline use
-            cacheManager.cache(merged, for: cacheKey, ttl: Constants.Cache.reportsTTL)
-        } catch {
-            // If offline, keep showing cached data
-            print("Failed to load reports from server: \(error)")
-        }
-        
+        reports = applyFilters(to: LocalReportsStore.shared.loadReports())
         isLoading = false
-        pendingCount = syncManager.getPendingCount()
+        pendingCount = LocalReportsStore.shared.getPendingCount()
     }
     
     func saveReport(_ report: Report, isOnline: Bool) async {
-        if isOnline {
-            do {
-                try await apiClient.requestVoid(.createReport, method: .post, body: report)
-            } catch {
-                // Failed to save online, queue for later
-                syncManager.queueReport(report, action: .create)
-            }
-        } else {
-            // Offline - queue for later
-            syncManager.queueReport(report, action: .create)
-        }
-        
-        pendingCount = syncManager.getPendingCount()
+        LocalReportsStore.shared.saveReport(report, isOnline: isOnline)
+        pendingCount = LocalReportsStore.shared.getPendingCount()
+        NotificationCenter.default.post(name: .reportsDidChange, object: nil)
     }
     
     func syncPendingReports() async {
-        guard pendingCount > 0 else { return }
+        guard pendingCount > 0, isOnline else { return }
         
         syncStatus = .syncing
-        
-        do {
-            try await syncManager.syncAllPending()
-            syncStatus = .success
-            pendingCount = 0
-            
-            // Reload reports after sync
-            await loadReports(period: filter.period)
-            
-            // Reset status after delay
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            syncStatus = .idle
-        } catch {
-            syncStatus = .failed(error)
-            
-            // Reset status after delay
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            syncStatus = .idle
-        }
+        LocalReportsStore.shared.syncPendingReports()
+        pendingCount = LocalReportsStore.shared.getPendingCount()
+        reports = applyFilters(to: LocalReportsStore.shared.loadReports())
+        syncStatus = .success
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        syncStatus = .idle
+    }
+
+    func toggleConnectivity() {
+        isOnline.toggle()
     }
     
     func clearFilters() {
@@ -685,8 +651,6 @@ class DailyLogFormViewModel: ObservableObject {
             reportCriticality: criticality,
             equipmentTag: equipmentTag.isEmpty ? nil : equipmentTag,
             equipmentTypeName: nil,
-            serviceLine: nil,
-            notificationNo: nil,
             description: description,
             status: "Open",
             startTime: startTime,
@@ -705,110 +669,195 @@ class DailyLogFormViewModel: ObservableObject {
     }
 }
 
-// MARK: - Reports Sync Manager
-class ReportsSyncManager {
-    static let shared = ReportsSyncManager()
-    
-    private let userDefaults = UserDefaults.standard
-    private let pendingKey = "pending_reports"
-    
-    private init() {}
-    
-    func queueReport(_ report: Report, action: PendingSyncReport.SyncAction) {
-        var pending = getPendingReports()
-        let syncReport = PendingSyncReport(
+private final class LocalReportsStore {
+    static let shared = LocalReportsStore()
+
+    private let reportsKey = "native_reports_records"
+    private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
+
+    private init() {
+        decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+    }
+
+    func loadReports() -> [Report] {
+        if let data = UserDefaults.standard.data(forKey: reportsKey),
+           let reports = try? decoder.decode([Report].self, from: data) {
+            return reports
+        }
+
+        let seeded = seedReports()
+        persist(seeded)
+        return seeded
+    }
+
+    func saveReport(_ report: Report, isOnline: Bool) {
+        var reports = loadReports()
+        let stored = Report(
             id: report.id,
-            report: report,
-            action: action,
-            queuedAt: Date(),
-            retryCount: 0,
-            lastError: nil
+            date: report.date,
+            installationId: report.installationId,
+            department: report.department,
+            section: report.section,
+            jobType: report.jobType,
+            reportCriticality: report.reportCriticality,
+            equipmentTag: report.equipmentTag,
+            equipmentTypeName: report.equipmentTypeName,
+            description: report.description,
+            status: report.status,
+            startTime: report.startTime,
+            endTime: report.endTime,
+            durationHours: report.durationHours,
+            remarks: report.remarks,
+            createdBy: report.createdBy,
+            syncStatus: isOnline ? .synced : .pending,
+            localModifiedAt: Date(),
+            serverModifiedAt: isOnline ? Date() : nil
         )
-        pending.append(syncReport)
-        savePendingReports(pending)
+        reports.append(stored)
+        persist(reports.sorted { $0.date > $1.date })
     }
-    
-    func getPendingReports() -> [PendingSyncReport] {
-        guard let data = userDefaults.data(forKey: pendingKey),
-              let reports = try? JSONDecoder().decode([PendingSyncReport].self, from: data) else {
-            return []
-        }
-        return reports
-    }
-    
+
     func getPendingCount() -> Int {
-        getPendingReports().count
+        loadReports().filter { $0.syncStatus == .pending }.count
     }
-    
-    func mergeWithPending(serverReports: [Report]) -> [Report] {
-        var merged = serverReports
-        let pending = getPendingReports()
-        
-        for pendingReport in pending {
-            // Add or replace with pending version
-            if let index = merged.firstIndex(where: { $0.id == pendingReport.report.id }) {
-                merged[index] = pendingReport.report
-            } else {
-                merged.append(pendingReport.report)
-            }
+
+    func syncPendingReports() {
+        let synced = loadReports().map { report in
+            guard report.syncStatus == .pending else { return report }
+            var updated = report
+            updated.syncStatus = .synced
+            updated.serverModifiedAt = Date()
+            return updated
         }
-        
-        return merged
+        persist(synced)
     }
-    
-    func syncAllPending() async throws {
-        let pending = getPendingReports()
-        var remaining: [PendingSyncReport] = []
-        
-        for var pendingReport in pending {
-            do {
-                let apiClient = APIClient.shared
-                switch pendingReport.action {
-                case .create:
-                    try await apiClient.requestVoid(.createReport, method: .post, body: pendingReport.report)
-                case .update:
-                    try await apiClient.requestVoid(.updateReport(id: pendingReport.report.id), method: .put, body: pendingReport.report)
-                case .delete:
-                    try await apiClient.requestVoid(.deleteReport(id: pendingReport.report.id), method: .delete)
-                }
-            } catch {
-                pendingReport.retryCount += 1
-                pendingReport.lastError = error.localizedDescription
-                if pendingReport.retryCount < 3 {
-                    remaining.append(pendingReport)
-                }
-            }
-        }
-        
-        savePendingReports(remaining)
-        
-        if !remaining.isEmpty {
-            throw SyncError.partialFailure(failed: remaining.count, total: pending.count)
+
+    private func persist(_ reports: [Report]) {
+        if let data = try? encoder.encode(reports) {
+            UserDefaults.standard.set(data, forKey: reportsKey)
         }
     }
-    
-    private func savePendingReports(_ reports: [PendingSyncReport]) {
-        if let data = try? JSONEncoder().encode(reports) {
-            userDefaults.set(data, forKey: pendingKey)
+
+    private func seedReports() -> [Report] {
+        let calendar = Calendar.current
+        let now = Date()
+        let todayMorning = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: now) ?? now
+        let todayNoon = calendar.date(byAdding: .hour, value: 2, to: todayMorning) ?? now
+        let yesterdayMorning = calendar.date(byAdding: .day, value: -1, to: todayMorning) ?? now
+        let yesterdayAfternoon = calendar.date(byAdding: .hour, value: 3, to: yesterdayMorning) ?? now
+
+        return [
+            Report(
+                id: UUID().uuidString,
+                date: now,
+                installationId: "native-local",
+                department: "Mechanical",
+                section: "Utilities",
+                jobType: "PM",
+                reportCriticality: 2,
+                equipmentTag: "P-204",
+                equipmentTypeName: "Process Pump",
+                description: "Completed monthly inspection, vibration check, and seal leak monitoring for standby pump.",
+                status: "Closed",
+                startTime: todayMorning,
+                endTime: todayNoon,
+                durationHours: 2,
+                remarks: "Bearing temperature within expected range.",
+                createdBy: "native-seed",
+                syncStatus: .synced,
+                localModifiedAt: now,
+                serverModifiedAt: now
+            ),
+            Report(
+                id: UUID().uuidString,
+                date: calendar.date(byAdding: .day, value: -1, to: now) ?? now,
+                installationId: "native-local",
+                department: "Electrical",
+                section: "HT Yard",
+                jobType: "BD",
+                reportCriticality: 3,
+                equipmentTag: "TR-11",
+                equipmentTypeName: "Transformer",
+                description: "Investigated relay nuisance trip and completed terminal tightening during shutdown window.",
+                status: "Open",
+                startTime: yesterdayMorning,
+                endTime: yesterdayAfternoon,
+                durationHours: 3,
+                remarks: "Awaiting thermography confirmation.",
+                createdBy: "native-seed",
+                syncStatus: .pending,
+                localModifiedAt: now,
+                serverModifiedAt: nil
+            )
+        ]
+    }
+}
+
+extension Notification.Name {
+    static let reportsDidChange = Notification.Name("reportsDidChange")
+}
+
+enum SyncStatus: Equatable {
+    case idle
+    case syncing
+    case success
+    case failed
+}
+
+enum RecordSyncStatus: String, Codable, Equatable {
+    case synced
+    case pending
+    case conflict
+}
+
+struct Report: Codable, Identifiable, Equatable {
+    let id: String
+    let date: Date
+    let installationId: String
+    let department: String
+    let section: String
+    let jobType: String
+    let reportCriticality: Int
+    var equipmentTag: String?
+    var equipmentTypeName: String?
+    let description: String
+    let status: String
+    let startTime: Date
+    let endTime: Date
+    let durationHours: Double
+    var remarks: String?
+    let createdBy: String
+    var syncStatus: RecordSyncStatus
+    var localModifiedAt: Date
+    var serverModifiedAt: Date?
+
+    var criticalityLevel: String {
+        switch reportCriticality {
+        case 1: return "Routine"
+        case 2: return "Monthly"
+        case 3: return "Annual"
+        default: return "Unknown"
         }
     }
 }
 
-// MARK: - Sync Error
-enum SyncError: LocalizedError {
-    case partialFailure(failed: Int, total: Int)
-    
-    var errorDescription: String? {
-        switch self {
-        case .partialFailure(let failed, let total):
-            return "Synced \(total - failed) of \(total) reports. \(failed) failed."
-        }
-    }
+struct ReportFilter {
+    var period: ReportsPeriodFilter = .daily
+    var startDate: Date?
+    var endDate: Date?
+    var department: String?
+    var section: String?
+    var jobType: String?
+    var status: String?
 }
 
 #Preview {
     NavigationStack {
         ReportsHubView()
     }
-    .environmentObject(NetworkMonitor())
 }

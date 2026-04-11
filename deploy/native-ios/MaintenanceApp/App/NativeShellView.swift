@@ -26,7 +26,7 @@ struct NativeShellView: View {
                             Text("Manuals & Drawings")
                                 .font(.headline)
 
-                            Text("Folder and document browsing with local persistence for the first native feature slice.")
+                            Text("Read-only repository links with on-device download and local delete controls for mobile-only cache management.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -55,6 +55,20 @@ struct NativeShellView: View {
                                 .font(.headline)
 
                             Text("Discussions and feedback boards are re-enabled with local native seed data and posting flows.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    NavigationLink {
+                        ReportsHubView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Reports")
+                                .font(.headline)
+
+                            Text("Daily logs, offline queue simulation, and sync-state reporting are re-enabled natively.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }

@@ -16,6 +16,7 @@ targets:
       - path: MaintenanceApp/Features/Manuals
       - path: MaintenanceApp/Features/Training
       - path: MaintenanceApp/Features/Collaboration
+      - path: MaintenanceApp/Features/Reports
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

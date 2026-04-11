@@ -14,6 +14,7 @@
 		4CEA28E346191F2F3D5FEC2D /* ManualsHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0482E9B2600A28E308D23E2 /* ManualsHubView.swift */; };
 		67DFCE873326150B702928CA /* MaintenanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2CEC74DD1A33FC96E387B0 /* MaintenanceApp.swift */; };
 		96670C0BA98825E1BF577B2B /* TrainingHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA3401490F412278CCB9B23 /* TrainingHubView.swift */; };
+		E8E9394C83A6E06AF1030522 /* ReportsHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 430C9ABE6308FC39C2874ACD /* ReportsHubView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		430C9ABE6308FC39C2874ACD /* ReportsHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsHubView.swift; sourceTree = "<group>"; };
 		5A52D482CDD0283728642962 /* MaintenanceNativeApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MaintenanceNativeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		63C0002C38A94D6C6F34B1A7 /* NativeShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeShellView.swift; sourceTree = "<group>"; };
 		665A773352A249009EA44454 /* MaintenanceNativeAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MaintenanceNativeAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -39,11 +41,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		213E67CA809FC4D7FAB90A2D /* Reports */ = {
+			isa = PBXGroup;
+			children = (
+				430C9ABE6308FC39C2874ACD /* ReportsHubView.swift */,
+			);
+			path = Reports;
+			sourceTree = "<group>";
+		};
 		22A4CE8341702FE0EBE7261E /* Features */ = {
 			isa = PBXGroup;
 			children = (
 				DA9877E8B8F63BBA79C18284 /* Collaboration */,
 				E5376657B8981E17EC0EC4A9 /* Manuals */,
+				213E67CA809FC4D7FAB90A2D /* Reports */,
 				A4B5A63420F9B5202E82634A /* Training */,
 			);
 			path = Features;
@@ -219,6 +230,7 @@
 				4CEA28E346191F2F3D5FEC2D /* ManualsHubView.swift in Sources */,
 				1EACB082950C56D8E10B64C8 /* NativeShellView.swift in Sources */,
 				3CA221B0AED3FF3F4318053C /* NativeSupportViews.swift in Sources */,
+				E8E9394C83A6E06AF1030522 /* ReportsHubView.swift in Sources */,
 				96670C0BA98825E1BF577B2B /* TrainingHubView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
