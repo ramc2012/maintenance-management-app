@@ -3,9 +3,29 @@ import { StyleSheet, View, TextInput, Pressable, ScrollView, ActivityIndicator, 
 import { Text } from '@/components/Themed';
 import { Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const COGNITIVE_API_URL = 'http://localhost:8000';
+import { getStoredToken } from '@/services/authStorage';
+import { API_REQUEST_TIMEOUT_MS, ApiConfigurationError, ApiError } from '@/services/api';
+
+const explicitCognitiveUrl = process.env.EXPO_PUBLIC_COGNITIVE_API_URL?.trim();
+const expoHost =
+  (Constants.expoConfig as { hostUri?: string } | null)?.hostUri?.split(':')[0]
+  ?? ((Constants as unknown as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } }).manifest2?.extra?.expoGo?.debuggerHost?.split(':')[0]);
+
+function resolveCognitiveApiUrl() {
+  if (explicitCognitiveUrl) {
+    return explicitCognitiveUrl.replace(/\/+$/, '');
+  }
+
+  if (__DEV__ && expoHost) {
+    return `http://${expoHost}:8000`;
+  }
+
+  throw new ApiConfigurationError(
+    'EXPO_PUBLIC_COGNITIVE_API_URL is required for non-development builds.'
+  );
+}
 
 interface Message {
   id: string;
@@ -38,20 +58,46 @@ export default function KelvinScreen() {
     setLoading(true);
 
     try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${COGNITIVE_API_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          query: userMessage.content,
-          model: 'tinyllama',
-          use_rag: true,
-          use_multi_hop: true
-        })
-      });
+      const token = await getStoredToken();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, API_REQUEST_TIMEOUT_MS);
+
+      let response: Response;
+
+      try {
+        response = await fetch(`${resolveCognitiveApiUrl()}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            query: userMessage.content,
+            model: 'tinyllama',
+            use_rag: true,
+            use_multi_hop: true,
+          }),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new ApiError(
+            `Kelvin timed out after ${API_REQUEST_TIMEOUT_MS / 1000} seconds.`,
+            408,
+            null
+          );
+        }
+
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (!response.ok) {
+        throw new ApiError(`Kelvin request failed with status ${response.status}.`, response.status, null);
+      }
 
       const data = await response.json();
 
@@ -68,7 +114,7 @@ export default function KelvinScreen() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I'm having trouble connecting to my knowledge base. Please make sure the cognitive service is running.\n\nError: ${error.message}`,
+        content: `I'm having trouble connecting to my knowledge base. Please make sure the cognitive service is running.\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

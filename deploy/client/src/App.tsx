@@ -67,6 +67,11 @@ const AppContent = () => {
               <EnterpriseHub />
             </ProtectedRoute>
           } />
+          <Route path="/hub" element={
+            <ProtectedRoute>
+              <EnterpriseHub />
+            </ProtectedRoute>
+          } />
 
           {/* Core User Settings */}
           <Route path="/assets" element={<ProtectedRoute><AssetsHub /></ProtectedRoute>} />

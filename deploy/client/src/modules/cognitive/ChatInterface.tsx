@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { MessageCircle, X, Send, Loader2, Sparkles, RefreshCw, Bot, ChevronDown, Maximize2, Minimize2, FileText, Search, Activity, Zap } from "lucide-react";
 import axios from "axios";
+import { COGNITIVE_API_BASE_URL } from "../../config/runtime";
 
 interface Message {
   id: string;
@@ -20,7 +21,7 @@ interface ModelInfo {
   installed?: boolean;
 }
 
-const COGNITIVE_API = "http://localhost:8001";
+const COGNITIVE_API = COGNITIVE_API_BASE_URL;
 
 // Global, cross-module actions
 const GLOBAL_QUICK_ACTIONS = [

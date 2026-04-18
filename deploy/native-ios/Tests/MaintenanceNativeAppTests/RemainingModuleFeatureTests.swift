@@ -3,6 +3,21 @@ import XCTest
 
 final class RemainingModuleFeatureTests: XCTestCase {
     @MainActor
+    func testNativeAppSessionSignsInAndOut() {
+        let session = NativeAppSession()
+        session.signOut()
+
+        session.signIn(email: "ram@example.com", password: "secret", persistSession: false)
+        XCTAssertTrue(session.isAuthenticated)
+        XCTAssertEqual(session.email, "ram@example.com")
+        XCTAssertEqual(session.displayName, "Ram")
+        XCTAssertFalse(session.shouldPersistSession)
+
+        session.signOut()
+        XCTAssertFalse(session.isAuthenticated)
+    }
+
+    @MainActor
     func testEnterpriseHubLoadsMetricsAndModules() {
         let viewModel = EnterpriseHubViewModel()
         viewModel.load()

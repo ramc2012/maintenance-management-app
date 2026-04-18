@@ -54,3 +54,26 @@ DATABASE_URL=postgresql://user:password@localhost:5433/procurement_db npm run eq
 cd server
 npx prisma migrate deploy
 ```
+
+## Local Docker
+
+```bash
+cd deploy
+docker compose up -d --build
+```
+
+Default local URLs:
+
+- web client: `http://localhost:8080`
+- mobile web shell: `http://localhost:8084`
+- API: `http://localhost:5000`
+- cognitive service: `http://localhost:8001`
+- Ollama Web UI: `http://localhost:3001`
+
+The compose stack assigns explicit container names with the `maintenance-*-local` prefix and supports overriding host ports through `.env`.
+
+Optional local LLM sidecars:
+
+```bash
+docker compose --profile ai up -d
+```

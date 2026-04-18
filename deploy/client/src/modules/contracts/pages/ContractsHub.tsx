@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Briefcase, Plus, X, Search, ChevronDown } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 import { PageHeader } from "../../../components/PageHeader";
+import { API_BASE_URL } from "../../../config/runtime";
 
-const API = (import.meta as any).env?.VITE_API_URL || "http://localhost:3003/api";
+const API = API_BASE_URL;
 
 interface Contract {
   id: string;

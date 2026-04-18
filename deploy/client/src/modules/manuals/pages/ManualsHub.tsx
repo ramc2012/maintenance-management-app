@@ -7,8 +7,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Button, Tooltip, message, Popconfirm, Tag } from 'antd';
 import { useTheme } from '../../../context/ThemeContext';
+import { API_BASE_URL } from '../../../config/runtime';
 
-const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003/api';
+const API = API_BASE_URL;
 
 const categories = [
   { id: 'mechanical',       label: 'Mechanical',       icon: Wrench, color: 'text-blue-500'   },

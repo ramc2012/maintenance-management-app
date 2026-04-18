@@ -3,8 +3,9 @@ import { Table, Button, Input, Modal, Form, Select, notification, Tag, Tooltip, 
 import { Plus, Search, User, Key, Trash2, ShieldAlert, CheckCircle, ClipboardList } from "lucide-react";
 import { Layout } from "../../core/components/Layout";
 import { useAuth } from "../../../context/AuthContext";
+import { API_BASE_URL } from "../../../config/runtime";
 
-const API = (import.meta as any).env?.VITE_API_URL || "http://localhost:3003/api";
+const API = API_BASE_URL;
 const { Option } = Select;
 
 interface UserData {

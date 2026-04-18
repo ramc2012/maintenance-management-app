@@ -1,59 +1,101 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { NotificationBadge } from '@/components/NotificationBadge';
+import { useNotificationsBadge } from '@/context/NotificationContext';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+function TabIcon({
+  icon,
+  color,
+}: {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <MaterialCommunityIcons name={icon} size={22} color={color} />;
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const { unreadCount } = useNotificationsBadge();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShadowVisible: false,
+        headerTitleStyle: styles.headerTitle,
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarActiveTintColor: '#1d4ed8',
+        tabBarInactiveTintColor: '#64748b',
+        sceneStyle: styles.scene,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Home',
+          headerTitle: 'Maintenance Hub',
+          tabBarIcon: ({ color }) => <TabIcon icon="view-dashboard-outline" color={color} />,
           headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+            <Pressable onPress={() => router.push('/modules/settings')} style={styles.headerAction}>
+              <MaterialCommunityIcons name="cog-outline" size={22} color="#334155" />
+            </Pressable>
           ),
         }}
       />
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Inbox',
+          headerTitle: 'Notifications',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.tabIconWrap}>
+              <TabIcon icon="bell-outline" color={color} />
+              <View style={styles.tabBadge}>
+                <NotificationBadge count={unreadCount} />
+              </View>
+            </View>
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  headerAction: {
+    marginRight: 16,
+  },
+  tabBar: {
+    height: 72,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  scene: {
+    backgroundColor: '#f8fafc',
+  },
+  tabIconWrap: {
+    minWidth: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -14,
+  },
+});

@@ -31,8 +31,6 @@ export const login = async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         role: user.role,
-        canCreateWorkOrder: user.canCreateWorkOrder,
-        canCloseWorkOrder: user.canCloseWorkOrder,
       }
     });
   } catch (error) {
@@ -58,8 +56,7 @@ export const getUsers = async (req: Request, res: Response) => {
         const users = await prisma.user.findMany({
             select: {
                 id: true, username: true, role: true,
-                lastLogin: true, createdAt: true,
-                canCreateWorkOrder: true, canCloseWorkOrder: true
+                lastLogin: true, createdAt: true
             }
         });
         res.json(users);
@@ -69,21 +66,7 @@ export const getUsers = async (req: Request, res: Response) => {
 };
 
 export const updateUserPermissions = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const { canCreateWorkOrder, canCloseWorkOrder } = req.body;
-    try {
-        const user = await prisma.user.update({
-            where: { id },
-            data: {
-                ...(canCreateWorkOrder !== undefined ? { canCreateWorkOrder: Boolean(canCreateWorkOrder) } : {}),
-                ...(canCloseWorkOrder  !== undefined ? { canCloseWorkOrder:  Boolean(canCloseWorkOrder)  } : {}),
-            },
-            select: { id: true, username: true, role: true, canCreateWorkOrder: true, canCloseWorkOrder: true }
-        });
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating permissions' });
-    }
+    res.status(501).json({ message: 'User permission flags are not available in the current schema' });
 };
 
 export const deleteUser = async (req: Request, res: Response) => {

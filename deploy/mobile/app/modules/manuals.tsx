@@ -20,7 +20,7 @@ const DOCUMENT_CATEGORIES = [
     { name: 'Instrument Index', type: 'XLSX', size: '340 KB' },
     { name: 'Control System Manual', type: 'PDF', size: '3.8 MB' },
   ]},
-];
+] as const;
 
 export default function ManualsScreen() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function ManualsScreen() {
   );
 }
 
-function getDocIcon(type: string): string {
+function getDocIcon(type: string): keyof typeof MaterialCommunityIcons.glyphMap {
   switch (type) {
     case 'PDF': return 'file-pdf-box';
     case 'DWG': return 'floor-plan';

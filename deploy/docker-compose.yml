@@ -1,6 +1,9 @@
+name: maintenance-management-local
+
 services:
   postgres:
     image: timescale/timescaledb:latest-pg15
+    container_name: maintenance-postgres-local
     restart: always
     env_file: .env
     environment:
@@ -20,6 +23,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: maintenance-redis-local
     restart: always
     ports:
       - "${REDIS_PORT:-6380}:6379"
@@ -33,6 +37,8 @@ services:
 
   ollama:
     image: ollama/ollama:latest
+    container_name: maintenance-ollama-local
+    profiles: ["ai"]
     restart: always
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
@@ -46,6 +52,7 @@ services:
 
   server:
     build: ./server
+    container_name: maintenance-server-local
     restart: always
     ports:
       - "${SERVER_PORT:-3000}:3000"
@@ -64,7 +71,12 @@ services:
         condition: service_healthy
 
   client:
-    build: ./client
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: ${DOCKER_CLIENT_API_BASE_URL:-/api}
+        VITE_COGNITIVE_API_BASE_URL: ${DOCKER_CLIENT_COGNITIVE_API_BASE_URL:-/cognitive}
+    container_name: maintenance-client-local
     restart: always
     ports:
       - "${CLIENT_PORT:-8080}:80"
@@ -72,8 +84,23 @@ services:
       - server
       - cognitive
 
+  mobile:
+    build:
+      context: ./mobile
+      args:
+        EXPO_PUBLIC_API_URL: ${DOCKER_MOBILE_API_URL:-/api}
+        EXPO_PUBLIC_COGNITIVE_API_URL: ${DOCKER_MOBILE_COGNITIVE_API_URL:-/cognitive}
+    container_name: maintenance-mobile-local
+    restart: always
+    ports:
+      - "${MOBILE_PORT:-8084}:80"
+    depends_on:
+      - server
+      - cognitive
+
   cognitive:
     build: ./cognitive
+    container_name: maintenance-cognitive-local
     restart: always
     ports:
       - "${COGNITIVE_PORT:-8001}:8000"
@@ -90,11 +117,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      ollama:
-        condition: service_started
 
   ollama-webui:
     image: ghcr.io/open-webui/open-webui:main
+    container_name: maintenance-ollama-webui-local
+    profiles: ["ai"]
     restart: always
     ports:
       - "${OLLAMA_WEBUI_PORT:-3001}:8080"

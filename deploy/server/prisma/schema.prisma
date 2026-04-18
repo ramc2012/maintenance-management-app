@@ -17,6 +17,7 @@ model User {
   createdAt     DateTime      @default(now())
   lastLogin     DateTime?
   comments      CaseComment[]
+  repositoryDocuments RepositoryDocument[]
 }
 
 model Company {
@@ -1802,4 +1803,135 @@ model LaborRate {
   createdAt     DateTime @default(now())
 
   @@unique([department, designation, effectiveFrom])
+}
+
+// ============================================================================
+// AUDIT OBSERVATIONS, ACTIONS, AND ACTIVITY LOGS
+// ============================================================================
+
+model AuditObservation {
+  id             String        @id @default(uuid())
+  observationNo  String        @unique
+  agency         String
+  auditDate      DateTime
+  installationId String?
+  department     String?
+  service        String?
+  category       String?
+  severity       String
+  observation    String
+  reference      String?
+  targetDate     DateTime?
+  reportedBy     String?
+  assignedTo     String?
+  remarks        String?
+  status         String        @default("OPEN")
+  closedDate     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  actions        AuditAction[]
+
+  @@index([status, createdAt])
+  @@index([installationId, status])
+  @@index([agency, status])
+}
+
+model AuditAction {
+  id            String           @id @default(uuid())
+  observationId String
+  observation   AuditObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  actionNo      Int
+  description   String
+  assignedTo    String?
+  targetDate    DateTime
+  status        String           @default("PENDING")
+  completedDate DateTime?
+  remarks       String?
+  verifiedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([observationId, actionNo])
+  @@index([status, targetDate])
+}
+
+model ActivityAuditLog {
+  id         String   @id @default(uuid())
+  requestId  String?
+  userId     String?
+  username   String?
+  role       String?
+  module     String
+  action     String
+  method     String
+  path       String
+  entityType String?
+  entityId   String?
+  statusCode Int?
+  ipAddress  String?
+  userAgent  String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([module, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ============================================================================
+// MANUAL REPOSITORY
+// ============================================================================
+
+model ManualFolder {
+  id        String               @id @default(uuid())
+  name      String
+  category  String
+  parentId  String?
+  parent    ManualFolder?        @relation("ManualFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  ManualFolder[]       @relation("ManualFolderTree")
+  documents RepositoryDocument[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([category, parentId, name])
+}
+
+model RepositoryDocument {
+  id             String       @id @default(uuid())
+  folderId       String
+  folder         ManualFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  originalName   String
+  storedName     String
+  mimeType       String
+  extension      String?
+  size           Int
+  repositoryPath String
+  uploadedById   String
+  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+  uploadedAt     DateTime     @default(now())
+
+  @@index([folderId, uploadedAt])
+  @@index([uploadedById, uploadedAt])
+}
+
+// ============================================================================
+// PROCESS LOGS
+// ============================================================================
+
+model GasCompressionLog {
+  id                String   @id @default(uuid())
+  date              DateTime
+  compressorId      String
+  installationId    String?
+  gasCompressed     Float    @default(0)
+  runHours          Float    @default(0)
+  flowRate          Float    @default(0)
+  suctionPressure   Float?
+  dischargePressure Float?
+  suctionTemp       Float?
+  dischargeTemp     Float?
+  remarks           String?
+  createdAt         DateTime @default(now())
+
+  @@index([installationId, date])
+  @@index([compressorId, date])
 }

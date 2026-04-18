@@ -33,6 +33,7 @@ import staticEquipmentRoutes from "./routes/staticEquipment.routes";
 import contractRoutes from './routes/contracts.routes';
 import presentationRoutes from './routes/presentations.routes';
 import maintenanceRequestRoutes from './routes/maintenanceRequest.routes';
+import manualsRoutes from './routes/manuals.routes';
 
 // New Gap-Closure Routes
 import notificationRoutes from './routes/notification.routes';
@@ -64,6 +65,7 @@ app.use('/api/org', orgRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/equipment-logs', logbookRoutes);
+app.use('/api/logbook', logbookRoutes);
 
 // ISO 14224 Asset Hierarchy Routes
 app.use('/api/fl', flRoutes);
@@ -88,6 +90,7 @@ app.use('/api/static-equipment', staticEquipmentRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/presentations', presentationRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestRoutes);
+app.use('/api/manuals', manualsRoutes);
 
 // Gap-Closure Routes
 app.use('/api/notifications', notificationRoutes);

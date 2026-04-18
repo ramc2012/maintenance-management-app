@@ -75,11 +75,62 @@ export const createLog = async (req: Request, res: Response) => {
   }
 };
 
+export const getCompressionLogs = async (req: Request, res: Response) => {
+  try {
+    const { installationId } = req.query;
+    const where: any = {};
+    if (installationId) where.installationId = String(installationId);
+
+    const logs = await prisma.gasCompressionLog.findMany({
+      where,
+      orderBy: { date: 'desc' },
+      take: 200,
+    });
+
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch compression logs' });
+  }
+};
+
+export const createCompressionLog = async (req: Request, res: Response) => {
+  try {
+    const log = await prisma.gasCompressionLog.create({
+      data: {
+        date: new Date(req.body.date),
+        compressorId: req.body.compressorId,
+        installationId: req.body.installationId || null,
+        gasCompressed: req.body.gasCompressed || 0,
+        runHours: req.body.runHours || 0,
+        flowRate: req.body.flowRate || 0,
+        suctionPressure: req.body.suctionPressure,
+        dischargePressure: req.body.dischargePressure,
+        suctionTemp: req.body.suctionTemp,
+        dischargeTemp: req.body.dischargeTemp,
+        remarks: req.body.remarks,
+      },
+    });
+
+    res.status(201).json(log);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to create compression log: ' + error.message });
+  }
+};
+
 export const deleteLog = async (req: Request, res: Response) => {
   try {
     await prisma.equipmentLog.delete({ where: { id: req.params.id } });
     res.json({ message: 'Log entry deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete log entry' });
+  }
+};
+
+export const deleteCompressionLog = async (req: Request, res: Response) => {
+  try {
+    await prisma.gasCompressionLog.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Compression log deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete compression log' });
   }
 };

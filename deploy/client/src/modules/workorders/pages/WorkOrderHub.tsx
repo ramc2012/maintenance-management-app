@@ -709,7 +709,7 @@ export const WorkOrderHub = () => {
         open={closeWoOpen} onCancel={() => { setCloseWoOpen(false); closeForm.resetFields(); setTeamMembers([]); }}
         footer={null} width={750}>
         <Form form={closeForm} layout="vertical" onFinish={handleCloseWO}>
-          <Divider orientation="left">Closure Details (ISO 14224)</Divider>
+          <Divider>Closure Details (ISO 14224)</Divider>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="failureMode" label="Failure Mode">
@@ -757,7 +757,7 @@ export const WorkOrderHub = () => {
             <TextArea rows={3} placeholder="Describe the work performed, findings, and results..." />
           </Form.Item>
 
-          <Divider orientation="left">
+          <Divider>
             <span className="flex items-center gap-2"><Users className="w-4 h-4" />Team Members Involved</span>
           </Divider>
           <div className="space-y-2 mb-3">
