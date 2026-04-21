@@ -8,16 +8,29 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(uuid())
-  username      String        @unique
-  password      String
-  role          String
-  departmentId  String?
-  department    Department?   @relation(fields: [departmentId], references: [id])
-  createdAt     DateTime      @default(now())
-  lastLogin     DateTime?
-  comments      CaseComment[]
-  repositoryDocuments RepositoryDocument[]
+  id                       String                  @id @default(uuid())
+  username                 String                  @unique
+  password                 String
+  role                     String
+  isExternal               Boolean                 @default(false)
+  companyName              String?
+  phone                    String?
+  jobTitle                 String?
+  departmentId             String?
+  department               Department?             @relation(fields: [departmentId], references: [id])
+  createdAt                DateTime                @default(now())
+  lastLogin                DateTime?
+  canCreateWorkOrder       Boolean                 @default(false)
+  canCloseWorkOrder        Boolean                 @default(false)
+  comments                 CaseComment[]
+  contractAccesses         ContractUserAccess[]
+  contractorRequests       MaintenanceRequest[]    @relation("ContractorRequestsCreated")
+  contractorWorkOrders     WorkOrder[]             @relation("ContractorWorkOrdersCreated")
+  contractReportsSubmitted ContractorReport[]      @relation("ContractReportsSubmitted")
+  contractReportsReviewed  ContractorReport[]      @relation("ContractReportsReviewed")
+  workOrderExecutionEvents WorkOrderExecutionLog[] @relation("WorkOrderExecutionPerformedBy")
+  workOrderAssignments     WorkOrderTeam[]         @relation("WorkOrderTeamUser")
+  repositoryDocuments      RepositoryDocument[]
 }
 
 model Company {
@@ -87,9 +100,10 @@ model Case {
   departmentId        String?
   department          Department?   @relation(fields: [departmentId], references: [id])
   comments            CaseComment[]
-  equipmentTag        String?       // link spend to specific equipment
+  equipmentTag        String? // link spend to specific equipment
   maintenanceRelated  Boolean       @default(false) // flag for maintenance cost reports
 }
+
 // --- EQUIPMENT & CALIBRATION MODULE ---
 
 model Installation {
@@ -99,12 +113,15 @@ model Installation {
   type           String // Surface, Drilling Rig, Workover Rig, Mobile Units
   isActive       Boolean @default(true)
 
-  instruments      InstrumentMaster[]
-  runningEquipment RunningEquipmentMaster[]
-  maintenanceLogs  MaintenanceLog[]
-  trainings        TrainingRecord[]        @relation("InstallationTrainings")
-  energyLogs       DailyEnergyLog[]        @relation("InstallationEnergyLogs")
-  electricBills    MonthlyElectricityBill[] @relation("InstallationElectricBills")
+  instruments       InstrumentMaster[]
+  runningEquipment  RunningEquipmentMaster[]
+  maintenanceLogs   MaintenanceLog[]
+  trainings         TrainingRecord[]            @relation("InstallationTrainings")
+  energyLogs        DailyEnergyLog[]            @relation("InstallationEnergyLogs")
+  electricBills     MonthlyElectricityBill[]    @relation("InstallationElectricBills")
+  contractScopes    ContractInstallationScope[]
+  contractorReports ContractorReport[]
+  operationalLogs   OperationalLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,19 +155,20 @@ model InstrumentMaster {
   internalMeterId    String?
   internalMeter      InternalFlowMeter?    @relation(fields: [internalMeterId], references: [id])
 
-  purchaseDate          DateTime?
-  commissioningDate     DateTime?
-  warrantyExpiry        DateTime?
-  criticality           String?     // A, B, C
-  safetyClassification  String?     // SIS, PROCESS, UTILITY
-  processConnection     String?     // 1/2" NPT, Flanged, etc.
-  mountingLocation      String?
-  drawingRef            String?     // P&ID reference
-  healthStatus          String      @default("OK") // OK, WARNING, CRITICAL
+  purchaseDate         DateTime?
+  commissioningDate    DateTime?
+  warrantyExpiry       DateTime?
+  criticality          String? // A, B, C
+  safetyClassification String? // SIS, PROCESS, UTILITY
+  processConnection    String? // 1/2" NPT, Flanged, etc.
+  mountingLocation     String?
+  drawingRef           String? // P&ID reference
+  healthStatus         String    @default("OK") // OK, WARNING, CRITICAL
 
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   CalibrationEvent          CalibrationEvent[]
+  contractorReports         ContractorReport[]
   UnifiedCalibrationHistory UnifiedCalibrationHistory[]
 }
 
@@ -189,21 +207,23 @@ model RunningEquipmentMaster {
   equipmentTypeId String?
   equipmentType   EquipmentType? @relation(fields: [equipmentTypeId], references: [id])
 
-  commissioningDate    DateTime?
-  warrantyExpiry       DateTime?
-  criticality          String?    // A, B, C
-  ratedPressure        Float?
-  ratedTemperature     Float?
-  ratedFlow            Float?
-  purchaseDate         DateTime?
-  mountingLocation     String?
-  drawingRef           String?    // P&ID reference
-  purchaseOrderNo      String?
+  commissioningDate DateTime?
+  warrantyExpiry    DateTime?
+  criticality       String? // A, B, C
+  ratedPressure     Float?
+  ratedTemperature  Float?
+  ratedFlow         Float?
+  purchaseDate      DateTime?
+  mountingLocation  String?
+  drawingRef        String? // P&ID reference
+  purchaseOrderNo   String?
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  logs             EquipmentLog[]
-  pmsInitialStates PMSInitialState[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  contractorReports ContractorReport[]
+  logs              EquipmentLog[]
+  operationalLogs   OperationalLog[]
+  pmsInitialStates  PMSInitialState[]
 }
 
 model CalibrationStandard {
@@ -395,8 +415,8 @@ model MaintenanceLog {
   endTime       DateTime
   durationHours Float
   remarks       String?
-  assignedBy      String?  @default("System")
-  assignedAt      DateTime @default(now())
+  assignedBy    String?  @default("System")
+  assignedAt    DateTime @default(now())
 
   // BD-specific time fields (only used when jobType = BD)
   bdReportTime      DateTime?
@@ -441,12 +461,122 @@ model EquipmentLog {
   cumulativeMeterReading Float?
 
   parameters Json?
-  remarks       String?
-  assignedBy      String?  @default("System")
-  assignedAt      DateTime @default(now())
+  remarks    String?
+  assignedBy String?  @default("System")
+  assignedAt DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model OperationalMetricDefinition {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  label           String
+  unit            String?
+  assetClass      String?
+  valueType       String // NUMBER, BOOLEAN, TEXT, ENUM
+  captureType     String  @default("MANUAL") // MANUAL, AUTO, EITHER
+  aggregationRule String?
+  alertMin        Float?
+  alertMax        Float?
+  warningMin      Float?
+  warningMax      Float?
+  displayGroup    String?
+  sortOrder       Int      @default(0)
+  isRequired      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profileMetrics AssetLogProfileMetric[]
+  logMetrics     OperationalLogMetric[]
+}
+
+model AssetLogProfile {
+  id                String   @id @default(uuid())
+  code              String   @unique
+  name              String
+  assetClass        String   @default("RUNNING_EQUIPMENT")
+  description       String?
+  logGranularity    String   @default("DAILY")
+  defaultSourceMode String   @default("MANUAL")
+  requiresApproval  Boolean  @default(false)
+  allowBackdated    Boolean  @default(true)
+  active            Boolean  @default(true)
+  matcherKeywords   Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  metrics AssetLogProfileMetric[]
+}
+
+model AssetLogProfileMetric {
+  id                 String   @id @default(uuid())
+  assetLogProfileId  String
+  assetLogProfile    AssetLogProfile           @relation(fields: [assetLogProfileId], references: [id], onDelete: Cascade)
+  metricDefinitionId String
+  metricDefinition   OperationalMetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+  isRequired         Boolean  @default(false)
+  sequence           Int      @default(0)
+  defaultVisible     Boolean  @default(true)
+
+  @@unique([assetLogProfileId, metricDefinitionId])
+}
+
+model OperationalLog {
+  id                 String   @id @default(uuid())
+  logDate            DateTime
+  shift              String   @default("GENERAL") // GENERAL, DAY, NIGHT
+  granularity        String   @default("DAILY") // DAILY, SHIFT, HOURLY_SUMMARY
+  sourceMode         String   @default("MANUAL") // MANUAL, AUTO, HYBRID
+  sourceStatus       String   @default("DRAFT") // DRAFT, AUTO_CAPTURED, REVIEWED, APPROVED, REJECTED
+  assetClass         String   @default("RUNNING_EQUIPMENT")
+  profileCode        String?
+  installationId     String
+  installation       Installation          @relation(fields: [installationId], references: [id])
+  equipmentTag       String
+  equipment          RunningEquipmentMaster @relation(fields: [equipmentTag], references: [equipmentTag])
+  runtimeHours       Float?
+  downtimeHours      Float?
+  standbyHours       Float?
+  cumulativeHours    Float?
+  operatingState     String? // RUNNING, STOPPED, STANDBY, TRIPPED, MAINTENANCE
+  availabilityStatus String? // AVAILABLE, DEGRADED, UNAVAILABLE
+  enteredBy          String?
+  reviewedBy         String?
+  approvedBy         String?
+  approvedAt         DateTime?
+  remarks            String?
+  qualityScore       Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  metrics             OperationalLogMetric[]
+  compressorProcessLog GasCompressionLog?
+
+  @@unique([logDate, shift, equipmentTag])
+  @@index([installationId, logDate])
+  @@index([equipmentTag, logDate])
+  @@index([sourceMode, logDate])
+}
+
+model OperationalLogMetric {
+  id                 String   @id @default(uuid())
+  operationalLogId   String
+  operationalLog     OperationalLog            @relation(fields: [operationalLogId], references: [id], onDelete: Cascade)
+  metricDefinitionId String
+  metricDefinition   OperationalMetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+  valueNumber        Float?
+  valueText          String?
+  valueBoolean       Boolean?
+  valueEnum          String?
+  sourceQuality      String?
+  sourceTag          String?
+  readingTimestamp   DateTime?
+  createdAt          DateTime @default(now())
+
+  @@unique([operationalLogId, metricDefinitionId])
 }
 
 model PMSInitialState {
@@ -544,9 +674,10 @@ model FunctionalLocation {
   asDrivenIn         SkidDriveTrain[]    @relation("DriveTrainDriven")
   assetAssignments   FLAssetAssignment[] @relation("FLAssets")
 
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  createdAt          DateTime                          @default(now())
+  updatedAt          DateTime                          @updatedAt
   AssignmentAuditLog AssignmentAuditLog[]
+  contractScopes     ContractFunctionalLocationScope[]
 }
 
 // === ASSETS (Physical Equipment with JSONB Specs) ===
@@ -572,12 +703,12 @@ model Asset {
   // Installation history
   installations AssetInstallation[]
 
-  commissioningDate  DateTime?
-  warrantyExpiry     DateTime?
-  criticality        String?    // A, B, C
-  purchaseDate       DateTime?
-  nextInspectionDue  DateTime?
-  certifications     Json?      // {PESO: true, IBR: false, ATEX: true}
+  commissioningDate DateTime?
+  warrantyExpiry    DateTime?
+  criticality       String? // A, B, C
+  purchaseDate      DateTime?
+  nextInspectionDue DateTime?
+  certifications    Json? // {PESO: true, IBR: false, ATEX: true}
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -698,9 +829,14 @@ model WorkOrder {
   assignmentId String?
   assignment   MaintenancePlanAssignment? @relation(fields: [assignmentId], references: [id])
 
-  woType   String // 'PREVENTIVE', 'CORRECTIVE', 'PREDICTIVE'
-  priority String @default("NORMAL") // LOW, NORMAL, HIGH, EMERGENCY
-  status   String @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CLOSED
+  woType                    String // 'PREVENTIVE', 'CORRECTIVE', 'PREDICTIVE'
+  priority                  String    @default("NORMAL") // LOW, NORMAL, HIGH, EMERGENCY
+  status                    String    @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CLOSED
+  requestOrigin             String    @default("INTERNAL") // INTERNAL, CONTRACTOR, SYSTEM, CMS_WORKSPACE
+  executionStage            String    @default("REQUESTED") // REQUESTED, ASSIGNED, DEPLOYED, WORK_DONE, REPORT_SUBMITTED, VERIFIED, CLOSED
+  executionUpdatedAt        DateTime?
+  contractId                String?
+  assignedContractorCompany String?
 
   description    String
   scheduledDate  DateTime?
@@ -716,30 +852,35 @@ model WorkOrder {
   labourHours  Float?
   downtime     Float? // Hours of downtime
 
-  remarks       String?
+  remarks         String?
   assignedBy      String?  @default("System")
   assignedAt      DateTime @default(now())
-  closedBy  String?
-  createdBy String
+  closedBy        String?
+  createdBy       String
+  createdByUserId String?
 
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   // ISO 14224 Relations
-  failureModeRel     FailureMode?      @relation("WOFailureMode", fields: [failureMode], references: [code])
-  mechanismRel       FailureMechanism? @relation("WOMechanism", fields: [failureMechanism], references: [code])
-  causeCodeRel       CauseCode?        @relation("WOCause", fields: [causeCode], references: [code])
-  actionCodeRel      ActionCode?       @relation("WOAction", fields: [actionTaken], references: [code])
-  failureMechanism   String?
+  failureModeRel   FailureMode?      @relation("WOFailureMode", fields: [failureMode], references: [code])
+  mechanismRel     FailureMechanism? @relation("WOMechanism", fields: [failureMechanism], references: [code])
+  causeCodeRel     CauseCode?        @relation("WOCause", fields: [causeCode], references: [code])
+  actionCodeRel    ActionCode?       @relation("WOAction", fields: [actionTaken], references: [code])
+  failureMechanism String?
 
   maintenanceRequestId String?
+  contract             Contract?               @relation(fields: [contractId], references: [id])
+  createdByUser        User?                   @relation("ContractorWorkOrdersCreated", fields: [createdByUserId], references: [id], onDelete: SetNull)
   teamMembers          WorkOrderTeam[]
   checklist            WorkOrderChecklist[]
   attachments          WOAttachment[]
+  executionLogs        WorkOrderExecutionLog[]
+  contractorReports    ContractorReport[]
 
   @@index([flId, status])
   @@index([status, scheduledDate])
+  @@index([contractId, executionStage])
 }
-
 
 // === ISO 14224 REFERENCE TABLES ===
 
@@ -755,29 +896,29 @@ model FailureMode {
 }
 
 model FailureMechanism {
-  code        String   @id // 'WEA', 'FAT', 'COR', 'OVS'
+  code        String      @id // 'WEA', 'FAT', 'COR', 'OVS'
   name        String // 'Wear', 'Fatigue', 'Corrosion', 'Overstress'
   description String?
   category    String? // 'MECHANICAL', 'ELECTRICAL', 'PROCESS'
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
   workOrders  WorkOrder[] @relation("WOMechanism")
 }
 
 model CauseCode {
-  code        String   @id // 'LUB', 'WER', 'OVL'
+  code        String      @id // 'LUB', 'WER', 'OVL'
   name        String // 'Lubrication Failure', 'Wear', 'Overload'
   description String?
   category    String? // 'HUMAN', 'EQUIPMENT', 'EXTERNAL'
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
   workOrders  WorkOrder[] @relation("WOCause")
 }
 
 model ActionCode {
-  code        String   @id // 'REPLACE', 'REPAIR'
+  code        String      @id // 'REPLACE', 'REPAIR'
   name        String
   description String?
   category    String? // 'CORRECTIVE', 'PREVENTIVE'
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
   workOrders  WorkOrder[] @relation("WOAction")
 }
 
@@ -825,8 +966,8 @@ model CalibrationEvent {
   approvalDate DateTime?
 
   remarks       String?
-  assignedBy      String?  @default("System")
-  assignedAt      DateTime @default(now())
+  assignedBy    String?  @default("System")
+  assignedAt    DateTime @default(now())
   reportFileUrl String?
 
   // Calibration Points (5-point or multi-point)
@@ -1110,8 +1251,8 @@ model FLAssetAssignment {
   isActive      Boolean  @default(true)
   installedDate DateTime @default(now())
   remarks       String?
-  assignedBy      String?  @default("System")
-  assignedAt      DateTime @default(now())
+  assignedBy    String?  @default("System")
+  assignedAt    DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1155,51 +1296,51 @@ model AssignmentAuditLog {
 // ============================================================================
 
 model TrainingRecord {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   installationId String
   installation   Installation @relation("InstallationTrainings", fields: [installationId], references: [id])
-  
-  trainingType   String   // SAFETY, TECHNICAL, SOFT_SKILLS, INDUCTION, HSE
-  title          String
-  description    String?
-  
-  trainerId      String?
-  trainerName    String?  // External trainer name if not internal
-  
-  startDate      DateTime
-  endDate        DateTime
-  durationHours  Float?
-  
-  venue          String?
-  maxAttendees   Int?
-  
-  status         String   @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
-  
-  attendees      TrainingAttendee[]
-  
-  remarks        String?
-  createdBy      String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  trainingType String // SAFETY, TECHNICAL, SOFT_SKILLS, INDUCTION, HSE
+  title        String
+  description  String?
+
+  trainerId   String?
+  trainerName String? // External trainer name if not internal
+
+  startDate     DateTime
+  endDate       DateTime
+  durationHours Float?
+
+  venue        String?
+  maxAttendees Int?
+
+  status String @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
+
+  attendees TrainingAttendee[]
+
+  remarks   String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TrainingAttendee {
-  id           String   @id @default(uuid())
-  trainingId   String
-  training     TrainingRecord @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  
+  id         String         @id @default(uuid())
+  trainingId String
+  training   TrainingRecord @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
   employeeId   String
   employeeName String
   department   String?
-  
-  attended     Boolean  @default(false)
-  score        Float?   // Test score if applicable
-  certified    Boolean  @default(false)
-  
-  feedback     String?
-  
-  createdAt    DateTime @default(now())
-  
+
+  attended  Boolean @default(false)
+  score     Float? // Test score if applicable
+  certified Boolean @default(false)
+
+  feedback String?
+
+  createdAt DateTime @default(now())
+
   @@unique([trainingId, employeeId])
 }
 
@@ -1208,62 +1349,62 @@ model TrainingAttendee {
 // ============================================================================
 
 model DailyEnergyLog {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   installationId String
   installation   Installation @relation("InstallationEnergyLogs", fields: [installationId], references: [id])
-  
-  date           DateTime
-  
+
+  date DateTime
+
   // Fuel consumption
-  fuelType       String?  // DIESEL, NATURAL_GAS, LPG
-  fuelQuantity   Float?   // Liters or m³
-  fuelUnit       String?  // LITERS, CUBIC_METERS
-  fuelCost       Float?
-  
+  fuelType     String? // DIESEL, NATURAL_GAS, LPG
+  fuelQuantity Float? // Liters or m³
+  fuelUnit     String? // LITERS, CUBIC_METERS
+  fuelCost     Float?
+
   // Electrical consumption
-  electricityKwh Float?
+  electricityKwh  Float?
   electricityCost Float?
-  
+
   // Generator runtime (if applicable)
   generatorHours Float?
-  
-  remarks        String?
-  loggedBy       String
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+
+  remarks  String?
+  loggedBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([installationId, date])
 }
 
 model MonthlyElectricityBill {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   installationId String
   installation   Installation @relation("InstallationElectricBills", fields: [installationId], references: [id])
-  
-  month          Int      // 1-12
-  year           Int
-  
-  unitsConsumed  Float    // kWh
-  demandKva      Float?   // Maximum demand
-  
-  billAmount     Float
-  taxAmount      Float?
-  totalAmount    Float
-  
-  billNumber     String?
-  billDate       DateTime?
-  dueDate        DateTime?
-  paidDate       DateTime?
-  
-  status         String   @default("PENDING") // PENDING, PAID, OVERDUE
-  
-  remarks        String?
-  createdBy      String
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+
+  month Int // 1-12
+  year  Int
+
+  unitsConsumed Float // kWh
+  demandKva     Float? // Maximum demand
+
+  billAmount  Float
+  taxAmount   Float?
+  totalAmount Float
+
+  billNumber String?
+  billDate   DateTime?
+  dueDate    DateTime?
+  paidDate   DateTime?
+
+  status String @default("PENDING") // PENDING, PAID, OVERDUE
+
+  remarks   String?
+  createdBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([installationId, month, year])
 }
 
@@ -1272,42 +1413,42 @@ model MonthlyElectricityBill {
 // ============================================================================
 
 model WorkshopJob {
-  id             String   @id @default(uuid())
-  jobNumber      String   @unique
-  
-  shopType       String   // FABRICATION, DIESEL, MACHINE, ELECTRICAL
-  
+  id        String @id @default(uuid())
+  jobNumber String @unique
+
+  shopType String // FABRICATION, DIESEL, MACHINE, ELECTRICAL
+
   installationId String?
-  
-  title          String
-  description    String?
-  
-  requestedBy    String
-  requestDate    DateTime
-  
-  priority       String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
-  
+
+  title       String
+  description String?
+
+  requestedBy String
+  requestDate DateTime
+
+  priority String @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+
   estimatedHours Float?
   actualHours    Float?
-  
-  materialCost   Float?
-  laborCost      Float?
-  totalCost      Float?
-  
-  status         String   @default("PENDING") // PENDING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
-  
-  assignedTo     String?
-  startDate      DateTime?
-  completedDate  DateTime?
-  
-  equipmentTag   String?
-  workOrderRef   String?
-  
-  remarks        String?
-  
-  createdBy      String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  materialCost Float?
+  laborCost    Float?
+  totalCost    Float?
+
+  status String @default("PENDING") // PENDING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+
+  assignedTo    String?
+  startDate     DateTime?
+  completedDate DateTime?
+
+  equipmentTag String?
+  workOrderRef String?
+
+  remarks String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================================
@@ -1315,41 +1456,41 @@ model WorkshopJob {
 // ============================================================================
 
 model MOHRecord {
-  id               String   @id @default(uuid())
-  mohNumber        String   @unique
-  
-  installationId   String
-  equipmentId      String?  // Link to RunningEquipmentMaster
-  equipmentTag     String
-  equipmentName    String
-  
-  lastMOHDate      DateTime?
-  currentRunHours  Float?
-  dCheckInterval   Float?   // D check hours interval from PMS
-  nextMOHDue       DateTime?
-  
-  status           String   @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
-  priority         String   @default("NORMAL")  // LOW, NORMAL, HIGH, CRITICAL
-  
+  id        String @id @default(uuid())
+  mohNumber String @unique
+
+  installationId String
+  equipmentId    String? // Link to RunningEquipmentMaster
+  equipmentTag   String
+  equipmentName  String
+
+  lastMOHDate     DateTime?
+  currentRunHours Float?
+  dCheckInterval  Float? // D check hours interval from PMS
+  nextMOHDue      DateTime?
+
+  status   String @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  priority String @default("NORMAL") // LOW, NORMAL, HIGH, CRITICAL
+
   plannedStartDate DateTime?
   actualStartDate  DateTime?
   completedDate    DateTime?
-  
-  estimatedCost    Float?
-  actualCost       Float?
-  
-  procurementCaseId String?  // Link to procurement case
-  workOrderId       String?  // Link to work order
-  
-  scopeOfWork      String?
-  findings         String?
-  actionsTaken     String?
-  
-  assignedTo       String?
-  createdBy        String
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+
+  estimatedCost Float?
+  actualCost    Float?
+
+  procurementCaseId String? // Link to procurement case
+  workOrderId       String? // Link to work order
+
+  scopeOfWork  String?
+  findings     String?
+  actionsTaken String?
+
+  assignedTo String?
+  createdBy  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================================
@@ -1357,101 +1498,101 @@ model MOHRecord {
 // ============================================================================
 
 model Discussion {
-  id          String   @id @default(uuid())
-  title       String
-  content     String
-  category    String?  // GENERAL, TECHNICAL, SAFETY, IDEAS, etc.
-  
-  authorId    String
-  authorName  String
-  
-  isPinned    Boolean  @default(false)
-  isLocked    Boolean  @default(false)
-  
-  viewCount   Int      @default(0)
-  
-  replies     DiscussionReply[]
-  reactions   DiscussionReaction[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id       String  @id @default(uuid())
+  title    String
+  content  String
+  category String? // GENERAL, TECHNICAL, SAFETY, IDEAS, etc.
+
+  authorId   String
+  authorName String
+
+  isPinned Boolean @default(false)
+  isLocked Boolean @default(false)
+
+  viewCount Int @default(0)
+
+  replies   DiscussionReply[]
+  reactions DiscussionReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model DiscussionReply {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   discussionId String
   discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
-  
-  parentId     String?  // For nested replies
-  
-  content      String
-  authorId     String
-  authorName   String
-  
-  reactions    ReplyReaction[]
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+
+  parentId String? // For nested replies
+
+  content    String
+  authorId   String
+  authorName String
+
+  reactions ReplyReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model DiscussionReaction {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   discussionId String
   discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
-  
+
   userId       String
-  reactionType String   // LIKE, LOVE, HELPFUL, INSIGHTFUL
-  
-  createdAt    DateTime @default(now())
-  
+  reactionType String // LIKE, LOVE, HELPFUL, INSIGHTFUL
+
+  createdAt DateTime @default(now())
+
   @@unique([discussionId, userId])
 }
 
 model ReplyReaction {
-  id       String   @id @default(uuid())
-  replyId  String
-  reply    DiscussionReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
-  
-  userId   String
+  id      String          @id @default(uuid())
+  replyId String
+  reply   DiscussionReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  userId       String
   reactionType String
-  
+
   createdAt DateTime @default(now())
-  
+
   @@unique([replyId, userId])
 }
 
 model Feedback {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   title       String
   description String
-  category    String   // FEATURE, IMPROVEMENT, BUG, PROCESS
-  priority    String   @default("NORMAL")
-  
-  authorId    String
-  authorName  String
-  
-  status      String   @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, APPROVED, IMPLEMENTED, REJECTED
-  
-  upvotes     Int      @default(0)
-  downvotes   Int      @default(0)
-  
-  reactions   FeedbackReaction[]
-  comments    FeedbackComment[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category    String // FEATURE, IMPROVEMENT, BUG, PROCESS
+  priority    String @default("NORMAL")
+
+  authorId   String
+  authorName String
+
+  status String @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, APPROVED, IMPLEMENTED, REJECTED
+
+  upvotes   Int @default(0)
+  downvotes Int @default(0)
+
+  reactions FeedbackReaction[]
+  comments  FeedbackComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model FeedbackReaction {
   id         String   @id @default(uuid())
   feedbackId String
   feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
-  
-  userId     String
-  voteType   String   // UP, DOWN
-  
-  createdAt  DateTime @default(now())
-  
+
+  userId   String
+  voteType String // UP, DOWN
+
+  createdAt DateTime @default(now())
+
   @@unique([feedbackId, userId])
 }
 
@@ -1459,12 +1600,12 @@ model FeedbackComment {
   id         String   @id @default(uuid())
   feedbackId String
   feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
-  
+
   content    String
   authorId   String
   authorName String
-  
-  createdAt  DateTime @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 // ============================================================================
@@ -1472,37 +1613,37 @@ model FeedbackComment {
 // ============================================================================
 
 model StaticEquipment {
-  id               String   @id @default(uuid())
-  tagNumber        String   @unique
-  name             String
-  
-  equipmentType    String   // VESSEL, SEPARATOR, TANK, HEAT_EXCHANGER, COLUMN, REACTOR
-  
-  installationId   String
-  functionalLocId  String?
-  
-  designPressure   Float?
-  designTemp       Float?
+  id        String @id @default(uuid())
+  tagNumber String @unique
+  name      String
+
+  equipmentType String // VESSEL, SEPARATOR, TANK, HEAT_EXCHANGER, COLUMN, REACTOR
+
+  installationId  String
+  functionalLocId String?
+
+  designPressure    Float?
+  designTemp        Float?
   operatingPressure Float?
-  operatingTemp    Float?
-  
-  material         String?
-  capacity         Float?
-  capacityUnit     String?  // m³, BBL, L
-  
-  manufacturer     String?
-  serialNumber     String?
-  
-  installDate      DateTime?
-  lastInspection   DateTime?
-  nextInspection   DateTime?
-  
-  status           String   @default("OPERATIONAL") // OPERATIONAL, UNDER_MAINTENANCE, SHUTDOWN
+  operatingTemp     Float?
 
-  remarks          String?
+  material     String?
+  capacity     Float?
+  capacityUnit String? // m³, BBL, L
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  manufacturer String?
+  serialNumber String?
+
+  installDate    DateTime?
+  lastInspection DateTime?
+  nextInspection DateTime?
+
+  status String @default("OPERATIONAL") // OPERATIONAL, UNDER_MAINTENANCE, SHUTDOWN
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================================
@@ -1510,23 +1651,27 @@ model StaticEquipment {
 // ============================================================================
 
 model MaintenanceRequest {
-  id          String @id @default(uuid())
-  reqNumber   String @unique
+  id        String @id @default(uuid())
+  reqNumber String @unique
 
   title       String
   description String
 
-  equipmentTag String?
-  flId         String?
+  equipmentTag   String?
+  flId           String?
   installationId String?
 
-  requestType  String // CORRECTIVE, PREVENTIVE, INSPECTION, MODIFICATION
-  priority     String @default("NORMAL") // LOW, NORMAL, HIGH, EMERGENCY
+  requestType String // CORRECTIVE, PREVENTIVE, INSPECTION, MODIFICATION
+  priority    String @default("NORMAL") // LOW, NORMAL, HIGH, EMERGENCY
 
-  status       String @default("PENDING") // PENDING, APPROVED, REJECTED, CONVERTED, CANCELLED
+  status        String  @default("PENDING") // PENDING, APPROVED, REJECTED, CONVERTED, CANCELLED
+  requestOrigin String  @default("INTERNAL") // INTERNAL, CONTRACTOR, AUTO_GENERATED, CMS_WORKSPACE
+  assetClass    String? // INSTRUMENT, RUNNING_EQUIPMENT, STATIC_EQUIPMENT, FUNCTIONAL_LOCATION
 
-  requestedBy  String
-  requestedAt  DateTime @default(now())
+  requestedBy     String
+  createdByUserId String?
+  contractId      String?
+  requestedAt     DateTime @default(now())
 
   approvedBy      String?
   approvedAt      DateTime?
@@ -1534,12 +1679,18 @@ model MaintenanceRequest {
   rejectedAt      DateTime?
   rejectionReason String?
 
-  workOrderId  String?
+  workOrderId String?
 
-  remarks      String?
+  remarks String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  createdByUser User?              @relation("ContractorRequestsCreated", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  contract      Contract?          @relation(fields: [contractId], references: [id])
+  reports       ContractorReport[]
+
+  @@index([contractId, requestedAt])
+  @@index([createdByUserId, requestedAt])
 }
 
 // ============================================================================
@@ -1551,6 +1702,8 @@ model WorkOrderTeam {
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
+  userId       String?
+  user         User?   @relation("WorkOrderTeamUser", fields: [userId], references: [id], onDelete: SetNull)
   employeeId   String?
   employeeName String
   designation  String?
@@ -1560,13 +1713,15 @@ model WorkOrderTeam {
   isContractor Boolean @default(false)
   companyName  String?
 
-  startTime    DateTime?
-  endTime      DateTime?
-  hoursWorked  Float?
+  startTime   DateTime?
+  endTime     DateTime?
+  hoursWorked Float?
 
-  remarks      String?
+  remarks String?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ============================================================================
@@ -1578,17 +1733,17 @@ model WorkOrderChecklist {
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
-  sequence    Int    @default(0)
+  sequence    Int     @default(0)
   taskCode    String?
   description String
 
-  isCompleted Boolean  @default(false)
+  isCompleted Boolean   @default(false)
   completedBy String?
   completedAt DateTime?
 
-  remarks     String?
+  remarks String?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 // ============================================================================
@@ -1596,45 +1751,151 @@ model WorkOrderChecklist {
 // ============================================================================
 
 model Contract {
-  id             String @id @default(uuid())
-  contractNumber String @unique
+  id             String  @id @default(uuid())
+  contractNumber String  @unique
+  workspaceSlug  String? @unique
+  workspaceLabel String?
 
-  title          String
-  scope          String
-  workType       String // OPERATION, MAINTENANCE, CONSTRUCTION, INSPECTION, SUPPLY, CONSULTANCY
+  title    String
+  scope    String
+  workType String // OPERATION, MAINTENANCE, CONSTRUCTION, INSPECTION, SUPPLY, CONSULTANCY
 
-  contractorName  String
-  contractorCode  String?
-  contactPerson   String?
-  contactEmail    String?
-  contactPhone    String?
+  contractorName String
+  contractorCode String?
+  contactPerson  String?
+  contactEmail   String?
+  contactPhone   String?
 
-  contractValue   Float
-  currency        String @default("INR")
-  paymentTerms    String?
+  contractValue Float
+  currency      String  @default("INR")
+  paymentTerms  String?
 
-  startDate       DateTime
-  endDate         DateTime
+  startDate DateTime
+  endDate   DateTime
 
-  status          String @default("ACTIVE") // DRAFT, ACTIVE, COMPLETED, TERMINATED, EXPIRED, ON_HOLD
+  status                  String  @default("ACTIVE") // DRAFT, ACTIVE, COMPLETED, TERMINATED, EXPIRED, ON_HOLD
+  externalAccessEnabled   Boolean @default(false)
+  shareAllInstallations   Boolean @default(false)
+  shareAllInstrumentTypes Boolean @default(false)
+  shareAllEquipmentScopes Boolean @default(false)
+  dashboardMode           String  @default("CONTRACT") // CONTRACT, INSTALLATION, SERVICE
 
-  installationId  String?
-  departmentId    String?
+  installationId String?
+  departmentId   String?
 
-  documentRef     String?
+  documentRef String?
 
-  ongcOfficer     String?
-  approvedBy      String?
-  approvalDate    DateTime?
+  ongcOfficer  String?
+  approvedBy   String?
+  approvalDate DateTime?
 
-  remarks         String?
-  createdBy       String
+  remarks   String?
+  createdBy String
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  milestones      ContractMilestone[]
-  documents       ContractDocument[]
+  userAccesses             ContractUserAccess[]
+  installationScopes       ContractInstallationScope[]
+  instrumentTypeScopes     ContractInstrumentTypeScope[]
+  equipmentScopes          ContractEquipmentScope[]
+  functionalLocationScopes ContractFunctionalLocationScope[]
+  maintenanceRequests      MaintenanceRequest[]
+  workOrders               WorkOrder[]
+  milestones               ContractMilestone[]
+  documents                ContractDocument[]
+  reports                  ContractorReport[]
+  executionLogs            WorkOrderExecutionLog[]           @relation("ContractExecutionLogs")
+}
+
+model ContractUserAccess {
+  id                    String    @id @default(uuid())
+  contractId            String
+  contract              Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessRole            String // ONGC_CONTRACT_OWNER, ONGC_REVIEWER, CONTRACTOR_ADMIN, CONTRACTOR_COORDINATOR, CONTRACTOR_TECHNICIAN, VIEW_ONLY
+  scopeMode             String    @default("CONTRACT") // CONTRACT, INSTALLATION, ASSET, HYBRID
+  canViewDashboard      Boolean   @default(true)
+  canCreateRequests     Boolean   @default(false)
+  canGenerateWorkOrders Boolean   @default(false)
+  canSubmitReports      Boolean   @default(false)
+  canReviewReports      Boolean   @default(false)
+  canCloseWorkOrders    Boolean   @default(false)
+  canManageUsers        Boolean   @default(false)
+  isActive              Boolean   @default(true)
+  invitedBy             String?
+  activatedAt           DateTime?
+  lastAccessAt          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([contractId, userId])
+  @@index([userId, isActive])
+  @@index([contractId, accessRole, isActive])
+}
+
+model ContractInstallationScope {
+  id                    String       @id @default(uuid())
+  contractId            String
+  contract              Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  installationId        String
+  installation          Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  accessLevel           String       @default("EXECUTE") // VIEW, UPDATE, EXECUTE
+  canRaiseRequests      Boolean      @default(true)
+  canGenerateWorkOrders Boolean      @default(false)
+  canSubmitReports      Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@unique([contractId, installationId])
+  @@index([installationId, accessLevel])
+}
+
+model ContractInstrumentTypeScope {
+  id                String   @id @default(uuid())
+  contractId        String
+  contract          Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  instrumentType    String
+  serviceLine       String?
+  accessLevel       String   @default("UPDATE") // VIEW, UPDATE, EXECUTE
+  canEditMasterData Boolean  @default(false)
+  canSubmitReports  Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([contractId, instrumentType])
+  @@index([serviceLine])
+}
+
+model ContractEquipmentScope {
+  id                String   @id @default(uuid())
+  contractId        String
+  contract          Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  scopeType         String // CATEGORY, TYPE, TAG, SERVICE_LINE
+  scopeValue        String
+  accessLevel       String   @default("EXECUTE") // VIEW, UPDATE, EXECUTE
+  canEditMasterData Boolean  @default(false)
+  canSubmitReports  Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([contractId, scopeType, scopeValue])
+  @@index([scopeType, scopeValue])
+}
+
+model ContractFunctionalLocationScope {
+  id          String             @id @default(uuid())
+  contractId  String
+  contract    Contract           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  flId        String
+  fl          FunctionalLocation @relation(fields: [flId], references: [id], onDelete: Cascade)
+  accessLevel String             @default("EXECUTE") // VIEW, UPDATE, EXECUTE
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([contractId, flId])
+  @@index([flId, accessLevel])
 }
 
 model ContractMilestone {
@@ -1645,18 +1906,18 @@ model ContractMilestone {
   title       String
   description String?
 
-  dueDate     DateTime
+  dueDate DateTime
 
-  paymentPct  Float?
-  paymentAmt  Float?
+  paymentPct Float?
+  paymentAmt Float?
 
-  status      String @default("PENDING") // PENDING, COMPLETED, DELAYED, WAIVED
+  status      String    @default("PENDING") // PENDING, COMPLETED, DELAYED, WAIVED
   completedAt DateTime?
 
-  remarks     String?
+  remarks String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ContractDocument {
@@ -1672,8 +1933,71 @@ model ContractDocument {
   fileSize     Int
   mimeType     String?
 
-  uploadedBy  String
-  uploadedAt  DateTime @default(now())
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+}
+
+model WorkOrderExecutionLog {
+  id              String    @id @default(uuid())
+  workOrderId     String
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  contractId      String?
+  contract        Contract? @relation("ContractExecutionLogs", fields: [contractId], references: [id], onDelete: SetNull)
+  stage           String
+  previousStage   String?
+  remarks         String?
+  performedById   String?
+  performedBy     User?     @relation("WorkOrderExecutionPerformedBy", fields: [performedById], references: [id], onDelete: SetNull)
+  performedByName String?
+  performedByRole String?
+  sourceApp       String    @default("CONTRACTOR_APP")
+  createdAt       DateTime  @default(now())
+
+  @@index([workOrderId, createdAt])
+  @@index([contractId, createdAt])
+}
+
+model ContractorReport {
+  id                   String                  @id @default(uuid())
+  contractId           String
+  contract             Contract                @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  workOrderId          String?
+  workOrder            WorkOrder?              @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  maintenanceRequestId String?
+  maintenanceRequest   MaintenanceRequest?     @relation(fields: [maintenanceRequestId], references: [id], onDelete: SetNull)
+  installationId       String?
+  installation         Installation?           @relation(fields: [installationId], references: [id], onDelete: SetNull)
+  assetClass           String
+  assetTag             String
+  instrumentTagId      String?
+  instrument           InstrumentMaster?       @relation(fields: [instrumentTagId], references: [tagId], onDelete: SetNull)
+  runningEquipmentTag  String?
+  runningEquipment     RunningEquipmentMaster? @relation(fields: [runningEquipmentTag], references: [equipmentTag], onDelete: SetNull)
+  reportType           String // INSPECTION, CALIBRATION, CONDITION, BREAKDOWN, COMPLETION, EVIDENCE
+  reportStatus         String                  @default("DRAFT") // DRAFT, SUBMITTED, PENDING_REVIEW, APPROVED, REJECTED, REVISION_REQUIRED
+  severity             String?
+  title                String
+  summary              String?
+  findings             Json?
+  measurements         Json?
+  recommendations      String?
+  actionTaken          String?
+  evidence             Json?
+  submittedById        String?
+  submittedBy          User?                   @relation("ContractReportsSubmitted", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedById         String?
+  reviewedBy           User?                   @relation("ContractReportsReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+  submittedAt          DateTime?
+  reviewedAt           DateTime?
+  revisionNotes        String?
+  sourceApp            String                  @default("CONTRACTOR_APP")
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@index([contractId, reportStatus, createdAt])
+  @@index([workOrderId, reportStatus])
+  @@index([installationId, assetClass, createdAt])
+  @@index([assetTag, reportType, createdAt])
 }
 
 // ============================================================================
@@ -1681,7 +2005,7 @@ model ContractDocument {
 // ============================================================================
 
 model Presentation {
-  id          String @id @default(uuid())
+  id String @id @default(uuid())
 
   title       String
   category    String // SAFETY, TECHNICAL, MANAGEMENT, TRAINING, POLICY, OTHER
@@ -1693,19 +2017,19 @@ model Presentation {
   fileSize     Int
   mimeType     String?
 
-  author      String?
-  version     String?
-  tags        String[]
+  author  String?
+  version String?
+  tags    String[]
 
   installationId String?
   departmentId   String?
 
-  isPublic    Boolean @default(true)
+  isPublic Boolean @default(true)
 
-  uploadedBy  String
+  uploadedBy String
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================================================
@@ -1744,8 +2068,8 @@ model WOAttachment {
   workOrderId String
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   fileName    String
-  fileUrl     String    // relative path under storage/wo-attachments/
-  fileType    String    // PHOTO, DOCUMENT
+  fileUrl     String // relative path under storage/wo-attachments/
+  fileType    String // PHOTO, DOCUMENT
   mimeType    String?
   fileSize    Int?
   caption     String?
@@ -1760,30 +2084,30 @@ model WOAttachment {
 // ============================================================================
 
 model InspectionRound {
-  id           String   @id @default(uuid())
+  id           String                @id @default(uuid())
   name         String
   description  String?
-  flIds        Json     // ordered array: [{flId, flName, description}]
-  frequency    String   // DAILY, WEEKLY, MONTHLY, SHIFT
+  flIds        Json // ordered array: [{flId, flName, description}]
+  frequency    String // DAILY, WEEKLY, MONTHLY, SHIFT
   assignedDept String?
-  isActive     Boolean  @default(true)
+  isActive     Boolean               @default(true)
   executions   InspectionExecution[]
   createdBy    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
 }
 
 model InspectionExecution {
-  id          String          @id @default(uuid())
-  roundId     String
-  round       InspectionRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  executedBy  String
-  executedAt  DateTime        @default(now())
-  completedAt DateTime?
-  status      String          @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
-  readings    Json            // [{flId, flName, value, unit, status: OK|WARNING|CRITICAL, notes, photoUrl}]
-  flaggedItems Json?          // [{flId, flName, note, severity}]
-  createdAt   DateTime        @default(now())
+  id           String          @id @default(uuid())
+  roundId      String
+  round        InspectionRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  executedBy   String
+  executedAt   DateTime        @default(now())
+  completedAt  DateTime?
+  status       String          @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  readings     Json // [{flId, flName, value, unit, status: OK|WARNING|CRITICAL, notes, photoUrl}]
+  flaggedItems Json? // [{flId, flName, note, severity}]
+  createdAt    DateTime        @default(now())
 
   @@index([roundId, executedAt])
 }
@@ -1796,7 +2120,7 @@ model LaborRate {
   id            String   @id @default(uuid())
   department    String
   designation   String?
-  dailyRate     Float    // Rate per day (8hrs)
+  dailyRate     Float // Rate per day (8hrs)
   currency      String   @default("INR")
   effectiveFrom DateTime @default(now())
   isActive      Boolean  @default(true)
@@ -1867,7 +2191,7 @@ model ActivityAuditLog {
   path       String
   entityType String?
   entityId   String?
-  statusCode Int?
+  statusCode Int
   ipAddress  String?
   userAgent  String?
   details    Json?
@@ -1886,13 +2210,13 @@ model ManualFolder {
   name      String
   category  String
   parentId  String?
-  parent    ManualFolder?        @relation("ManualFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  parent    ManualFolder?        @relation("ManualFolderTree", fields: [parentId], references: [id])
   children  ManualFolder[]       @relation("ManualFolderTree")
   documents RepositoryDocument[]
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
-  @@index([category, parentId, name])
+  @@index([category])
 }
 
 model RepositoryDocument {
@@ -1905,12 +2229,9 @@ model RepositoryDocument {
   extension      String?
   size           Int
   repositoryPath String
-  uploadedById   String
-  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+  uploadedById   String?
+  uploadedBy     User?        @relation(fields: [uploadedById], references: [id])
   uploadedAt     DateTime     @default(now())
-
-  @@index([folderId, uploadedAt])
-  @@index([uploadedById, uploadedAt])
 }
 
 // ============================================================================
@@ -1920,18 +2241,39 @@ model RepositoryDocument {
 model GasCompressionLog {
   id                String   @id @default(uuid())
   date              DateTime
+  shift             String   @default("GENERAL")
+  sourceMode        String   @default("MANUAL") // MANUAL, AUTO, HYBRID
   compressorId      String
   installationId    String?
+  operationalLogId  String?  @unique
+  inputGasVolume    Float?
+  outputGasVolume   Float?
+  fuelGasVolume     Float?
+  recycleGasVolume  Float?
+  flareGasVolume    Float?
   gasCompressed     Float    @default(0)
   runHours          Float    @default(0)
   flowRate          Float    @default(0)
   suctionPressure   Float?
   dischargePressure Float?
+  interstagePressure Float?
   suctionTemp       Float?
   dischargeTemp     Float?
+  lubeOilPressure   Float?
+  lubeOilTemp       Float?
+  jacketWaterTemp   Float?
+  vibration         Float?
+  loadPct           Float?
+  efficiencyPct     Float?
+  tripCount         Int      @default(0)
+  shutdownReason    String?
   remarks           String?
   createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
+  operationalLog OperationalLog? @relation(fields: [operationalLogId], references: [id], onDelete: SetNull)
+
+  @@unique([date, shift, compressorId])
   @@index([installationId, date])
   @@index([compressorId, date])
 }

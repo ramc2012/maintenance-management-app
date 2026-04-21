@@ -47,6 +47,67 @@ export const getCalibrationEventById = async (req: Request, res: Response) => {
   }
 };
 
+export const getInstrumentHistory = async (req: Request, res: Response) => {
+  try {
+    const { tagId } = req.params;
+
+    const instrument = await prisma.instrumentMaster.findUnique({
+      where: { tagId },
+      include: {
+        installation: true,
+      },
+    });
+
+    if (!instrument) {
+      return res.status(404).json({ error: 'Instrument not found' });
+    }
+
+    const [calibrationEvents, unifiedHistory, maintenanceLogs] = await Promise.all([
+      prisma.calibrationEvent.findMany({
+        where: { instrumentTagId: tagId },
+        include: {
+          standardUsed: true,
+          points: { orderBy: { sequence: 'asc' } },
+        },
+        orderBy: { calibrationDate: 'desc' },
+      }),
+      prisma.unifiedCalibrationHistory.findMany({
+        where: { instrumentTagId: tagId },
+        orderBy: { calDate: 'desc' },
+      }),
+      prisma.maintenanceLog.findMany({
+        where: { equipmentTag: tagId },
+        include: {
+          installation: true,
+          teamMembers: {
+            include: { manpower: true },
+          },
+        },
+        orderBy: { date: 'desc' },
+      }),
+    ]);
+
+    const latestCalibration = calibrationEvents[0] || null;
+
+    return res.json({
+      instrument,
+      summary: {
+        calibrationCount: calibrationEvents.length,
+        maintenanceCount: maintenanceLogs.length,
+        latestCalibrationDate: latestCalibration?.calibrationDate || null,
+        nextDueDate: latestCalibration?.nextDueDate || null,
+        latestResult: latestCalibration?.overallResultAsLeft || latestCalibration?.overallResultAsFound || null,
+      },
+      calibrationEvents,
+      unifiedHistory,
+      maintenanceLogs,
+    });
+  } catch (error) {
+    console.error('Get Instrument History Error:', error);
+    return res.status(500).json({ error: 'Failed to fetch instrument history' });
+  }
+};
+
 // Generate unique Certificate Number
 const generateCertificateNo = async (): Promise<string> => {
   const year = new Date().getFullYear();

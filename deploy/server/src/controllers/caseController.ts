@@ -218,6 +218,7 @@ export const updateCase = async (req: Request, res: Response) => {
 
 export const getDashboardAnalytics = async (req: Request, res: Response) => {
     try {
+        const { departmentId } = req.query;
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth(); // 0-11
@@ -231,12 +232,26 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
         const startDate = new Date(startYear, 3, 1); // April 1st
         const endDate = new Date(startYear + 1, 2, 31, 23, 59, 59); // March 31st
 
+        const where: any = {
+            createdAt: {
+                gte: startDate,
+                lte: endDate
+            }
+        };
+
+        if (departmentId) {
+            where.departmentId = String(departmentId);
+        }
+
         // Fetch all cases created in this FY
         const cases = await prisma.case.findMany({
-            where: {
-                createdAt: {
-                    gte: startDate,
-                    lte: endDate
+            where,
+            include: {
+                department: {
+                    select: {
+                        id: true,
+                        name: true,
+                    }
                 }
             }
         });
@@ -254,7 +269,18 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
             "PETTY": 0
         };
 
-        const PO_STAGES = ["PO Released", "QCC", "GRV", "Payment", "Closed", "Receipt"]; // Receipt is for Petty
+        const departmentBreakdown = new Map<string, {
+            id: string;
+            name: string;
+            countByType: Record<string, number>;
+            valueByType: Record<string, number>;
+        }>();
+
+        const assetBreakdown = new Map<string, {
+            tag: string;
+            countByType: Record<string, number>;
+            valueByType: Record<string, number>;
+        }>();
 
         cases.forEach(c => {
             // Count Status
@@ -286,13 +312,45 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
             } else {
                 valueBreakdown[c.type] = (valueBreakdown[c.type] || 0) + caseValue;
             }
+
+            const departmentKey = c.departmentId || "__UNASSIGNED__";
+            const departmentName = c.department?.name || "Unassigned";
+            if (!departmentBreakdown.has(departmentKey)) {
+                departmentBreakdown.set(departmentKey, {
+                    id: departmentKey,
+                    name: departmentName,
+                    countByType: {},
+                    valueByType: {},
+                });
+            }
+
+            const departmentEntry = departmentBreakdown.get(departmentKey)!;
+            departmentEntry.countByType[c.type] = (departmentEntry.countByType[c.type] || 0) + 1;
+            departmentEntry.valueByType[c.type] = (departmentEntry.valueByType[c.type] || 0) + caseValue;
+
+            const assetTag = c.equipmentTag || c.tag;
+            if (assetTag) {
+                if (!assetBreakdown.has(assetTag)) {
+                    assetBreakdown.set(assetTag, {
+                        tag: assetTag,
+                        countByType: {},
+                        valueByType: {},
+                    });
+                }
+
+                const assetEntry = assetBreakdown.get(assetTag)!;
+                assetEntry.countByType[c.type] = (assetEntry.countByType[c.type] || 0) + 1;
+                assetEntry.valueByType[c.type] = (assetEntry.valueByType[c.type] || 0) + caseValue;
+            }
         });
 
         res.json({
             fy: `${startYear}-${startYear + 1}`,
             activeCount,
             closedCount,
-            valueBreakdown
+            valueBreakdown,
+            departmentBreakdown: Array.from(departmentBreakdown.values()).sort((a, b) => a.name.localeCompare(b.name)),
+            assetBreakdown: Array.from(assetBreakdown.values()).sort((a, b) => a.tag.localeCompare(b.tag)),
         });
 
     } catch (error) {

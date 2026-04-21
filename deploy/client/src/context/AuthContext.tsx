@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface User {
   id: string;
@@ -19,36 +20,57 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const LOGIN_PATH = "/login";
+
+const readStoredToken = () => localStorage.getItem("token");
+
+const readStoredUser = (): User | null => {
+  try {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? (JSON.parse(storedUser) as User) : null;
+  } catch (error) {
+    console.error("Failed to parse user from localStorage", error);
+    return null;
+  }
+};
+
+const applyAxiosToken = (token: string | null) => {
+  if (token) {
+    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete axios.defaults.headers.common["Authorization"];
+  }
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // Lazy initialization to read from localStorage immediately
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      return storedUser ? JSON.parse(storedUser) : null;
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      return null;
-    }
-  });
+  const navigate = useNavigate();
+  const location = useLocation();
+  const redirectingForUnauthorizedRef = useRef(false);
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
+  const [token, setToken] = useState<string | null>(() => readStoredToken());
+  const loading = false;
 
-  const [token, setToken] = useState<string | null>(() => {
-    const t = localStorage.getItem("token");
-    if (t) {
-        // Synchronously set the header so it's available for initial renders
-        axios.defaults.headers.common["Authorization"] = `Bearer ${t}`;
-    }
-    return t;
-  });
+  useEffect(() => {
+    applyAxiosToken(token);
+  }, [token]);
 
-  // Loading is false by default because we initialize synchronously
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const syncSessionFromStorage = () => {
+      setToken(readStoredToken());
+      setUser(readStoredUser());
+      redirectingForUnauthorizedRef.current = false;
+    };
 
-  // Setup Axios Interceptors: inject token + handle 401/403 (expired session)
+    window.addEventListener("storage", syncSessionFromStorage);
+    return () => window.removeEventListener("storage", syncSessionFromStorage);
+  }, []);
+
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
-        const currentToken = localStorage.getItem("token");
+        const currentToken = readStoredToken();
         if (currentToken) {
+          config.headers = config.headers ?? {};
           config.headers.Authorization = `Bearer ${currentToken}`;
         }
         return config;
@@ -59,15 +81,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const responseInterceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error?.response?.status === 401) {
-          // Token expired or invalid — force re-login
+        const status = error?.response?.status;
+        const requestUrl = String(error?.config?.url ?? "");
+        const isLoginRequest = requestUrl.includes("/api/auth/login");
+
+        if (status === 401 && !isLoginRequest && !redirectingForUnauthorizedRef.current) {
+          redirectingForUnauthorizedRef.current = true;
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           setToken(null);
           setUser(null);
-          delete axios.defaults.headers.common["Authorization"];
-          if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
+          applyAxiosToken(null);
+
+          if (location.pathname !== LOGIN_PATH) {
+            const from = `${location.pathname}${location.search}`;
+            navigate(LOGIN_PATH, { replace: true, state: { from } });
           }
         }
         return Promise.reject(error);
@@ -78,23 +106,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, []);
+  }, [location.pathname, location.search, navigate]);
 
   const login = (newToken: string, newUser: User) => {
+    redirectingForUnauthorizedRef.current = false;
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
-    // Also set header immediately for good measure
-    axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+    applyAxiosToken(newToken);
   };
 
   const logout = () => {
+    redirectingForUnauthorizedRef.current = false;
     setToken(null);
     setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    delete axios.defaults.headers.common["Authorization"];
+    applyAxiosToken(null);
   };
 
   return (

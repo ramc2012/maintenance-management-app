@@ -11,7 +11,7 @@ interface Comment {
   timestamp: string;
   stageSnapshot: string;
   content: string;
-  user: { username: string; };
+  user?: { username?: string; };
 }
 
 interface Department { id: string; name: string; }
@@ -95,7 +95,7 @@ export const CaseListPage = () => {
     }
   };
   const formatDate = (d: string) => { const dt = new Date(d); return `${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear().toString().slice(-2)}`; };
-  const getLastComment = (comments: Comment[]) => (!comments || comments.length === 0) ? null : [...comments].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  const getLastComment = (comments?: Comment[]) => (!comments || comments.length === 0) ? null : [...comments].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
 
   let pageTitle = "All Procurements";
   if (typeFilter && departmentId) { const dept = orgData?.departments?.find(d => d.id === departmentId); pageTitle = `${typeFilter} - ${dept?.name || 'Department'}`; }
@@ -164,7 +164,7 @@ export const CaseListPage = () => {
                   <div className="w-full text-sm font-medium text-gray-600 dark:text-gray-200 flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-700/50 mt-1">
                     <MessageSquare className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
                     <span className="text-blue-600 dark:text-blue-300 font-bold shrink-0">{formatDate(lastComment.timestamp)}</span>
-                    <div className="flex items-center gap-1 truncate flex-1"><span className="font-bold text-gray-900 dark:text-white shrink-0">{lastComment.user.username}:</span><span className="truncate text-gray-600 dark:text-gray-300">{lastComment.content}</span></div>
+                    <div className="flex items-center gap-1 truncate flex-1"><span className="font-bold text-gray-900 dark:text-white shrink-0">{lastComment.user?.username || "System"}:</span><span className="truncate text-gray-600 dark:text-gray-300">{lastComment.content}</span></div>
                   </div>
                 ) : <div className="w-full text-xs text-gray-400 dark:text-gray-500 italic pl-1 mt-1">No activity logged.</div>}
               </div>

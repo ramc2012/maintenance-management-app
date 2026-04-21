@@ -3,7 +3,7 @@ import {
   getCalibrationEvents, getCalibrationEventById, createCalibrationEvent, updateCalibrationEvent,
   addCalibrationPoint, addMultiplePoints, calculateResults,
   approveEvent, getDueInstruments, getOverdueInstruments,
-  getCertificate, generate5PointTemplate, exportCalibrationEvents
+  getCertificate, generate5PointTemplate, exportCalibrationEvents, getInstrumentHistory
 } from '../controllers/calibration.controller';
 
 const router = Router();
@@ -11,6 +11,7 @@ const router = Router();
 // Calibration Events
 router.get('/events', getCalibrationEvents);
 router.get('/events/:id', getCalibrationEventById);
+router.get('/instruments/:tagId/history', getInstrumentHistory);
 router.post('/events', createCalibrationEvent);
 router.put('/events/:id', updateCalibrationEvent);
 

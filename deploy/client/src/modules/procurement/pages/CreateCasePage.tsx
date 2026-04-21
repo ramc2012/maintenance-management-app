@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { ProcurementLayout } from "../components/ProcurementLayout";
 import { ArrowLeft, Folder, Info } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 
 const CASE_TYPES = ["STORES", "SPARES", "CAPITAL", "SERVICES", "PETTY"];
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD"];
@@ -16,6 +17,7 @@ interface OrgData { id: string; name: string; departments: Department[]; }
 export const CreateCasePage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { token } = useAuth();
   
   // Get context from URL
   const contextType = searchParams.get("type") || "STORES";
@@ -36,7 +38,11 @@ export const CreateCasePage = () => {
   });
   const [error, setError] = useState("");
 
-  useEffect(() => { fetchOrg(); }, []);
+  useEffect(() => {
+    if (token) {
+      void fetchOrg();
+    }
+  }, [token]);
 
   useEffect(() => {
     // Auto-fill context when org data loads

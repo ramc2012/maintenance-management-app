@@ -38,7 +38,7 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState("llama3.3");
+  const [selectedModel, setSelectedModel] = useState("gemma4:e2b");
   const [useLLM, setUseLLM] = useState(false);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
   const [showModelSelect, setShowModelSelect] = useState(false);

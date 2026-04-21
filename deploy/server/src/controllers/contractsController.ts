@@ -6,6 +6,45 @@ import fs from 'fs';
 
 const prisma = new PrismaClient();
 
+const contractWorkspaceInclude = {
+  milestones: { orderBy: { dueDate: 'asc' as const } },
+  documents: true,
+  userAccesses: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          role: true,
+          isExternal: true,
+          companyName: true,
+          phone: true,
+          jobTitle: true,
+        }
+      }
+    }
+  },
+  installationScopes: {
+    include: {
+      installation: true,
+    }
+  },
+  instrumentTypeScopes: true,
+  equipmentScopes: true,
+  functionalLocationScopes: {
+    include: {
+      fl: {
+        select: {
+          id: true,
+          flId: true,
+          name: true,
+          systemId: true,
+        }
+      }
+    }
+  },
+} as const;
+
 const generateContractNumber = async (): Promise<string> => {
   const year = new Date().getFullYear();
   const prefix = `CNT-${year}`;
@@ -22,7 +61,7 @@ export const getContracts = async (req: Request, res: Response) => {
 
     const contracts = await prisma.contract.findMany({
       where,
-      include: { milestones: true, documents: true },
+      include: contractWorkspaceInclude,
       orderBy: { createdAt: 'desc' }
     });
     res.json(contracts);
@@ -35,7 +74,7 @@ export const getContractById = async (req: Request, res: Response) => {
   try {
     const contract = await prisma.contract.findUnique({
       where: { id: req.params.id },
-      include: { milestones: { orderBy: { dueDate: 'asc' } }, documents: true }
+      include: contractWorkspaceInclude,
     });
     if (!contract) return res.status(404).json({ error: 'Contract not found' });
     res.json(contract);
@@ -49,7 +88,7 @@ export const createContract = async (req: Request, res: Response) => {
     const contractNumber = await generateContractNumber();
     const contract = await prisma.contract.create({
       data: { ...req.body, contractNumber },
-      include: { milestones: true }
+      include: contractWorkspaceInclude,
     });
     res.json(contract);
   } catch (error) {
@@ -63,7 +102,7 @@ export const updateContract = async (req: Request, res: Response) => {
     const contract = await prisma.contract.update({
       where: { id: req.params.id },
       data: req.body,
-      include: { milestones: true }
+      include: contractWorkspaceInclude,
     });
     res.json(contract);
   } catch (error) {
@@ -105,13 +144,14 @@ export const updateMilestone = async (req: Request, res: Response) => {
 
 export const getContractStats = async (req: Request, res: Response) => {
   try {
-    const [active, expired, total] = await Promise.all([
+    const [active, expired, total, externalEnabled] = await Promise.all([
       prisma.contract.count({ where: { status: 'ACTIVE' } }),
       prisma.contract.count({ where: { status: 'EXPIRED' } }),
-      prisma.contract.count()
+      prisma.contract.count(),
+      prisma.contract.count({ where: { externalAccessEnabled: true } }),
     ]);
     const sumResult = await prisma.contract.aggregate({ _sum: { contractValue: true } });
-    res.json({ active, expired, total, totalValue: sumResult._sum.contractValue || 0 });
+    res.json({ active, expired, total, externalEnabled, totalValue: sumResult._sum.contractValue || 0 });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch stats' });
   }

@@ -69,7 +69,7 @@ export const AdminPage = () => {
   const handleResetPassword = async () => {
     if (!resetPasswordId || !newPassword) return;
     try {
-      await axios.put(`/api/auth/users/${resetPasswordId}/reset-password`, { password: newPassword });
+      await axios.post(`/api/auth/users/${resetPasswordId}/reset-password`, { newPassword });
       setResetPasswordId(null);
       setNewPassword("");
       alert("Password reset successfully");

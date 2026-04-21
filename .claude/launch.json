@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["/tmp/mobile-server.js"],
+      "port": 8086
+    }
+  ]
+}

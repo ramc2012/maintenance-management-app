@@ -32,8 +32,8 @@ interface AnalyticsData {
   activeCount: number;
   closedCount: number;
   valueBreakdown: Record<string, number>;
-  departmentBreakdown: DeptRow[];
-  assetBreakdown: AssetRow[];
+  departmentBreakdown?: DeptRow[];
+  assetBreakdown?: AssetRow[];
 }
 
 interface DeptRow { id: string; name: string; countByType: Record<string, number>; valueByType: Record<string, number>; }
@@ -57,6 +57,21 @@ export const DashboardPage = () => {
 
   useEffect(() => { if (token) fetchData(); }, [token, departmentId]);
 
+  const normalizeAnalytics = (data: Partial<AnalyticsData> | null | undefined): AnalyticsData | null => {
+    if (!data || !data.fy) {
+      return null;
+    }
+
+    return {
+      fy: data.fy,
+      activeCount: data.activeCount ?? 0,
+      closedCount: data.closedCount ?? 0,
+      valueBreakdown: data.valueBreakdown ?? {},
+      departmentBreakdown: data.departmentBreakdown ?? [],
+      assetBreakdown: data.assetBreakdown ?? [],
+    };
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -68,7 +83,7 @@ export const DashboardPage = () => {
         axios.get("/api/org/hierarchy"),
         axios.get("/api/budgets", { params: { fy: "2024-25", ...params } })
       ]);
-      setAnalytics(analyticsRes.data);
+      setAnalytics(normalizeAnalytics(analyticsRes.data));
       setOrgData(orgRes.data);
       setBudgets(budgetRes.data);
     } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -92,6 +107,9 @@ export const DashboardPage = () => {
   if (loading) return <ProcurementLayout><div className="flex items-center justify-center h-48 text-gray-500">Loading dashboard…</div></ProcurementLayout>;
   if (!analytics) return <ProcurementLayout><div className="text-red-500 p-4">Error loading data.</div></ProcurementLayout>;
 
+  const departmentBreakdown = analytics.departmentBreakdown ?? [];
+  const assetBreakdown = analytics.assetBreakdown ?? [];
+
   const budgetByCategory: Record<string, number> = {};
   budgets.forEach(b => { budgetByCategory[b.category] = (budgetByCategory[b.category] || 0) + b.amount; });
 
@@ -106,8 +124,8 @@ export const DashboardPage = () => {
 
   const DEPT_LIMIT = 5;
   const ASSET_LIMIT = 8;
-  const visibleDepts = showAllDepts ? analytics.departmentBreakdown : analytics.departmentBreakdown.slice(0, DEPT_LIMIT);
-  const visibleAssets = showAllAssets ? analytics.assetBreakdown : analytics.assetBreakdown.slice(0, ASSET_LIMIT);
+  const visibleDepts = showAllDepts ? departmentBreakdown : departmentBreakdown.slice(0, DEPT_LIMIT);
+  const visibleAssets = showAllAssets ? assetBreakdown : assetBreakdown.slice(0, ASSET_LIMIT);
 
   return (
     <ProcurementLayout>
@@ -145,8 +163,8 @@ export const DashboardPage = () => {
           const value = analytics.valueBreakdown[cat] || 0;
           const budget = budgetByCategory[cat] || 0;
           const utilization = budget > 0 ? Math.round((value / budget) * 100) : 0;
-          const count = analytics.departmentBreakdown.reduce((s, d) => s + (d.countByType[cat] || 0), 0)
-            || analytics.assetBreakdown.reduce((s, a) => s + (a.countByType[cat] || 0), 0);
+          const count = departmentBreakdown.reduce((s, d) => s + (d.countByType[cat] || 0), 0)
+            || assetBreakdown.reduce((s, a) => s + (a.countByType[cat] || 0), 0);
 
           return (
             <div
@@ -178,13 +196,13 @@ export const DashboardPage = () => {
       </div>
 
       {/* Department-wise Breakdown */}
-      {analytics.departmentBreakdown.length > 0 && (
+      {departmentBreakdown.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <Building2 className="w-4 h-4 text-indigo-500" />
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Department-wise Case Details</h3>
             <span className="text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full font-semibold">
-              {analytics.departmentBreakdown.length} dept{analytics.departmentBreakdown.length !== 1 ? 's' : ''}
+              {departmentBreakdown.length} dept{departmentBreakdown.length !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -245,8 +263,8 @@ export const DashboardPage = () => {
                   <tr className="bg-indigo-50 dark:bg-indigo-900/20 border-t-2 border-indigo-200 dark:border-indigo-700">
                     <td className="px-4 py-3 font-bold text-indigo-800 dark:text-indigo-200 text-xs uppercase">All Departments</td>
                     {CATEGORIES.map(cat => {
-                      const totalCnt = analytics.departmentBreakdown.reduce((s, d) => s + (d.countByType[cat] || 0), 0);
-                      const totalVal = analytics.departmentBreakdown.reduce((s, d) => s + (d.valueByType[cat] || 0), 0);
+                      const totalCnt = departmentBreakdown.reduce((s, d) => s + (d.countByType[cat] || 0), 0);
+                      const totalVal = departmentBreakdown.reduce((s, d) => s + (d.valueByType[cat] || 0), 0);
                       return (
                         <td key={cat} className="text-center px-3 py-3">
                           {totalCnt > 0 ? (
@@ -260,22 +278,22 @@ export const DashboardPage = () => {
                     })}
                     <td className="text-center px-3 py-3">
                       <p className="font-bold text-indigo-800 dark:text-indigo-200">
-                        {analytics.departmentBreakdown.reduce((s, d) => s + CATEGORIES.reduce((ss, c) => ss + (d.countByType[c] || 0), 0), 0)}
+                        {departmentBreakdown.reduce((s, d) => s + CATEGORIES.reduce((ss, c) => ss + (d.countByType[c] || 0), 0), 0)}
                       </p>
                       <p className="text-gray-500 text-[10px]">
-                        {fmtL(analytics.departmentBreakdown.reduce((s, d) => s + CATEGORIES.reduce((ss, c) => ss + (d.valueByType[c] || 0), 0), 0))}
+                        {fmtL(departmentBreakdown.reduce((s, d) => s + CATEGORIES.reduce((ss, c) => ss + (d.valueByType[c] || 0), 0), 0))}
                       </p>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            {analytics.departmentBreakdown.length > DEPT_LIMIT && (
+            {departmentBreakdown.length > DEPT_LIMIT && (
               <button
                 onClick={() => setShowAllDepts(!showAllDepts)}
                 className="w-full py-2.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center justify-center gap-1 border-t border-gray-100 dark:border-gray-700 transition-colors"
               >
-                {showAllDepts ? <><ChevronUp className="w-3.5 h-3.5" />Show less</> : <><ChevronDown className="w-3.5 h-3.5" />Show all {analytics.departmentBreakdown.length} departments</>}
+                {showAllDepts ? <><ChevronUp className="w-3.5 h-3.5" />Show less</> : <><ChevronDown className="w-3.5 h-3.5" />Show all {departmentBreakdown.length} departments</>}
               </button>
             )}
           </div>
@@ -283,13 +301,13 @@ export const DashboardPage = () => {
       )}
 
       {/* Asset (Tag)-wise Breakdown */}
-      {analytics.assetBreakdown.length > 0 && (
+      {assetBreakdown.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <Tag className="w-4 h-4 text-orange-500" />
             <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Asset-wise Case Details</h3>
             <span className="text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-full font-semibold">
-              {analytics.assetBreakdown.length} asset{analytics.assetBreakdown.length !== 1 ? 's' : ''}
+              {assetBreakdown.length} asset{assetBreakdown.length !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -351,12 +369,12 @@ export const DashboardPage = () => {
                 </tbody>
               </table>
             </div>
-            {analytics.assetBreakdown.length > ASSET_LIMIT && (
+            {assetBreakdown.length > ASSET_LIMIT && (
               <button
                 onClick={() => setShowAllAssets(!showAllAssets)}
                 className="w-full py-2.5 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 flex items-center justify-center gap-1 border-t border-gray-100 dark:border-gray-700 transition-colors"
               >
-                {showAllAssets ? <><ChevronUp className="w-3.5 h-3.5" />Show less</> : <><ChevronDown className="w-3.5 h-3.5" />Show all {analytics.assetBreakdown.length} assets</>}
+                {showAllAssets ? <><ChevronUp className="w-3.5 h-3.5" />Show less</> : <><ChevronDown className="w-3.5 h-3.5" />Show all {assetBreakdown.length} assets</>}
               </button>
             )}
           </div>
@@ -364,7 +382,7 @@ export const DashboardPage = () => {
       )}
 
       {/* Empty state when no breakdown data */}
-      {analytics.departmentBreakdown.length === 0 && analytics.assetBreakdown.length === 0 && (
+      {departmentBreakdown.length === 0 && assetBreakdown.length === 0 && (
         <div className="text-center py-10 text-gray-400">
           <p className="text-sm">No case data found for FY {analytics.fy}.</p>
           <p className="text-xs mt-1">Create procurement cases to see department and asset breakdowns.</p>

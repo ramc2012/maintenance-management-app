@@ -1,5 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { type JwtPayload } from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+interface TokenPayload extends JwtPayload {
+  id?: string;
+  username?: string;
+  role?: string;
+}
 
 export const authenticateToken = async (
   req: Request,
@@ -14,36 +23,32 @@ export const authenticateToken = async (
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as any;
-    
-    // Check if payload has username, if not fetch from DB (Handle Stale Tokens)
-    if (!payload.username && payload.id) {
-        // Use lazy require/import to avoid circular dependencies or initialization order issues
-        const { PrismaClient } = require('@prisma/client');
-        const prisma = new PrismaClient();
-        console.log(`[Auth] Token missing username, fetching from DB for ID: ${payload.id}`);
-        
-        try {
-            const dbUser = await prisma.user.findUnique({ where: { id: payload.id } });
-            
-            if (dbUser) {
-                 // Attach full user details including username
-                 (req as any).user = { ...payload, username: dbUser.username, role: dbUser.role };
-                 return next();
-            } else {
-                 console.log(`[Auth] User ID ${payload.id} not found in DB`);
-                 return res.sendStatus(403);
-            }
-        } catch (dbError) {
-            console.error("[Auth] Database error fetching user:", dbError);
-            return res.sendStatus(500);
-        } finally {
-            await prisma.$disconnect();
-        }
+    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as TokenPayload;
+
+    if (payload.id && payload.username && payload.role) {
+      (req as any).user = {
+        id: payload.id,
+        username: payload.username,
+        role: payload.role,
+      };
+      return next();
     }
 
-    (req as any).user = payload;
-    next();
+    if (!payload.id) {
+      return res.sendStatus(401);
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { id: true, username: true, role: true },
+    });
+
+    if (!dbUser) {
+      return res.sendStatus(401);
+    }
+
+    (req as any).user = dbUser;
+    return next();
   } catch (err) {
     console.error("[Auth] Token verification failed:", err);
     return res.sendStatus(401);

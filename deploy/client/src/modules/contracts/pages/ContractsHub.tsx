@@ -23,6 +23,11 @@ interface Contract {
   contactPhone?: string;
 }
 
+interface OrgDepartment {
+  id: string;
+  name: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: "bg-green-100 text-green-700",
   EXPIRING_SOON: "bg-orange-100 text-orange-700",
@@ -69,7 +74,7 @@ export const ContractsHub = () => {
   const [formData, setFormData] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Contract | null>(null);
-  const [orgDepartments, setOrgDepartments] = useState<string[]>([]);
+  const [orgDepartments, setOrgDepartments] = useState<OrgDepartment[]>([]);
 
   const fetchDepartments = async () => {
     try {
@@ -78,9 +83,18 @@ export const ContractsHub = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data?.departments) setOrgDepartments(data.departments.map((d: any) => d.name));
+        if (data?.departments) setOrgDepartments(data.departments.map((d: any) => ({ id: d.id, name: d.name })));
       }
     } catch { /* ignore */ }
+  };
+
+  const toDisplayStatus = (rawStatus: string, endDate?: string) => {
+    if (rawStatus === "ACTIVE" && endDate) {
+      const daysRemaining = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (daysRemaining < 0) return "EXPIRED";
+      if (daysRemaining <= 30) return "EXPIRING_SOON";
+    }
+    return rawStatus;
   };
 
   const fetchContracts = async () => {
@@ -91,7 +105,22 @@ export const ContractsHub = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setContracts(data);
+        setContracts((Array.isArray(data) ? data : []).map((contract: any) => ({
+          id: contract.id,
+          contractNumber: contract.contractNumber,
+          title: contract.title,
+          vendorName: contract.contractorName,
+          contractType: contract.workType,
+          department: orgDepartments.find((dept) => dept.id === contract.departmentId)?.name || contract.workspaceLabel || "Unassigned",
+          value: contract.contractValue,
+          startDate: contract.startDate,
+          endDate: contract.endDate,
+          status: toDisplayStatus(contract.status, contract.endDate),
+          scopeOfWork: contract.scope,
+          contactPerson: contract.contactPerson,
+          contactEmail: contract.contactEmail,
+          contactPhone: contract.contactPhone,
+        })));
       }
     } catch (e) {
       console.error(e);
@@ -100,7 +129,10 @@ export const ContractsHub = () => {
     }
   };
 
-  useEffect(() => { fetchContracts(); fetchDepartments(); }, []);
+  useEffect(() => { fetchDepartments(); }, []);
+  useEffect(() => { fetchContracts(); }, [orgDepartments.length]);
+
+  const departmentOptions = ["All Departments", ...orgDepartments.map((department) => department.name)];
 
   const filtered = contracts.filter((c) => {
     const matchSearch =
@@ -129,7 +161,23 @@ export const ContractsHub = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...formData, value: parseFloat(formData.value) || 0 }),
+        body: JSON.stringify({
+          title: formData.title,
+          contractorName: formData.vendorName,
+          workType: formData.contractType || "MAINTENANCE",
+          contractValue: parseFloat(formData.value) || 0,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          scope: formData.scopeOfWork,
+          contactPerson: formData.contactPerson,
+          contactEmail: formData.contactEmail,
+          contactPhone: formData.contactPhone,
+          departmentId: orgDepartments.find((department) => department.name === formData.department)?.id,
+          workspaceLabel: formData.department || undefined,
+          externalAccessEnabled: true,
+          shareAllInstrumentTypes: true,
+          createdBy: "admin",
+        }),
       });
       if (res.ok) {
         setShowCreate(false);
@@ -196,7 +244,7 @@ export const ContractsHub = () => {
                 onChange={(e) => setDeptFilter(e.target.value)}
                 className={`appearance-none pl-3 pr-8 py-2 rounded-lg border ${bdr} ${cardBg} ${tx} text-sm focus:outline-none focus:ring-2 focus:ring-sky-500`}
               >
-                {["All Departments", ...orgDepartments].map((d) => <option key={d}>{d}</option>)}
+                {departmentOptions.map((departmentName) => <option key={departmentName}>{departmentName}</option>)}
               </select>
               <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 ${sub} pointer-events-none`} />
             </div>

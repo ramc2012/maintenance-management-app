@@ -1,0 +1,372 @@
+{"kind":"deck","id":"app-design-review","slideCount":9,"slideSize":{"width":1280,"height":720}}
+{"kind":"slide","slide":1,"id":"q67otg"}
+{"kind":"slide","slide":2,"id":"6yije7"}
+{"kind":"slide","slide":3,"id":"zo430m"}
+{"kind":"slide","slide":4,"id":"l49x3n"}
+{"kind":"slide","slide":5,"id":"qo3m6j"}
+{"kind":"slide","slide":6,"id":"xkef8u"}
+{"kind":"slide","slide":7,"id":"t0xo0f"}
+{"kind":"slide","slide":8,"id":"vx3v9b"}
+{"kind":"slide","slide":9,"id":"c8j3go"}
+{"kind":"image","slide":1,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":1,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":1,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":1,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":1,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":1,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":1,"id":"8","role":"cover contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":1,"id":"9","role":"cover accent rule","shapeType":"rect","bbox":[64,86,8,476]}
+{"kind":"shape","slide":1,"id":"10","role":"cover side panel","shapeType":"roundRect","bbox":[834,126,350,432]}
+{"kind":"shape","slide":1,"id":"11","role":"logo frame","shapeType":"roundRect","bbox":[972,62,180,72]}
+{"kind":"image","slide":1,"id":"12","role":"ongc logo","path":"/Users/chinnadurairamachandran/Downloads/maintenance management app/deploy/client/public/ongc_logo.jpg","bbox":[992,74,140,48]}
+{"kind":"textbox","slide":1,"id":"13","role":"kicker","text":"APP DESIGN + ARCHITECTURE","textPreview":"APP DESIGN + ARCHITECTURE","textChars":25,"textLines":1,"bbox":[86,88,520,26]}
+{"kind":"textbox","slide":1,"id":"14","role":"cover title","text":"Maintenance Management System\nArchitecture & Code Review","textPreview":"Maintenance Management System | Architecture & Code Review","textChars":56,"textLines":2,"bbox":[82,130,785,184]}
+{"kind":"textbox","slide":1,"id":"15","role":"cover subtitle","text":"Design, module UX, code structure and review snapshot for ONGC Ankleshwar Asset across the web console, Expo mobile app, backend services and Kelvin AI.","textPreview":"Design, module UX, code structure and review snapshot for ONGC Ankleshwar Asset across the web console, Expo mobile app, backend services and Kelvin AI.","textChars":152,"textLines":1,"bbox":[86,326,610,86]}
+{"kind":"shape","slide":1,"id":"16","role":"cover capability card","shapeType":"roundRect","bbox":[866,166,286,88]}
+{"kind":"textbox","slide":1,"id":"17","role":"cover capability label","text":"Web Console","textPreview":"Web Console","textChars":11,"textLines":1,"bbox":[890,182,236,20]}
+{"kind":"textbox","slide":1,"id":"18","role":"cover capability body","text":"29 routes, role-aware hub, dense specialist modules","textPreview":"29 routes, role-aware hub, dense specialist modules","textChars":51,"textLines":1,"bbox":[890,206,236,28]}
+{"kind":"shape","slide":1,"id":"19","role":"cover capability card","shapeType":"roundRect","bbox":[866,278,286,88]}
+{"kind":"textbox","slide":1,"id":"20","role":"cover capability label","text":"Mobile Field App","textPreview":"Mobile Field App","textChars":16,"textLines":1,"bbox":[890,294,236,20]}
+{"kind":"textbox","slide":1,"id":"21","role":"cover capability body","text":"Expo Router shell with KPI strip, health watch and module cards","textPreview":"Expo Router shell with KPI strip, health watch and module cards","textChars":63,"textLines":1,"bbox":[890,318,236,28]}
+{"kind":"shape","slide":1,"id":"22","role":"cover capability card","shapeType":"roundRect","bbox":[866,390,286,88]}
+{"kind":"textbox","slide":1,"id":"23","role":"cover capability label","text":"Kelvin AI","textPreview":"Kelvin AI","textChars":9,"textLines":1,"bbox":[890,406,236,20]}
+{"kind":"textbox","slide":1,"id":"24","role":"cover capability body","text":"FastAPI RAG service with local Ollama and Gemma 4 model discovery","textPreview":"FastAPI RAG service with local Ollama and Gemma 4 model discovery","textChars":65,"textLines":1,"bbox":[890,430,236,28]}
+{"kind":"shape","slide":1,"id":"25","role":"cover moment panel","shapeType":"roundRect","bbox":[86,456,390,92]}
+{"kind":"textbox","slide":1,"id":"26","role":"cover moment","text":"One platform, 18 operational modules, shared data core","textPreview":"One platform, 18 operational modules, shared data core","textChars":54,"textLines":1,"bbox":[112,478,336,40]}
+{"kind":"textbox","slide":1,"id":"27","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":2,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":2,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":2,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":2,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":2,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":2,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":2,"id":"8","role":"metrics contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":2,"id":"9","role":"header","text":"PLATFORM SNAPSHOT","textPreview":"PLATFORM SNAPSHOT","textChars":17,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":2,"id":"10","role":"header","text":"02 / 09","textPreview":"02 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":2,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":2,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":2,"id":"13","role":"title","text":"The product already behaves like an integrated operations suite","textPreview":"The product already behaves like an integrated operations suite","textChars":63,"textLines":1,"bbox":[64,86,700,142]}
+{"kind":"textbox","slide":2,"id":"14","role":"subtitle","text":"The codebase spans planning, execution, reliability, documents, collaboration, and AI assistance with one operational data backbone.","textPreview":"The codebase spans planning, execution, reliability, documents, collaboration, and AI assistance with one operational data backbone.","textChars":132,"textLines":1,"bbox":[66,234,700,70]}
+{"kind":"shape","slide":2,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":2,"id":"16","role":"badge pill text","text":"Web Console","textPreview":"Web Console","textChars":11,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":2,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":2,"id":"18","role":"badge pill text","text":"Expo Mobile","textPreview":"Expo Mobile","textChars":11,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":2,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":2,"id":"20","role":"badge pill text","text":"Shared DB","textPreview":"Shared DB","textChars":9,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":2,"id":"21","role":"metric panel: Role-aware web modules on the enterprise hub","shapeType":"roundRect","bbox":[92,404,330,174]}
+{"kind":"shape","slide":2,"id":"22","role":"metric accent: Role-aware web modules on the enterprise hub","shapeType":"rect","bbox":[92,404,330,7]}
+{"kind":"textbox","slide":2,"id":"23","role":"metric value","text":"18","textPreview":"18","textChars":2,"textLines":1,"bbox":[114,428,286,54]}
+{"kind":"textbox","slide":2,"id":"24","role":"metric label","text":"Role-aware web modules on the enterprise hub","textPreview":"Role-aware web modules on the enterprise hub","textChars":44,"textLines":1,"bbox":[116,486,282,38]}
+{"kind":"textbox","slide":2,"id":"25","role":"metric note","text":"EnterpriseHub.tsx","textPreview":"EnterpriseHub.tsx","textChars":17,"textLines":1,"bbox":[116,536,282,22]}
+{"kind":"shape","slide":2,"id":"26","role":"metric panel: Mounted API route groups in Express","shapeType":"roundRect","bbox":[462,404,330,174]}
+{"kind":"shape","slide":2,"id":"27","role":"metric accent: Mounted API route groups in Express","shapeType":"rect","bbox":[462,404,330,7]}
+{"kind":"textbox","slide":2,"id":"28","role":"metric value","text":"31","textPreview":"31","textChars":2,"textLines":1,"bbox":[484,428,286,54]}
+{"kind":"textbox","slide":2,"id":"29","role":"metric label","text":"Mounted API route groups in Express","textPreview":"Mounted API route groups in Express","textChars":35,"textLines":1,"bbox":[486,486,282,38]}
+{"kind":"textbox","slide":2,"id":"30","role":"metric note","text":"server/src/index.ts","textPreview":"server/src/index.ts","textChars":19,"textLines":1,"bbox":[486,536,282,22]}
+{"kind":"shape","slide":2,"id":"31","role":"metric panel: Prisma models in the shared schema","shapeType":"roundRect","bbox":[832,404,330,174]}
+{"kind":"shape","slide":2,"id":"32","role":"metric accent: Prisma models in the shared schema","shapeType":"rect","bbox":[832,404,330,7]}
+{"kind":"textbox","slide":2,"id":"33","role":"metric value","text":"90","textPreview":"90","textChars":2,"textLines":1,"bbox":[854,428,286,54]}
+{"kind":"textbox","slide":2,"id":"34","role":"metric label","text":"Prisma models in the shared schema","textPreview":"Prisma models in the shared schema","textChars":34,"textLines":1,"bbox":[856,486,282,38]}
+{"kind":"textbox","slide":2,"id":"35","role":"metric note","text":"server/prisma/schema.prisma","textPreview":"server/prisma/schema.prisma","textChars":27,"textLines":1,"bbox":[856,536,282,22]}
+{"kind":"textbox","slide":2,"id":"36","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":3,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":3,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":3,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":3,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":3,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":3,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":3,"id":"8","role":"content contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":3,"id":"9","role":"header","text":"DESIGN SHELL","textPreview":"DESIGN SHELL","textChars":12,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":3,"id":"10","role":"header","text":"03 / 09","textPreview":"03 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":3,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":3,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":3,"id":"13","role":"title","text":"The experience is built around a universal login and module-first navigation","textPreview":"The experience is built around a universal login and module-first navigation","textChars":76,"textLines":1,"bbox":[64,86,760,142]}
+{"kind":"textbox","slide":3,"id":"14","role":"subtitle","text":"Users land on a role-filtered hub, move directly into specialist workflows, and keep one session across procurement, manuals, KPIs, work orders, and inspections.","textPreview":"Users land on a role-filtered hub, move directly into specialist workflows, and keep one session across procurement, manuals, KPIs, work orders, and inspections.","textChars":161,"textLines":1,"bbox":[66,234,720,70]}
+{"kind":"shape","slide":3,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":3,"id":"16","role":"badge pill text","text":"RBAC","textPreview":"RBAC","textChars":4,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":3,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":3,"id":"18","role":"badge pill text","text":"Universal Login","textPreview":"Universal Login","textChars":15,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":3,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":3,"id":"20","role":"badge pill text","text":"Module Hubs","textPreview":"Module Hubs","textChars":11,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":3,"id":"21","role":"card panel: Role-based hub","shapeType":"roundRect","bbox":[84,382,355.3333333333333,214]}
+{"kind":"shape","slide":3,"id":"22","role":"card accent: Role-based hub","shapeType":"rect","bbox":[84,382,8,214]}
+{"kind":"shape","slide":3,"id":"23","role":"icon badge","shapeType":"ellipse","bbox":[106,406,54,54]}
+{"kind":"shape","slide":3,"id":"24","role":"icon glyph","shapeType":"rect","bbox":[122,435,6,12]}
+{"kind":"shape","slide":3,"id":"25","role":"icon glyph","shapeType":"rect","bbox":[131,427,6,20]}
+{"kind":"shape","slide":3,"id":"26","role":"icon glyph","shapeType":"rect","bbox":[140,420,6,27]}
+{"kind":"textbox","slide":3,"id":"27","role":"card label","text":"Role-based hub","textPreview":"Role-based hub","textChars":14,"textLines":1,"bbox":[172,404,247.33333333333331,28]}
+{"kind":"textbox","slide":3,"id":"28","role":"card body: Role-based hub","text":"Web home exposes 18 apps and trims\nvisibility by role so technicians,\nsupervisors and admins see\ndifferent operational surfaces.","textPreview":"Web home exposes 18 apps and trims | visibility by role so technicians, | supervisors and admins see | different operational surfaces.","textChars":128,"textLines":4,"bbox":[108,468,307.3333333333333,106]}
+{"kind":"shape","slide":3,"id":"29","role":"card panel: Universal auth","shapeType":"roundRect","bbox":[463.3333333333333,382,355.3333333333333,214]}
+{"kind":"shape","slide":3,"id":"30","role":"card accent: Universal auth","shapeType":"rect","bbox":[463.3333333333333,382,8,214]}
+{"kind":"shape","slide":3,"id":"31","role":"icon badge","shapeType":"ellipse","bbox":[485.3333333333333,406,54,54]}
+{"kind":"shape","slide":3,"id":"32","role":"icon glyph","shapeType":"ellipse","bbox":[498.3333333333333,424,10,10]}
+{"kind":"shape","slide":3,"id":"33","role":"icon glyph","shapeType":"ellipse","bbox":[516.3333333333333,433,10,10]}
+{"kind":"shape","slide":3,"id":"34","role":"icon glyph","shapeType":"rect","bbox":[507.3333333333333,431,19,3]}
+{"kind":"textbox","slide":3,"id":"35","role":"card label","text":"Universal auth","textPreview":"Universal auth","textChars":14,"textLines":1,"bbox":[551.3333333333333,404,247.33333333333331,28]}
+{"kind":"textbox","slide":3,"id":"36","role":"card body: Universal auth","text":"ProtectedRoute, PublicRoute and the\nshared AuthContext now govern the\nwhole shell so modules no longer\nbounce users back to login\nmid-flow.","textPreview":"ProtectedRoute, PublicRoute and the | shared AuthContext now govern the | whole shell so modules no longer | bounce users back to login | mid-flow.","textChars":139,"textLines":5,"bbox":[487.3333333333333,468,307.3333333333333,106]}
+{"kind":"shape","slide":3,"id":"37","role":"card panel: Focused layouts","shapeType":"roundRect","bbox":[842.6666666666666,382,355.3333333333333,214]}
+{"kind":"shape","slide":3,"id":"38","role":"card accent: Focused layouts","shapeType":"rect","bbox":[842.6666666666666,382,8,214]}
+{"kind":"shape","slide":3,"id":"39","role":"icon badge","shapeType":"ellipse","bbox":[864.6666666666666,406,54,54]}
+{"kind":"shape","slide":3,"id":"40","role":"icon glyph","shapeType":"roundRect","bbox":[877.6666666666666,421,26,13]}
+{"kind":"shape","slide":3,"id":"41","role":"icon glyph","shapeType":"roundRect","bbox":[882.6666666666666,430,26,13]}
+{"kind":"shape","slide":3,"id":"42","role":"icon glyph","shapeType":"roundRect","bbox":[887.6666666666666,439,20,10]}
+{"kind":"textbox","slide":3,"id":"43","role":"card label","text":"Focused layouts","textPreview":"Focused layouts","textChars":15,"textLines":1,"bbox":[930.6666666666666,404,247.33333333333331,28]}
+{"kind":"textbox","slide":3,"id":"44","role":"card body: Focused layouts","text":"Procurement, manuals, contracts and\nwork orders each own dense task\nviews instead of forcing every\nworkflow into one generic\ndashboard.","textPreview":"Procurement, manuals, contracts and | work orders each own dense task | views instead of forcing every | workflow into one generic | dashboard.","textChars":135,"textLines":5,"bbox":[866.6666666666666,468,307.3333333333333,106]}
+{"kind":"textbox","slide":3,"id":"45","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":4,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":4,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":4,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":4,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":4,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":4,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":4,"id":"8","role":"content contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":4,"id":"9","role":"header","text":"MOBILE + AI","textPreview":"MOBILE + AI","textChars":11,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":4,"id":"10","role":"header","text":"04 / 09","textPreview":"04 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":4,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":4,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":4,"id":"13","role":"title","text":"The mobile shell mirrors field work, while Kelvin adds cross-module retrieval","textPreview":"The mobile shell mirrors field work, while Kelvin adds cross-module retrieval","textChars":77,"textLines":1,"bbox":[64,86,760,142]}
+{"kind":"textbox","slide":4,"id":"14","role":"subtitle","text":"Expo Router turns the phone app into a field cockpit with KPI strips, health watch, module cards and a floating AI assistant linked to local Gemma 4 models.","textPreview":"Expo Router turns the phone app into a field cockpit with KPI strips, health watch, module cards and a floating AI assistant linked to local Gemma 4 models.","textChars":156,"textLines":1,"bbox":[66,234,720,70]}
+{"kind":"shape","slide":4,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":4,"id":"16","role":"badge pill text","text":"Expo Router","textPreview":"Expo Router","textChars":11,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":4,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":4,"id":"18","role":"badge pill text","text":"Secure Store","textPreview":"Secure Store","textChars":12,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":4,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":4,"id":"20","role":"badge pill text","text":"Gemma 4","textPreview":"Gemma 4","textChars":7,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":4,"id":"21","role":"mobile icon frame","shapeType":"roundRect","bbox":[1102,540,84,84]}
+{"kind":"image","slide":4,"id":"22","role":"mobile icon","path":"/Users/chinnadurairamachandran/Downloads/maintenance management app/deploy/mobile/assets/images/icon.png","bbox":[1113,551,62,62]}
+{"kind":"shape","slide":4,"id":"23","role":"card panel: Field cockpit","shapeType":"roundRect","bbox":[84,382,355.3333333333333,214]}
+{"kind":"shape","slide":4,"id":"24","role":"card accent: Field cockpit","shapeType":"rect","bbox":[84,382,8,214]}
+{"kind":"shape","slide":4,"id":"25","role":"icon badge","shapeType":"ellipse","bbox":[106,406,54,54]}
+{"kind":"shape","slide":4,"id":"26","role":"icon glyph","shapeType":"rect","bbox":[122,435,6,12]}
+{"kind":"shape","slide":4,"id":"27","role":"icon glyph","shapeType":"rect","bbox":[131,427,6,20]}
+{"kind":"shape","slide":4,"id":"28","role":"icon glyph","shapeType":"rect","bbox":[140,420,6,27]}
+{"kind":"textbox","slide":4,"id":"29","role":"card label","text":"Field cockpit","textPreview":"Field cockpit","textChars":13,"textLines":1,"bbox":[172,404,247.33333333333331,28]}
+{"kind":"textbox","slide":4,"id":"30","role":"card body: Field cockpit","text":"The mobile home screen surfaces KPI\nsummary, health watch and module\nshortcuts for operations, planning\nand admin tasks.","textPreview":"The mobile home screen surfaces KPI | summary, health watch and module | shortcuts for operations, planning | and admin tasks.","textChars":120,"textLines":4,"bbox":[108,468,307.3333333333333,106]}
+{"kind":"shape","slide":4,"id":"31","role":"card panel: Shared permissions","shapeType":"roundRect","bbox":[463.3333333333333,382,355.3333333333333,214]}
+{"kind":"shape","slide":4,"id":"32","role":"card accent: Shared permissions","shapeType":"rect","bbox":[463.3333333333333,382,8,214]}
+{"kind":"shape","slide":4,"id":"33","role":"icon badge","shapeType":"ellipse","bbox":[485.3333333333333,406,54,54]}
+{"kind":"shape","slide":4,"id":"34","role":"icon glyph","shapeType":"ellipse","bbox":[498.3333333333333,424,10,10]}
+{"kind":"shape","slide":4,"id":"35","role":"icon glyph","shapeType":"ellipse","bbox":[516.3333333333333,433,10,10]}
+{"kind":"shape","slide":4,"id":"36","role":"icon glyph","shapeType":"rect","bbox":[507.3333333333333,431,19,3]}
+{"kind":"textbox","slide":4,"id":"37","role":"card label","text":"Shared permissions","textPreview":"Shared permissions","textChars":18,"textLines":1,"bbox":[551.3333333333333,404,247.33333333333331,28]}
+{"kind":"textbox","slide":4,"id":"38","role":"card body: Shared permissions","text":"Mobile auth uses secure storage and\nthe same token model, so the same\nworkforce can move between browser\nand handset without separate\nidentities.","textPreview":"Mobile auth uses secure storage and | the same token model, so the same | workforce can move between browser | and handset without separate | identities.","textChars":145,"textLines":5,"bbox":[487.3333333333333,468,307.3333333333333,106]}
+{"kind":"shape","slide":4,"id":"39","role":"card panel: Kelvin AI","shapeType":"roundRect","bbox":[842.6666666666666,382,355.3333333333333,214]}
+{"kind":"shape","slide":4,"id":"40","role":"card accent: Kelvin AI","shapeType":"rect","bbox":[842.6666666666666,382,8,214]}
+{"kind":"shape","slide":4,"id":"41","role":"icon badge","shapeType":"ellipse","bbox":[864.6666666666666,406,54,54]}
+{"kind":"shape","slide":4,"id":"42","role":"icon glyph","shapeType":"roundRect","bbox":[877.6666666666666,421,26,13]}
+{"kind":"shape","slide":4,"id":"43","role":"icon glyph","shapeType":"roundRect","bbox":[882.6666666666666,430,26,13]}
+{"kind":"shape","slide":4,"id":"44","role":"icon glyph","shapeType":"roundRect","bbox":[887.6666666666666,439,20,10]}
+{"kind":"textbox","slide":4,"id":"45","role":"card label","text":"Kelvin AI","textPreview":"Kelvin AI","textChars":9,"textLines":1,"bbox":[930.6666666666666,404,247.33333333333331,28]}
+{"kind":"textbox","slide":4,"id":"46","role":"card body: Kelvin AI","text":"The cognitive service exposes\nrule-based and LLM-backed chat,\nmodel discovery, RAG context\nbuilding and local Gemma 4\nselection.","textPreview":"The cognitive service exposes | rule-based and LLM-backed chat, | model discovery, RAG context | building and local Gemma 4 | selection.","textChars":128,"textLines":5,"bbox":[866.6666666666666,468,307.3333333333333,106]}
+{"kind":"textbox","slide":4,"id":"47","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":5,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":5,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":5,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":5,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":5,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":5,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":5,"id":"8","role":"content contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":5,"id":"9","role":"header","text":"SYSTEM ARCHITECTURE","textPreview":"SYSTEM ARCHITECTURE","textChars":19,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":5,"id":"10","role":"header","text":"05 / 09","textPreview":"05 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":5,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":5,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":5,"id":"13","role":"title","text":"The architecture separates presentation, orchestration and intelligence cleanly","textPreview":"The architecture separates presentation, orchestration and intelligence cleanly","textChars":79,"textLines":1,"bbox":[64,86,760,142]}
+{"kind":"textbox","slide":5,"id":"14","role":"subtitle","text":"Each layer is independently deployable, but the app still behaves like one platform because routing, auth and data contracts stay centralized.","textPreview":"Each layer is independently deployable, but the app still behaves like one platform because routing, auth and data contracts stay centralized.","textChars":142,"textLines":1,"bbox":[66,234,720,70]}
+{"kind":"shape","slide":5,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":5,"id":"16","role":"badge pill text","text":"React","textPreview":"React","textChars":5,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":5,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":5,"id":"18","role":"badge pill text","text":"Express","textPreview":"Express","textChars":7,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":5,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":5,"id":"20","role":"badge pill text","text":"FastAPI","textPreview":"FastAPI","textChars":7,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":5,"id":"21","role":"card panel: Presentation layer","shapeType":"roundRect","bbox":[84,382,355.3333333333333,214]}
+{"kind":"shape","slide":5,"id":"22","role":"card accent: Presentation layer","shapeType":"rect","bbox":[84,382,8,214]}
+{"kind":"shape","slide":5,"id":"23","role":"icon badge","shapeType":"ellipse","bbox":[106,406,54,54]}
+{"kind":"shape","slide":5,"id":"24","role":"icon glyph","shapeType":"rect","bbox":[122,435,6,12]}
+{"kind":"shape","slide":5,"id":"25","role":"icon glyph","shapeType":"rect","bbox":[131,427,6,20]}
+{"kind":"shape","slide":5,"id":"26","role":"icon glyph","shapeType":"rect","bbox":[140,420,6,27]}
+{"kind":"textbox","slide":5,"id":"27","role":"card label","text":"Presentation layer","textPreview":"Presentation layer","textChars":18,"textLines":1,"bbox":[172,404,247.33333333333331,28]}
+{"kind":"textbox","slide":5,"id":"28","role":"card body: Presentation layer","text":"Vite React web and Expo React\nNative provide task-specific shells\nfor control room and field use,\nboth speaking HTTP APIs and\nsurfacing role-aware modules.","textPreview":"Vite React web and Expo React | Native provide task-specific shells | for control room and field use, | both speaking HTTP APIs and | surfacing role-aware modules.","textChars":155,"textLines":5,"bbox":[108,468,307.3333333333333,106]}
+{"kind":"shape","slide":5,"id":"29","role":"card panel: Application layer","shapeType":"roundRect","bbox":[463.3333333333333,382,355.3333333333333,214]}
+{"kind":"shape","slide":5,"id":"30","role":"card accent: Application layer","shapeType":"rect","bbox":[463.3333333333333,382,8,214]}
+{"kind":"shape","slide":5,"id":"31","role":"icon badge","shapeType":"ellipse","bbox":[485.3333333333333,406,54,54]}
+{"kind":"shape","slide":5,"id":"32","role":"icon glyph","shapeType":"ellipse","bbox":[498.3333333333333,424,10,10]}
+{"kind":"shape","slide":5,"id":"33","role":"icon glyph","shapeType":"ellipse","bbox":[516.3333333333333,433,10,10]}
+{"kind":"shape","slide":5,"id":"34","role":"icon glyph","shapeType":"rect","bbox":[507.3333333333333,431,19,3]}
+{"kind":"textbox","slide":5,"id":"35","role":"card label","text":"Application layer","textPreview":"Application layer","textChars":17,"textLines":1,"bbox":[551.3333333333333,404,247.33333333333331,28]}
+{"kind":"textbox","slide":5,"id":"36","role":"card body: Application layer","text":"Express mounts 31 route groups and\nuses Prisma, JWT auth, cron\nservices, document storage and\nmodule-specific controllers to\norchestrate work.","textPreview":"Express mounts 31 route groups and | uses Prisma, JWT auth, cron | services, document storage and | module-specific controllers to | orchestrate work.","textChars":142,"textLines":5,"bbox":[487.3333333333333,468,307.3333333333333,106]}
+{"kind":"shape","slide":5,"id":"37","role":"card panel: Data + intelligence","shapeType":"roundRect","bbox":[842.6666666666666,382,355.3333333333333,214]}
+{"kind":"shape","slide":5,"id":"38","role":"card accent: Data + intelligence","shapeType":"rect","bbox":[842.6666666666666,382,8,214]}
+{"kind":"shape","slide":5,"id":"39","role":"icon badge","shapeType":"ellipse","bbox":[864.6666666666666,406,54,54]}
+{"kind":"shape","slide":5,"id":"40","role":"icon glyph","shapeType":"roundRect","bbox":[877.6666666666666,421,26,13]}
+{"kind":"shape","slide":5,"id":"41","role":"icon glyph","shapeType":"roundRect","bbox":[882.6666666666666,430,26,13]}
+{"kind":"shape","slide":5,"id":"42","role":"icon glyph","shapeType":"roundRect","bbox":[887.6666666666666,439,20,10]}
+{"kind":"textbox","slide":5,"id":"43","role":"card label","text":"Data + intelligence","textPreview":"Data + intelligence","textChars":19,"textLines":1,"bbox":[930.6666666666666,404,247.33333333333331,28]}
+{"kind":"textbox","slide":5,"id":"44","role":"card body: Data + intelligence","text":"PostgreSQL holds the operational\ntruth, Redis supports runtime\nservices, and FastAPI-based Kelvin\nadds RAG plus local Ollama model\nexecution.","textPreview":"PostgreSQL holds the operational | truth, Redis supports runtime | services, and FastAPI-based Kelvin | adds RAG plus local Ollama model | execution.","textChars":141,"textLines":5,"bbox":[866.6666666666666,468,307.3333333333333,106]}
+{"kind":"textbox","slide":5,"id":"45","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":6,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":6,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":6,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":6,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":6,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":6,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":6,"id":"8","role":"metrics contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":6,"id":"9","role":"header","text":"CODE STRUCTURE","textPreview":"CODE STRUCTURE","textChars":14,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":6,"id":"10","role":"header","text":"06 / 09","textPreview":"06 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":6,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":6,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":6,"id":"13","role":"title","text":"The code is organized by product surface rather than only by framework layer","textPreview":"The code is organized by product surface rather than only by framework layer","textChars":76,"textLines":1,"bbox":[64,86,700,142]}
+{"kind":"textbox","slide":6,"id":"14","role":"subtitle","text":"That makes module ownership easy to reason about, but it also reveals where large screens and thin service wrappers need refactoring.","textPreview":"That makes module ownership easy to reason about, but it also reveals where large screens and thin service wrappers need refactoring.","textChars":133,"textLines":1,"bbox":[66,234,700,70]}
+{"kind":"shape","slide":6,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":6,"id":"16","role":"badge pill text","text":"Module Folders","textPreview":"Module Folders","textChars":14,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":6,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":6,"id":"18","role":"badge pill text","text":"Prisma Core","textPreview":"Prisma Core","textChars":11,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":6,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":6,"id":"20","role":"badge pill text","text":"Testing Gap","textPreview":"Testing Gap","textChars":11,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":6,"id":"21","role":"metric panel: Web routes wired through client App.tsx","shapeType":"roundRect","bbox":[92,404,330,174]}
+{"kind":"shape","slide":6,"id":"22","role":"metric accent: Web routes wired through client App.tsx","shapeType":"rect","bbox":[92,404,330,7]}
+{"kind":"textbox","slide":6,"id":"23","role":"metric value","text":"29","textPreview":"29","textChars":2,"textLines":1,"bbox":[114,428,286,54]}
+{"kind":"textbox","slide":6,"id":"24","role":"metric label","text":"Web routes wired through client App.tsx","textPreview":"Web routes wired through client App.tsx","textChars":39,"textLines":1,"bbox":[116,486,282,38]}
+{"kind":"textbox","slide":6,"id":"25","role":"metric note","text":"client/src/App.tsx","textPreview":"client/src/App.tsx","textChars":18,"textLines":1,"bbox":[116,536,282,22]}
+{"kind":"shape","slide":6,"id":"26","role":"metric panel: Primary runtime trunks: web, server, mobile, cognitive","shapeType":"roundRect","bbox":[462,404,330,174]}
+{"kind":"shape","slide":6,"id":"27","role":"metric accent: Primary runtime trunks: web, server, mobile, cognitive","shapeType":"rect","bbox":[462,404,330,7]}
+{"kind":"textbox","slide":6,"id":"28","role":"metric value","text":"4","textPreview":"4","textChars":1,"textLines":1,"bbox":[484,428,286,54]}
+{"kind":"textbox","slide":6,"id":"29","role":"metric label","text":"Primary runtime trunks: web, server, mobile, cognitive","textPreview":"Primary runtime trunks: web, server, mobile, cognitive","textChars":54,"textLines":1,"bbox":[486,486,282,38]}
+{"kind":"textbox","slide":6,"id":"30","role":"metric note","text":"deploy/*","textPreview":"deploy/*","textChars":8,"textLines":1,"bbox":[486,536,282,22]}
+{"kind":"shape","slide":6,"id":"31","role":"metric panel: Checked-in automated test files today","shapeType":"roundRect","bbox":[832,404,330,174]}
+{"kind":"shape","slide":6,"id":"32","role":"metric accent: Checked-in automated test files today","shapeType":"rect","bbox":[832,404,330,7]}
+{"kind":"textbox","slide":6,"id":"33","role":"metric value","text":"0","textPreview":"0","textChars":1,"textLines":1,"bbox":[854,428,286,54]}
+{"kind":"textbox","slide":6,"id":"34","role":"metric label","text":"Checked-in automated test files today","textPreview":"Checked-in automated test files today","textChars":37,"textLines":1,"bbox":[856,486,282,38]}
+{"kind":"textbox","slide":6,"id":"35","role":"metric note","text":"Jest configured but unused","textPreview":"Jest configured but unused","textChars":26,"textLines":1,"bbox":[856,536,282,22]}
+{"kind":"textbox","slide":6,"id":"36","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":7,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":7,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":7,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":7,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":7,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":7,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":7,"id":"8","role":"content contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":7,"id":"9","role":"header","text":"SALIENT FEATURES","textPreview":"SALIENT FEATURES","textChars":16,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":7,"id":"10","role":"header","text":"07 / 09","textPreview":"07 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":7,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":7,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":7,"id":"13","role":"title","text":"Operational depth is the standout quality of the app","textPreview":"Operational depth is the standout quality of the app","textChars":52,"textLines":1,"bbox":[64,86,760,142]}
+{"kind":"textbox","slide":7,"id":"14","role":"subtitle","text":"This is not a toy dashboard. The platform already covers the workflows a plant team actually needs across maintenance, documents, analytics and planning.","textPreview":"This is not a toy dashboard. The platform already covers the workflows a plant team actually needs across maintenance, documents, analytics and planning.","textChars":153,"textLines":1,"bbox":[66,234,720,70]}
+{"kind":"shape","slide":7,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":7,"id":"16","role":"badge pill text","text":"Execution","textPreview":"Execution","textChars":9,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":7,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":7,"id":"18","role":"badge pill text","text":"Planning","textPreview":"Planning","textChars":8,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":7,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":7,"id":"20","role":"badge pill text","text":"Knowledge","textPreview":"Knowledge","textChars":9,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":7,"id":"21","role":"card panel: Execution workflows","shapeType":"roundRect","bbox":[84,382,355.3333333333333,214]}
+{"kind":"shape","slide":7,"id":"22","role":"card accent: Execution workflows","shapeType":"rect","bbox":[84,382,8,214]}
+{"kind":"shape","slide":7,"id":"23","role":"icon badge","shapeType":"ellipse","bbox":[106,406,54,54]}
+{"kind":"shape","slide":7,"id":"24","role":"icon glyph","shapeType":"rect","bbox":[122,435,6,12]}
+{"kind":"shape","slide":7,"id":"25","role":"icon glyph","shapeType":"rect","bbox":[131,427,6,20]}
+{"kind":"shape","slide":7,"id":"26","role":"icon glyph","shapeType":"rect","bbox":[140,420,6,27]}
+{"kind":"textbox","slide":7,"id":"27","role":"card label","text":"Execution workflows","textPreview":"Execution workflows","textChars":19,"textLines":1,"bbox":[172,404,247.33333333333331,28]}
+{"kind":"textbox","slide":7,"id":"28","role":"card body: Execution workflows","text":"Assets, work orders, workshop,\nlogbook, calibration, inspections\nand overhaul modules cover planning\nthrough field closure.","textPreview":"Assets, work orders, workshop, | logbook, calibration, inspections | and overhaul modules cover planning | through field closure.","textChars":123,"textLines":4,"bbox":[108,468,307.3333333333333,106]}
+{"kind":"shape","slide":7,"id":"29","role":"card panel: Planning and support","shapeType":"roundRect","bbox":[463.3333333333333,382,355.3333333333333,214]}
+{"kind":"shape","slide":7,"id":"30","role":"card accent: Planning and support","shapeType":"rect","bbox":[463.3333333333333,382,8,214]}
+{"kind":"shape","slide":7,"id":"31","role":"icon badge","shapeType":"ellipse","bbox":[485.3333333333333,406,54,54]}
+{"kind":"shape","slide":7,"id":"32","role":"icon glyph","shapeType":"ellipse","bbox":[498.3333333333333,424,10,10]}
+{"kind":"shape","slide":7,"id":"33","role":"icon glyph","shapeType":"ellipse","bbox":[516.3333333333333,433,10,10]}
+{"kind":"shape","slide":7,"id":"34","role":"icon glyph","shapeType":"rect","bbox":[507.3333333333333,431,19,3]}
+{"kind":"textbox","slide":7,"id":"35","role":"card label","text":"Planning and support","textPreview":"Planning and support","textChars":20,"textLines":1,"bbox":[551.3333333333333,404,247.33333333333331,28]}
+{"kind":"textbox","slide":7,"id":"36","role":"card body: Planning and support","text":"Procurement, MRP, manpower,\ncontracts, training, energy,\nreports and collaboration widen the\nsystem from maintenance execution\ninto enterprise coordination.","textPreview":"Procurement, MRP, manpower, | contracts, training, energy, | reports and collaboration widen the | system from maintenance execution | into enterprise coordination.","textChars":156,"textLines":5,"bbox":[487.3333333333333,468,307.3333333333333,106]}
+{"kind":"shape","slide":7,"id":"37","role":"card panel: Knowledge + analytics","shapeType":"roundRect","bbox":[842.6666666666666,382,355.3333333333333,214]}
+{"kind":"shape","slide":7,"id":"38","role":"card accent: Knowledge + analytics","shapeType":"rect","bbox":[842.6666666666666,382,8,214]}
+{"kind":"shape","slide":7,"id":"39","role":"icon badge","shapeType":"ellipse","bbox":[864.6666666666666,406,54,54]}
+{"kind":"shape","slide":7,"id":"40","role":"icon glyph","shapeType":"roundRect","bbox":[877.6666666666666,421,26,13]}
+{"kind":"shape","slide":7,"id":"41","role":"icon glyph","shapeType":"roundRect","bbox":[882.6666666666666,430,26,13]}
+{"kind":"shape","slide":7,"id":"42","role":"icon glyph","shapeType":"roundRect","bbox":[887.6666666666666,439,20,10]}
+{"kind":"textbox","slide":7,"id":"43","role":"card label","text":"Knowledge + analytics","textPreview":"Knowledge + analytics","textChars":21,"textLines":1,"bbox":[930.6666666666666,404,247.33333333333331,28]}
+{"kind":"textbox","slide":7,"id":"44","role":"card body: Knowledge + analytics","text":"Manuals, drawings, KPI summaries,\nhealth tables and Kelvin AI make\nthe app searchable and\ndecision-support oriented instead\nof purely transactional.","textPreview":"Manuals, drawings, KPI summaries, | health tables and Kelvin AI make | the app searchable and | decision-support oriented instead | of purely transactional.","textChars":148,"textLines":5,"bbox":[866.6666666666666,468,307.3333333333333,106]}
+{"kind":"textbox","slide":7,"id":"45","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":8,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":8,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":8,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":8,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":8,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":8,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":8,"id":"8","role":"content contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":8,"id":"9","role":"header","text":"CODE REVIEW","textPreview":"CODE REVIEW","textChars":11,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":8,"id":"10","role":"header","text":"08 / 09","textPreview":"08 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":8,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":8,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":8,"id":"13","role":"title","text":"The most important review work is around trust boundaries and reliability","textPreview":"The most important review work is around trust boundaries and reliability","textChars":73,"textLines":1,"bbox":[64,86,760,142]}
+{"kind":"textbox","slide":8,"id":"14","role":"subtitle","text":"The recent fixes focus on preserving universal login, keeping permission mutations alive, and ensuring schema changes are actually deployable.","textPreview":"The recent fixes focus on preserving universal login, keeping permission mutations alive, and ensuring schema changes are actually deployable.","textChars":142,"textLines":1,"bbox":[66,234,720,70]}
+{"kind":"shape","slide":8,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":8,"id":"16","role":"badge pill text","text":"Permissions","textPreview":"Permissions","textChars":11,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":8,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":8,"id":"18","role":"badge pill text","text":"Migrations","textPreview":"Migrations","textChars":10,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":8,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":8,"id":"20","role":"badge pill text","text":"Reliability","textPreview":"Reliability","textChars":11,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":8,"id":"21","role":"card panel: Fixed","shapeType":"roundRect","bbox":[84,382,355.3333333333333,214]}
+{"kind":"shape","slide":8,"id":"22","role":"card accent: Fixed","shapeType":"rect","bbox":[84,382,8,214]}
+{"kind":"shape","slide":8,"id":"23","role":"icon badge","shapeType":"ellipse","bbox":[106,406,54,54]}
+{"kind":"shape","slide":8,"id":"24","role":"icon glyph","shapeType":"rect","bbox":[122,435,6,12]}
+{"kind":"shape","slide":8,"id":"25","role":"icon glyph","shapeType":"rect","bbox":[131,427,6,20]}
+{"kind":"shape","slide":8,"id":"26","role":"icon glyph","shapeType":"rect","bbox":[140,420,6,27]}
+{"kind":"textbox","slide":8,"id":"27","role":"card label","text":"Fixed","textPreview":"Fixed","textChars":5,"textLines":1,"bbox":[172,404,247.33333333333331,28]}
+{"kind":"textbox","slide":8,"id":"28","role":"card body: Fixed","text":"User permission flow in\nauthController again returns and\nupdates canCreateWorkOrder and\ncanCloseWorkOrder, which keeps\nmanpower controls functional.","textPreview":"User permission flow in | authController again returns and | updates canCreateWorkOrder and | canCloseWorkOrder, which keeps | manpower controls functional.","textChars":148,"textLines":5,"bbox":[108,468,307.3333333333333,106]}
+{"kind":"shape","slide":8,"id":"29","role":"card panel: Fixed","shapeType":"roundRect","bbox":[463.3333333333333,382,355.3333333333333,214]}
+{"kind":"shape","slide":8,"id":"30","role":"card accent: Fixed","shapeType":"rect","bbox":[463.3333333333333,382,8,214]}
+{"kind":"shape","slide":8,"id":"31","role":"icon badge","shapeType":"ellipse","bbox":[485.3333333333333,406,54,54]}
+{"kind":"shape","slide":8,"id":"32","role":"icon glyph","shapeType":"ellipse","bbox":[498.3333333333333,424,10,10]}
+{"kind":"shape","slide":8,"id":"33","role":"icon glyph","shapeType":"ellipse","bbox":[516.3333333333333,433,10,10]}
+{"kind":"shape","slide":8,"id":"34","role":"icon glyph","shapeType":"rect","bbox":[507.3333333333333,431,19,3]}
+{"kind":"textbox","slide":8,"id":"35","role":"card label","text":"Fixed","textPreview":"Fixed","textChars":5,"textLines":1,"bbox":[551.3333333333333,404,247.33333333333331,28]}
+{"kind":"textbox","slide":8,"id":"36","role":"card body: Fixed","text":"Prisma migration coverage now\nexists for the added audit,\nrepository and gas compression\ntables so documented deploys can\ncreate the new schema objects.","textPreview":"Prisma migration coverage now | exists for the added audit, | repository and gas compression | tables so documented deploys can | create the new schema objects.","textChars":152,"textLines":5,"bbox":[487.3333333333333,468,307.3333333333333,106]}
+{"kind":"shape","slide":8,"id":"37","role":"card panel: Still worth doing","shapeType":"roundRect","bbox":[842.6666666666666,382,355.3333333333333,214]}
+{"kind":"shape","slide":8,"id":"38","role":"card accent: Still worth doing","shapeType":"rect","bbox":[842.6666666666666,382,8,214]}
+{"kind":"shape","slide":8,"id":"39","role":"icon badge","shapeType":"ellipse","bbox":[864.6666666666666,406,54,54]}
+{"kind":"shape","slide":8,"id":"40","role":"icon glyph","shapeType":"roundRect","bbox":[877.6666666666666,421,26,13]}
+{"kind":"shape","slide":8,"id":"41","role":"icon glyph","shapeType":"roundRect","bbox":[882.6666666666666,430,26,13]}
+{"kind":"shape","slide":8,"id":"42","role":"icon glyph","shapeType":"roundRect","bbox":[887.6666666666666,439,20,10]}
+{"kind":"textbox","slide":8,"id":"43","role":"card label","text":"Still worth doing","textPreview":"Still worth doing","textChars":17,"textLines":1,"bbox":[930.6666666666666,404,247.33333333333331,28]}
+{"kind":"textbox","slide":8,"id":"44","role":"card body: Still worth doing","text":"The app needs broader tests,\nstricter typed API clients,\nendpoint-level scope enforcement\nfor contractor access, and\ncontinued decomposition of the\nlargest module screens.","textPreview":"The app needs broader tests, | stricter typed API clients, | endpoint-level scope enforcement | for contractor access, and | continued decomposition of the | largest module screens","textChars":171,"textLines":6,"bbox":[866.6666666666666,468,307.3333333333333,106]}
+{"kind":"textbox","slide":8,"id":"45","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}
+{"kind":"image","slide":9,"id":"2","role":"fallback art plate","path":"fallback-data-url","bbox":[0,0,1280,720]}
+{"kind":"shape","slide":9,"id":"3","role":"ambient shape","shapeType":"ellipse","bbox":[944,-88,412,412]}
+{"kind":"shape","slide":9,"id":"4","role":"ambient shape","shapeType":"ellipse","bbox":[998,492,196,196]}
+{"kind":"shape","slide":9,"id":"5","role":"ambient shape","shapeType":"ellipse","bbox":[-120,512,304,304]}
+{"kind":"shape","slide":9,"id":"6","role":"ambient rule","shapeType":"rect","bbox":[1088,84,4,560]}
+{"kind":"shape","slide":9,"id":"7","role":"ambient badge","shapeType":"roundRect","bbox":[1110,94,80,80]}
+{"kind":"shape","slide":9,"id":"8","role":"content contrast overlay","shapeType":"rect","bbox":[0,0,1280,720]}
+{"kind":"textbox","slide":9,"id":"9","role":"header","text":"NEXT MOVE","textPreview":"NEXT MOVE","textChars":9,"textLines":1,"bbox":[64,34,430,24]}
+{"kind":"textbox","slide":9,"id":"10","role":"header","text":"09 / 09","textPreview":"09 / 09","textChars":7,"textLines":1,"bbox":[1114,34,104,24]}
+{"kind":"shape","slide":9,"id":"11","role":"header rule","shapeType":"rect","bbox":[64,64,1152,2]}
+{"kind":"shape","slide":9,"id":"12","role":"header marker","shapeType":"ellipse","bbox":[57,57,16,16]}
+{"kind":"textbox","slide":9,"id":"13","role":"title","text":"The current platform is ready for a scoped contractor workspace on the same database","textPreview":"The current platform is ready for a scoped contractor workspace on the same database","textChars":84,"textLines":1,"bbox":[64,86,760,142]}
+{"kind":"textbox","slide":9,"id":"14","role":"subtitle","text":"Because the system already has a broad operational schema and shared auth patterns, the next expansion should be a permission-scoped external shell rather than a separate product.","textPreview":"Because the system already has a broad operational schema and shared auth patterns, the next expansion should be a permission-scoped external shell rather than a separate product.","textChars":179,"textLines":1,"bbox":[66,234,720,70]}
+{"kind":"shape","slide":9,"id":"15","role":"badge pill","shapeType":"roundRect","bbox":[858,126,248,30]}
+{"kind":"textbox","slide":9,"id":"16","role":"badge pill text","text":"Same DB","textPreview":"Same DB","textChars":7,"textLines":1,"bbox":[874,132,216,18]}
+{"kind":"shape","slide":9,"id":"17","role":"badge pill","shapeType":"roundRect","bbox":[858,166,248,30]}
+{"kind":"textbox","slide":9,"id":"18","role":"badge pill text","text":"Scoped Access","textPreview":"Scoped Access","textChars":13,"textLines":1,"bbox":[874,172,216,18]}
+{"kind":"shape","slide":9,"id":"19","role":"badge pill","shapeType":"roundRect","bbox":[858,206,248,30]}
+{"kind":"textbox","slide":9,"id":"20","role":"badge pill text","text":"Next Phase","textPreview":"Next Phase","textChars":10,"textLines":1,"bbox":[874,212,216,18]}
+{"kind":"shape","slide":9,"id":"21","role":"card panel: Contract workspaces","shapeType":"roundRect","bbox":[84,382,355.3333333333333,214]}
+{"kind":"shape","slide":9,"id":"22","role":"card accent: Contract workspaces","shapeType":"rect","bbox":[84,382,8,214]}
+{"kind":"shape","slide":9,"id":"23","role":"icon badge","shapeType":"ellipse","bbox":[106,406,54,54]}
+{"kind":"shape","slide":9,"id":"24","role":"icon glyph","shapeType":"rect","bbox":[122,435,6,12]}
+{"kind":"shape","slide":9,"id":"25","role":"icon glyph","shapeType":"rect","bbox":[131,427,6,20]}
+{"kind":"shape","slide":9,"id":"26","role":"icon glyph","shapeType":"rect","bbox":[140,420,6,27]}
+{"kind":"textbox","slide":9,"id":"27","role":"card label","text":"Contract workspaces","textPreview":"Contract workspaces","textChars":19,"textLines":1,"bbox":[172,404,247.33333333333331,28]}
+{"kind":"textbox","slide":9,"id":"28","role":"card body: Contract workspaces","text":"Use Contract as the workspace root,\nmap external users to scoped\ninstallations, assets and\ninstrument types, and enforce that\nscope on every contractor API.","textPreview":"Use Contract as the workspace root, | map external users to scoped | installations, assets and | instrument types, and enforce that | scope on every contractor API.","textChars":156,"textLines":5,"bbox":[108,468,307.3333333333333,106]}
+{"kind":"shape","slide":9,"id":"29","role":"card panel: Shared operating model","shapeType":"roundRect","bbox":[463.3333333333333,382,355.3333333333333,214]}
+{"kind":"shape","slide":9,"id":"30","role":"card accent: Shared operating model","shapeType":"rect","bbox":[463.3333333333333,382,8,214]}
+{"kind":"shape","slide":9,"id":"31","role":"icon badge","shapeType":"ellipse","bbox":[485.3333333333333,406,54,54]}
+{"kind":"shape","slide":9,"id":"32","role":"icon glyph","shapeType":"ellipse","bbox":[498.3333333333333,424,10,10]}
+{"kind":"shape","slide":9,"id":"33","role":"icon glyph","shapeType":"ellipse","bbox":[516.3333333333333,433,10,10]}
+{"kind":"shape","slide":9,"id":"34","role":"icon glyph","shapeType":"rect","bbox":[507.3333333333333,431,19,3]}
+{"kind":"textbox","slide":9,"id":"35","role":"card label","text":"Shared operating model","textPreview":"Shared operating model","textChars":22,"textLines":1,"bbox":[551.3333333333333,404,247.33333333333331,28]}
+{"kind":"textbox","slide":9,"id":"36","role":"card body: Shared operating model","text":"Internal and external teams can\nupdate the same instruments,\nequipment, reports and work orders\nas long as permissions stay\nserver-side and auditable.","textPreview":"Internal and external teams can | update the same instruments, | equipment, reports and work orders | as long as permissions stay | server-side and auditable.","textChars":150,"textLines":5,"bbox":[487.3333333333333,468,307.3333333333333,106]}
+{"kind":"shape","slide":9,"id":"37","role":"card panel: Execution priority","shapeType":"roundRect","bbox":[842.6666666666666,382,355.3333333333333,214]}
+{"kind":"shape","slide":9,"id":"38","role":"card accent: Execution priority","shapeType":"rect","bbox":[842.6666666666666,382,8,214]}
+{"kind":"shape","slide":9,"id":"39","role":"icon badge","shapeType":"ellipse","bbox":[864.6666666666666,406,54,54]}
+{"kind":"shape","slide":9,"id":"40","role":"icon glyph","shapeType":"roundRect","bbox":[877.6666666666666,421,26,13]}
+{"kind":"shape","slide":9,"id":"41","role":"icon glyph","shapeType":"roundRect","bbox":[882.6666666666666,430,26,13]}
+{"kind":"shape","slide":9,"id":"42","role":"icon glyph","shapeType":"roundRect","bbox":[887.6666666666666,439,20,10]}
+{"kind":"textbox","slide":9,"id":"43","role":"card label","text":"Execution priority","textPreview":"Execution priority","textChars":18,"textLines":1,"bbox":[930.6666666666666,404,247.33333333333331,28]}
+{"kind":"textbox","slide":9,"id":"44","role":"card body: Execution priority","text":"Harden API authorization, add\ncanary tests, simplify the largest\nscreens and tune local Gemma\nperformance before scaling the app\noutward.","textPreview":"Harden API authorization, add | canary tests, simplify the largest | screens and tune local Gemma | performance before scaling the app | outward.","textChars":137,"textLines":5,"bbox":[866.6666666666666,468,307.3333333333333,106]}
+{"kind":"textbox","slide":9,"id":"45","role":"caption","text":"Repository snapshot: 20 Apr 2026","textPreview":"Repository snapshot: 20 Apr 2026","textChars":32,"textLines":1,"bbox":[64,674,340,22]}

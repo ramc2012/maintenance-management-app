@@ -62,6 +62,13 @@ cd deploy
 docker compose up -d --build
 ```
 
+If you want the cognitive service to use a host-installed Ollama on macOS, start the local bridge first:
+
+```bash
+cd deploy
+python3 scripts/ollama_host_bridge.py
+```
+
 Default local URLs:
 
 - web client: `http://localhost:8080`

@@ -107,8 +107,11 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      OLLAMA_URL: ${DOCKER_OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_URL: ${DOCKER_OLLAMA_URL:-http://host.docker.internal:11435}
+      DEFAULT_OLLAMA_MODEL: ${DEFAULT_OLLAMA_MODEL:-gemma4:e2b}
       REDIS_URL: redis://redis:6379
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - cognitive_data:/app/chroma_data
       - ./cognitive:/app

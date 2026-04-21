@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useAuth } from "../../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
 
 export const LoginPage = () => {
@@ -10,18 +10,26 @@ export const LoginPage = () => {
   const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     try {
       const response = await axios.post("/api/auth/login", {
         username,
         password,
       });
       login(response.data.token, response.data.user);
-      navigate("/hub");
-    } catch (err) {
-      setError("Invalid credentials");
+      const locationState = location.state as { from?: string } | null;
+      const requestedPath = locationState?.from;
+      const redirectTo: string =
+        typeof requestedPath === "string" && requestedPath !== "/login"
+          ? requestedPath
+          : "/hub";
+      navigate(redirectTo, { replace: true });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Invalid credentials");
     }
   };
 

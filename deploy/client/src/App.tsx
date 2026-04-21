@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ConfigProvider, theme } from "antd";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -37,10 +37,37 @@ import { KPIDashboard } from "./modules/kpi/pages/KPIDashboard";
 import { InspectionHub } from "./modules/inspections/pages/InspectionHub";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, token } = useAuth();
-  if (!token || !user) {
-    return <Navigate to="/login" />;
+  const { user, token, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return null;
   }
+
+  if (!token || !user) {
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+  return <>{children}</>;
+};
+
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, token, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return null;
+  }
+
+  if (token && user) {
+    const locationState = location.state as { from?: string } | null;
+    const requestedPath = locationState?.from;
+    const redirectTo: string =
+      typeof requestedPath === "string" && requestedPath !== "/login"
+        ? requestedPath
+        : "/hub";
+    return <Navigate to={redirectTo} replace />;
+  }
+
   return <>{children}</>;
 };
 
@@ -59,7 +86,7 @@ const AppContent = () => {
     >
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           
           {/* Main Hub */}
           <Route path="/" element={

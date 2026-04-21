@@ -310,7 +310,13 @@ export const getInstrumentHistory = async (req: Request, res: Response) => {
 // --- Running Equipment ---
 export const getRunningEquipment = async (req: Request, res: Response) => {
   try {
+    const where: any = {};
+    if (req.query.installationId) {
+      where.installationId = String(req.query.installationId);
+    }
+
     const equip = await prisma.runningEquipmentMaster.findMany({
+      where,
       include: { installation: true, equipmentType: true },
       orderBy: { createdAt: 'desc' }
     });

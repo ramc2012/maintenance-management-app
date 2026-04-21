@@ -9,6 +9,7 @@ import { getStoredToken } from '@/services/authStorage';
 import { API_REQUEST_TIMEOUT_MS, ApiConfigurationError, ApiError } from '@/services/api';
 
 const explicitCognitiveUrl = process.env.EXPO_PUBLIC_COGNITIVE_API_URL?.trim();
+const defaultKelvinModel = process.env.EXPO_PUBLIC_COGNITIVE_MODEL?.trim() || 'gemma4:e2b';
 const expoHost =
   (Constants.expoConfig as { hostUri?: string } | null)?.hostUri?.split(':')[0]
   ?? ((Constants as unknown as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } }).manifest2?.extra?.expoGo?.debuggerHost?.split(':')[0]);
@@ -75,7 +76,7 @@ export default function KelvinScreen() {
           },
           body: JSON.stringify({
             query: userMessage.content,
-            model: 'tinyllama',
+            model: defaultKelvinModel,
             use_rag: true,
             use_multi_hop: true,
           }),

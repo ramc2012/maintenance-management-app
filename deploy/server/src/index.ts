@@ -9,6 +9,7 @@ import orgRoutes from './routes/orgRoutes';
 import equipmentRoutes from "./routes/equipment.routes";
 import maintenanceRoutes from "./routes/maintenance.routes";
 import logbookRoutes from "./routes/logbook.routes";
+import operationsRoutes from './routes/operations.routes';
 
 // ISO 14224 Asset Hierarchy Routes
 import flRoutes from "./routes/fl.routes";
@@ -66,6 +67,7 @@ app.use('/api/equipment', equipmentRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/equipment-logs', logbookRoutes);
 app.use('/api/logbook', logbookRoutes);
+app.use('/api/operations', operationsRoutes);
 
 // ISO 14224 Asset Hierarchy Routes
 app.use('/api/fl', flRoutes);

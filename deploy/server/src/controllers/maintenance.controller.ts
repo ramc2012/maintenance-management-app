@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 export const getMaintenanceLogs = async (req: Request, res: Response) => {
   try {
-    const { date, installationId, department, status, criticality } = req.query;
+    const { date, installationId, department, status, criticality, equipmentTag } = req.query;
     
     const where: any = {};
     if (date) where.date = new Date(date as string);
@@ -15,6 +15,7 @@ export const getMaintenanceLogs = async (req: Request, res: Response) => {
     if (department) where.department = department;
     if (status) where.status = status;
     if (criticality) where.reportCriticality = parseInt(criticality as string);
+    if (equipmentTag) where.equipmentTag = String(equipmentTag);
     
     const logs = await prisma.maintenanceLog.findMany({
       where,
@@ -89,30 +90,6 @@ export const createMaintenanceLog = async (req: Request, res: Response) => {
         teamMembers: { include: { manpower: true } }
       }
     });
-
-    // DPR → EquipmentLog Sync: Create corresponding equipment log entry
-    if (equipmentTag) {
-      try {
-        const dprRemarks = `[DPR ${jobType}] ${description}${remarks ? ' | Notes: ' + remarks : ''}`;
-        await prisma.equipmentLog.create({
-          data: {
-            date: new Date(date),
-            shift: 'DAY', // Default shift
-            equipmentTag,
-            runStatus: jobType !== 'BD', // Running if not Breakdown
-            startTime: startTime ? new Date(startTime) : undefined,
-            stopTime: endTime ? new Date(endTime) : undefined,
-            totalRunHours: durationHours || 0,
-            remarks: dprRemarks,
-            assignedBy: createdBy || 'DPR System'
-          }
-        });
-        console.log(`DPR synced to EquipmentLog for ${equipmentTag}`);
-      } catch (syncError) {
-        // Log sync error but don't fail the request
-        console.warn('DPR→EquipmentLog sync failed:', syncError);
-      }
-    }
 
     res.status(201).json(log);
   } catch (error) {

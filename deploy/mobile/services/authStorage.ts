@@ -1,4 +1,11 @@
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+// expo-secure-store only works on native (iOS/Android).
+// On web, fall back to localStorage so the app works in a browser preview.
+let SecureStore: typeof import('expo-secure-store') | null = null;
+if (Platform.OS !== 'web') {
+  SecureStore = require('expo-secure-store');
+}
 
 export interface AuthUser {
   id: string;
@@ -14,21 +21,35 @@ export interface AuthSession {
 const AUTH_TOKEN_KEY = 'mm_auth_token';
 const AUTH_USER_KEY = 'mm_auth_user';
 
+// ── Unified get/set/delete that works on both native and web ────────────────
+
+async function getItem(key: string): Promise<string | null> {
+  if (SecureStore) return SecureStore.getItemAsync(key);
+  return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+}
+
+async function setItem(key: string, value: string): Promise<void> {
+  if (SecureStore) { await SecureStore.setItemAsync(key, value); return; }
+  if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+}
+
+async function deleteItem(key: string): Promise<void> {
+  if (SecureStore) { await SecureStore.deleteItemAsync(key); return; }
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
+}
+
+// ── Public API ───────────────────────────────────────────────────────────────
+
 export async function getStoredSession(): Promise<AuthSession | null> {
   const [token, userJson] = await Promise.all([
-    SecureStore.getItemAsync(AUTH_TOKEN_KEY),
-    SecureStore.getItemAsync(AUTH_USER_KEY),
+    getItem(AUTH_TOKEN_KEY),
+    getItem(AUTH_USER_KEY),
   ]);
 
-  if (!token || !userJson) {
-    return null;
-  }
+  if (!token || !userJson) return null;
 
   try {
-    return {
-      token,
-      user: JSON.parse(userJson) as AuthUser,
-    };
+    return { token, user: JSON.parse(userJson) as AuthUser };
   } catch {
     await clearStoredSession();
     return null;
@@ -37,18 +58,18 @@ export async function getStoredSession(): Promise<AuthSession | null> {
 
 export async function storeSession(session: AuthSession) {
   await Promise.all([
-    SecureStore.setItemAsync(AUTH_TOKEN_KEY, session.token),
-    SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(session.user)),
+    setItem(AUTH_TOKEN_KEY, session.token),
+    setItem(AUTH_USER_KEY, JSON.stringify(session.user)),
   ]);
 }
 
 export async function clearStoredSession() {
   await Promise.all([
-    SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
-    SecureStore.deleteItemAsync(AUTH_USER_KEY),
+    deleteItem(AUTH_TOKEN_KEY),
+    deleteItem(AUTH_USER_KEY),
   ]);
 }
 
 export async function getStoredToken() {
-  return SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+  return getItem(AUTH_TOKEN_KEY);
 }
