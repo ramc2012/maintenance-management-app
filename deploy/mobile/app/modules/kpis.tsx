@@ -8,6 +8,7 @@ import { HealthBadge } from '@/components/HealthBadge';
 import { Text } from '@/components/Themed';
 import { useHealthTable, useKpiSummary } from '@/hooks/useAPI';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 
 type KPIMetric = {
   key: string;
@@ -24,6 +25,8 @@ type KPIMetric = {
 
 export default function KPIDashboardScreen() {
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const kpiQuery = useKpiSummary(Boolean(token));
   const healthQuery = useHealthTable(Boolean(token));
   const [showAllHealth, setShowAllHealth] = useState(false);
@@ -62,19 +65,19 @@ export default function KPIDashboardScreen() {
   };
 
   if (kpiQuery.isLoading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: 'KPI Dashboard' }} />
+    <View style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
+      <Stack.Screen options={{ title: 'KPI Dashboard', headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text }} />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={kpiQuery.isRefetching} onRefresh={() => { kpiQuery.refetch(); healthQuery.refetch(); }} tintColor="#2563eb" />}
+        refreshControl={<RefreshControl refreshing={kpiQuery.isRefetching} onRefresh={() => { kpiQuery.refetch(); healthQuery.refetch(); }} tintColor={colors.primary} />}
       >
         {/* Hero */}
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
+        <View style={[styles.hero, { backgroundColor: theme.isDark ? colors.surface : '#0f172a' }]}>
+          <View style={[styles.heroIcon, { backgroundColor: theme.isDark ? colors.backgroundTertiary : '#1e293b' }]}>
             <MaterialCommunityIcons name="chart-box-outline" size={28} color="#93c5fd" />
           </View>
           <Text style={styles.heroTitle}>Maintenance KPIs</Text>
@@ -87,12 +90,12 @@ export default function KPIDashboardScreen() {
         </View>
 
         {/* KPI Grid */}
-        <SectionHeader title="Performance Metrics" action={`${kpiQuery.data?.period?.from?.slice(0, 10) ?? ''} to ${kpiQuery.data?.period?.to?.slice(0, 10) ?? ''}`} />
+        <SectionHeader title="Performance Metrics" action={`${kpiQuery.data?.period?.from?.slice(0, 10) ?? ''} to ${kpiQuery.data?.period?.to?.slice(0, 10) ?? ''}`} colors={colors} />
         <View style={styles.kpiGrid}>
           {metrics.map((m) => {
             const target = isOnTarget(m);
             return (
-              <View key={m.key} style={styles.kpiCard}>
+              <View key={m.key} style={[styles.kpiCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                 <View style={styles.kpiCardHeader}>
                   <View style={[styles.kpiIconWrap, { backgroundColor: `${m.accent}15` }]}>
                     <MaterialCommunityIcons name={m.icon} size={18} color={m.accent} />
@@ -101,11 +104,11 @@ export default function KPIDashboardScreen() {
                     <View style={[styles.targetDot, { backgroundColor: target ? '#22c55e' : '#ef4444' }]} />
                   )}
                 </View>
-                <Text style={styles.kpiValue}>{m.value}</Text>
-                <Text style={styles.kpiLabel}>{m.label}</Text>
-                {m.hint && <Text style={styles.kpiHint}>{m.hint}</Text>}
+                <Text style={[styles.kpiValue, { color: colors.text }]}>{m.value}</Text>
+                <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>{m.label}</Text>
+                {m.hint && <Text style={[styles.kpiHint, { color: colors.textTertiary }]}>{m.hint}</Text>}
                 {target !== null && (
-                  <Text style={[styles.kpiTarget, { color: target ? '#16a34a' : '#dc2626' }]}>
+                  <Text style={[styles.kpiTarget, { color: target ? colors.success : colors.error }]}>
                     {target ? 'On Target' : 'Needs Attention'}
                   </Text>
                 )}
@@ -115,8 +118,8 @@ export default function KPIDashboardScreen() {
         </View>
 
         {/* Progress Bars */}
-        <SectionHeader title="Compliance Overview" />
-        <View style={styles.progressPanel}>
+        <SectionHeader title="Compliance Overview" colors={colors} />
+        <View style={[styles.progressPanel, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
           {[
             { label: 'PM Compliance', value: metrics[0]?.numericValue ?? 0, color: '#22c55e' },
             { label: 'Availability', value: metrics[1]?.numericValue ?? 0, color: '#3b82f6' },
@@ -124,10 +127,10 @@ export default function KPIDashboardScreen() {
           ].map((bar) => (
             <View key={bar.label} style={styles.progressRow}>
               <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>{bar.label}</Text>
+                <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>{bar.label}</Text>
                 <Text style={[styles.progressValue, { color: bar.color }]}>{bar.value.toFixed(1)}%</Text>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.backgroundTertiary }]}>
                 <View style={[styles.progressFill, { width: `${Math.min(100, bar.value)}%`, backgroundColor: bar.color }]} />
               </View>
             </View>
@@ -135,40 +138,40 @@ export default function KPIDashboardScreen() {
         </View>
 
         {/* Equipment Health */}
-        <SectionHeader title="Equipment Health" action={`${healthQuery.data?.total ?? 0} assets scored`} />
-        <View style={styles.healthPanel}>
-          <View style={styles.healthLegend}>
+        <SectionHeader title="Equipment Health" action={`${healthQuery.data?.total ?? 0} assets scored`} colors={colors} />
+        <View style={[styles.healthPanel, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <View style={[styles.healthLegend, { borderBottomColor: colors.divider }]}>
             {(['A', 'B', 'C', 'D'] as const).map((grade) => (
               <View key={grade} style={styles.legendItem}>
                 <HealthBadge grade={grade} />
-                <Text style={styles.legendText}>{grade === 'A' ? 'Excellent' : grade === 'B' ? 'Good' : grade === 'C' ? 'Fair' : 'Poor'}</Text>
+                <Text style={[styles.legendText, { color: colors.textTertiary }]}>{grade === 'A' ? 'Excellent' : grade === 'B' ? 'Good' : grade === 'C' ? 'Fair' : 'Poor'}</Text>
               </View>
             ))}
           </View>
           {healthQuery.isLoading ? (
-            <ActivityIndicator color="#2563eb" style={{ marginVertical: 20 }} />
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
           ) : healthItems.length === 0 ? (
-            <View style={styles.emptyPanel}>
-              <Text style={styles.emptyText}>No health data available. Scores are computed from calibration, breakdown history, and open work orders.</Text>
+            <View style={[styles.emptyPanel, { backgroundColor: colors.backgroundSecondary }]}>
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No health data available. Scores are computed from calibration, breakdown history, and open work orders.</Text>
             </View>
           ) : (
             <>
               {visibleHealth.map((item) => (
-                <View key={item.equipmentTag} style={styles.healthRow}>
+                <View key={item.equipmentTag} style={[styles.healthRow, { backgroundColor: colors.backgroundSecondary }]}>
                   <View style={styles.healthInfo}>
-                    <Text style={styles.healthTag}>{item.equipmentTag}</Text>
-                    <Text style={styles.healthDesc} numberOfLines={1}>{item.description}</Text>
+                    <Text style={[styles.healthTag, { color: colors.text }]}>{item.equipmentTag}</Text>
+                    <Text style={[styles.healthDesc, { color: colors.textTertiary }]} numberOfLines={1}>{item.description}</Text>
                   </View>
                   <View style={styles.healthEnd}>
                     <HealthBadge grade={item.grade} />
-                    <Text style={styles.healthScore}>{item.score}</Text>
+                    <Text style={[styles.healthScore, { color: colors.text }]}>{item.score}</Text>
                   </View>
                 </View>
               ))}
               {healthItems.length > 6 && (
                 <Pressable style={styles.showMoreBtn} onPress={() => setShowAllHealth(!showAllHealth)}>
-                  <Text style={styles.showMoreText}>{showAllHealth ? 'Show less' : `Show all ${healthItems.length} assets`}</Text>
-                  <MaterialCommunityIcons name={showAllHealth ? 'chevron-up' : 'chevron-down'} size={16} color="#2563eb" />
+                  <Text style={[styles.showMoreText, { color: colors.primary }]}>{showAllHealth ? 'Show less' : `Show all ${healthItems.length} assets`}</Text>
+                  <MaterialCommunityIcons name={showAllHealth ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
                 </Pressable>
               )}
             </>
@@ -179,11 +182,11 @@ export default function KPIDashboardScreen() {
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action?: string }) {
+function SectionHeader({ title, action, colors }: { title: string; action?: string; colors: any }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {action && <Text style={styles.sectionAction}>{action}</Text>}
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      {action && <Text style={[styles.sectionAction, { color: colors.textTertiary }]}>{action}</Text>}
     </View>
   );
 }
@@ -196,45 +199,45 @@ function formatCost(value: number): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  hero: { borderRadius: 24, backgroundColor: '#0f172a', padding: 22, marginBottom: 20 },
-  heroIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  hero: { borderRadius: 24, padding: 22, marginBottom: 20 },
+  heroIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   heroTitle: { fontSize: 26, fontWeight: '800', color: '#ffffff' },
   heroSubtitle: { marginTop: 10, fontSize: 14, lineHeight: 21, color: '#94a3b8' },
   heroActions: { marginTop: 18 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#0f172a' },
-  sectionAction: { fontSize: 11, color: '#64748b' },
+  sectionTitle: { fontSize: 17, fontWeight: '800' },
+  sectionAction: { fontSize: 11 },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  kpiCard: { width: '48%', borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 16, marginBottom: 12 },
+  kpiCard: { width: '48%', borderRadius: 18, borderWidth: 1, padding: 16, marginBottom: 12 },
   kpiCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   kpiIconWrap: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   targetDot: { width: 8, height: 8, borderRadius: 4 },
-  kpiValue: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  kpiLabel: { marginTop: 4, fontSize: 13, fontWeight: '600', color: '#475569' },
-  kpiHint: { marginTop: 4, fontSize: 11, color: '#94a3b8' },
+  kpiValue: { fontSize: 22, fontWeight: '800' },
+  kpiLabel: { marginTop: 4, fontSize: 13, fontWeight: '600' },
+  kpiHint: { marginTop: 4, fontSize: 11 },
   kpiTarget: { marginTop: 8, fontSize: 11, fontWeight: '700' },
-  progressPanel: { borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 18, marginBottom: 20, gap: 16 },
+  progressPanel: { borderRadius: 18, borderWidth: 1, padding: 18, marginBottom: 20, gap: 16 },
   progressRow: { gap: 8 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  progressLabel: { fontSize: 13, fontWeight: '600', color: '#334155' },
+  progressLabel: { fontSize: 13, fontWeight: '600' },
   progressValue: { fontSize: 13, fontWeight: '800' },
-  progressTrack: { height: 8, borderRadius: 4, backgroundColor: '#f1f5f9' },
+  progressTrack: { height: 8, borderRadius: 4 },
   progressFill: { height: 8, borderRadius: 4 },
-  healthPanel: { borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 16, marginBottom: 20 },
-  healthLegend: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  healthPanel: { borderRadius: 18, borderWidth: 1, padding: 16, marginBottom: 20 },
+  healthLegend: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 14, borderBottomWidth: 1 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendText: { fontSize: 11, color: '#64748b' },
-  healthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: '#f8fafc', marginBottom: 8 },
+  legendText: { fontSize: 11 },
+  healthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 14, marginBottom: 8 },
   healthInfo: { flex: 1, paddingRight: 12 },
-  healthTag: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
-  healthDesc: { marginTop: 3, fontSize: 11, color: '#64748b' },
+  healthTag: { fontSize: 13, fontWeight: '700' },
+  healthDesc: { marginTop: 3, fontSize: 11 },
   healthEnd: { alignItems: 'flex-end', gap: 4 },
-  healthScore: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
-  emptyPanel: { padding: 16, borderRadius: 12, backgroundColor: '#f8fafc' },
-  emptyText: { fontSize: 12, lineHeight: 18, color: '#64748b' },
+  healthScore: { fontSize: 16, fontWeight: '800' },
+  emptyPanel: { padding: 16, borderRadius: 12 },
+  emptyText: { fontSize: 12, lineHeight: 18 },
   showMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 12 },
-  showMoreText: { fontSize: 13, fontWeight: '600', color: '#2563eb' },
+  showMoreText: { fontSize: 13, fontWeight: '600' },
 });

@@ -3,6 +3,7 @@ import { StyleSheet, Pressable, View } from 'react-native';
 import { Text } from './Themed';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
+import { useTheme } from '@/context/ThemeContext';
 
 export interface ModuleCardProps {
   id: string;
@@ -14,18 +15,21 @@ export interface ModuleCardProps {
 }
 
 export const ModuleCard = ({ name, icon, color, bg, link }: ModuleCardProps) => {
+  const { theme } = useTheme();
+  const { colors } = theme;
+
   return (
     <Link href={link as any} asChild>
       <Pressable style={({ pressed }) => [
         styles.card,
-        { backgroundColor: bg },
+        { backgroundColor: bg, borderColor: colors.cardBorder },
         pressed && styles.pressed
       ]}>
         <View style={[styles.iconContainer, { backgroundColor: `${color}18` }]}>
           <MaterialCommunityIcons name={icon} size={32} color={color} />
         </View>
-        <Text style={styles.name} numberOfLines={2}>{name}</Text>
-        <Text style={styles.caption}>Open module</Text>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>{name}</Text>
+        <Text style={[styles.caption, { color: colors.textTertiary }]}>Open module</Text>
       </Pressable>
     </Link>
   );
@@ -41,7 +45,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -62,10 +65,8 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0f172a',
   },
   caption: {
     fontSize: 12,
-    color: '#64748b',
   },
 });

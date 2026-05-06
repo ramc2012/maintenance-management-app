@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NotificationBadge } from '@/components/NotificationBadge';
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -22,6 +23,8 @@ const moduleColors: Record<string, string> = {
 
 export default function InboxScreen() {
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const notificationsQuery = useNotifications(Boolean(token));
   const markOne = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
@@ -29,46 +32,46 @@ export default function InboxScreen() {
   const notifications = notificationsQuery.data?.data ?? [];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.summaryCard}>
-        <View>
+    <ScrollView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} contentContainerStyle={styles.content}>
+      <View style={[styles.summaryCard, { backgroundColor: theme.isDark ? colors.surface : '#0f172a' }]}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.summaryTitle}>Notification center</Text>
           <Text style={styles.summaryText}>
-            Mobile alerts are polling `/api/notifications` and keeping the unread count in shared context.
+            Real-time alerts from work orders, inspections, calibration, and planning workflows.
           </Text>
         </View>
         <NotificationBadge count={notifications.filter((item) => item.status === 'UNREAD').length} />
       </View>
 
       <Pressable
-        style={[styles.markAllBtn, markAll.isPending && styles.disabledBtn]}
+        style={[styles.markAllBtn, { backgroundColor: colors.primarySubtle, borderColor: colors.primaryMuted }, markAll.isPending && styles.disabledBtn]}
         onPress={() => markAll.mutate()}
         disabled={markAll.isPending}
       >
-        <MaterialCommunityIcons name="check-all" size={18} color="#1d4ed8" />
-        <Text style={styles.markAllText}>{markAll.isPending ? 'Marking...' : 'Mark all as read'}</Text>
+        <MaterialCommunityIcons name="check-all" size={18} color={colors.primary} />
+        <Text style={[styles.markAllText, { color: colors.primary }]}>{markAll.isPending ? 'Marking...' : 'Mark all as read'}</Text>
       </Pressable>
 
       {notificationsQuery.isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator color="#1d4ed8" />
-          <Text style={styles.loadingText}>Loading notification feed...</Text>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textTertiary }]}>Loading notification feed...</Text>
         </View>
       ) : notifications.length === 0 ? (
-        <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="bell-check-outline" size={28} color="#64748b" />
-          <Text style={styles.emptyTitle}>No pending alerts</Text>
-          <Text style={styles.emptyText}>
+        <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <MaterialCommunityIcons name="bell-check-outline" size={28} color={colors.textTertiary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No pending alerts</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             When new work orders, inspections, or planning alerts arrive, they will appear here.
           </Text>
         </View>
       ) : (
         notifications.map((item) => {
-          const accent = moduleColors[item.module ?? ''] ?? '#475569';
+          const accent = moduleColors[item.module ?? ''] ?? colors.textSecondary;
           return (
             <Pressable
               key={item.id}
-              style={styles.notificationCard}
+              style={[styles.notificationCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
               onPress={() => {
                 if (item.status === 'UNREAD') {
                   markOne.mutate(item.id);
@@ -80,13 +83,13 @@ export default function InboxScreen() {
               </View>
               <View style={styles.notificationCopy}>
                 <View style={styles.notificationHeader}>
-                  <Text style={styles.notificationTitle}>{item.title}</Text>
+                  <Text style={[styles.notificationTitle, { color: colors.text }]}>{item.title}</Text>
                   {item.status === 'UNREAD' ? <NotificationBadge count={1} /> : null}
                 </View>
-                <Text style={styles.notificationMessage}>{item.message}</Text>
+                <Text style={[styles.notificationMessage, { color: colors.textSecondary }]}>{item.message}</Text>
                 <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>{item.module ?? 'GENERAL'}</Text>
-                  <Text style={styles.metaText}>{new Date(item.createdAt).toLocaleString()}</Text>
+                  <Text style={[styles.metaText, { color: colors.textTertiary }]}>{item.module ?? 'GENERAL'}</Text>
+                  <Text style={[styles.metaText, { color: colors.textTertiary }]}>{new Date(item.createdAt).toLocaleString()}</Text>
                 </View>
               </View>
             </Pressable>
@@ -100,14 +103,12 @@ export default function InboxScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
   content: {
     padding: 20,
     paddingBottom: 100,
   },
   summaryCard: {
-    backgroundColor: '#0f172a',
     borderRadius: 24,
     padding: 20,
     marginBottom: 16,
@@ -133,8 +134,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#eff6ff',
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -142,7 +141,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 13,
     fontWeight: '700',
-    color: '#1d4ed8',
   },
   disabledBtn: {
     opacity: 0.6,
@@ -153,36 +151,29 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: '#64748b',
   },
   emptyState: {
-    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   emptyTitle: {
     marginTop: 12,
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
   },
   emptyText: {
     marginTop: 8,
     textAlign: 'center',
     fontSize: 13,
     lineHeight: 20,
-    color: '#64748b',
   },
   notificationCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
@@ -207,13 +198,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#0f172a',
   },
   notificationMessage: {
     marginTop: 6,
     fontSize: 13,
     lineHeight: 20,
-    color: '#475569',
   },
   metaRow: {
     marginTop: 10,
@@ -223,6 +212,5 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 11,
-    color: '#64748b',
   },
 });

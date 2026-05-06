@@ -1,18 +1,19 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider } from '@/context/AuthContext';
 import { NetworkProvider } from '@/context/NetworkContext';
 import { NotificationProvider } from '@/context/NotificationContext';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { resolveApiBaseUrl } from '@/services/api';
 import { queryClient } from '@/services/queryClient';
@@ -52,9 +53,11 @@ export default function RootLayout() {
       <AuthProvider>
         <NetworkProvider>
           <NotificationProvider>
-            <AppErrorBoundary>
-              <RootLayoutNav />
-            </AppErrorBoundary>
+            <ThemeProvider>
+              <AppErrorBoundary>
+                <RootLayoutNav />
+              </AppErrorBoundary>
+            </ThemeProvider>
           </NotificationProvider>
         </NetworkProvider>
       </AuthProvider>
@@ -63,7 +66,7 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const { theme, isDark } = useTheme();
   const { loading, token } = useAuth();
   const router = useRouter();
   const segments = useSegments();
@@ -91,14 +94,40 @@ function RootLayoutNav() {
     return null;
   }
 
+  // Build navigation theme from our custom theme
+  const navTheme = isDark
+    ? {
+        ...DarkTheme,
+        colors: {
+          ...DarkTheme.colors,
+          primary: theme.colors.primary,
+          background: theme.colors.background,
+          card: theme.colors.surface,
+          text: theme.colors.text,
+          border: theme.colors.border,
+        },
+      }
+    : {
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          primary: theme.colors.primary,
+          background: theme.colors.background,
+          card: theme.colors.surface,
+          text: theme.colors.text,
+          border: theme.colors.border,
+        },
+      };
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <NavThemeProvider value={navTheme}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <OfflineBanner />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
-    </ThemeProvider>
+    </NavThemeProvider>
   );
 }

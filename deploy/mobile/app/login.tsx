@@ -13,6 +13,7 @@ import { Stack, useRouter } from 'expo-router';
 
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import api from '@/services/api';
 
 export default function LoginScreen() {
@@ -21,6 +22,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login, token, loading: authLoading } = useAuth();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const router = useRouter();
 
   useEffect(() => {
@@ -52,13 +55,13 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.isDark ? colors.background : '#e2e8f0' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.hero}>
-        <View style={styles.logoWrap}>
-          <MaterialCommunityIcons name="wrench-cog-outline" size={34} color="#dbeafe" />
+      <View style={[styles.hero, { backgroundColor: theme.isDark ? colors.surface : '#0f172a' }]}>
+        <View style={[styles.logoWrap, { backgroundColor: colors.primary }]}>
+          <MaterialCommunityIcons name="wrench-cog-outline" size={34} color="#ffffff" />
         </View>
         <Text style={styles.eyebrow}>MAINTENANCE MANAGEMENT</Text>
         <Text style={styles.title}>Field access for Ankleshwar operations.</Text>
@@ -67,35 +70,35 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Sign in</Text>
-        <Text style={styles.cardSubtitle}>Use your maintenance system credentials.</Text>
+      <View style={[styles.card, { backgroundColor: theme.isDark ? colors.surfaceElevated : '#ffffff' }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Sign in</Text>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Use your maintenance system credentials.</Text>
 
         {error ? (
-          <View style={styles.errorBox}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#b91c1c" />
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
         ) : null}
 
-        <View style={styles.inputShell}>
-          <MaterialCommunityIcons name="account-outline" size={18} color="#64748b" />
+        <View style={[styles.inputShell, { borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}>
+          <MaterialCommunityIcons name="account-outline" size={18} color={colors.textTertiary} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.text }]}
             placeholder="Username"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.inputPlaceholder}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
           />
         </View>
 
-        <View style={styles.inputShell}>
-          <MaterialCommunityIcons name="lock-outline" size={18} color="#64748b" />
+        <View style={[styles.inputShell, { borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}>
+          <MaterialCommunityIcons name="lock-outline" size={18} color={colors.textTertiary} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.text }]}
             placeholder="Password"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.inputPlaceholder}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -103,14 +106,14 @@ export default function LoginScreen() {
         </View>
 
         <Pressable
-          style={[styles.button, loading && styles.buttonDisabled]}
+          style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
         >
           {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Continue</Text>}
         </Pressable>
 
-        <Text style={styles.hint}>Backend default during local setup: `admin` / `admin123`.</Text>
+        <Text style={[styles.hint, { color: colors.textTertiary }]}>Backend default during local setup: `admin` / `admin123`.</Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -119,12 +122,10 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e2e8f0',
     justifyContent: 'center',
     padding: 20,
   },
   hero: {
-    backgroundColor: '#0f172a',
     borderRadius: 28,
     padding: 24,
     marginBottom: 18,
@@ -135,7 +136,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1d4ed8',
     marginBottom: 18,
   },
   eyebrow: {
@@ -158,31 +158,26 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
   },
   card: {
-    backgroundColor: '#ffffff',
     borderRadius: 28,
     padding: 22,
   },
   cardTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#0f172a',
   },
   cardSubtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: '#64748b',
   },
   errorBox: {
     marginTop: 18,
     borderRadius: 14,
     padding: 12,
-    backgroundColor: '#fef2f2',
     flexDirection: 'row',
     alignItems: 'center',
   },
   errorText: {
     marginLeft: 8,
-    color: '#b91c1c',
     fontSize: 13,
   },
   inputShell: {
@@ -190,8 +185,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,13 +193,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    color: '#0f172a',
   },
   button: {
     marginTop: 18,
     height: 54,
     borderRadius: 18,
-    backgroundColor: '#1d4ed8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -222,6 +213,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 12,
     lineHeight: 18,
-    color: '#64748b',
   },
 });

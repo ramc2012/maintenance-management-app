@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { NotificationBadge } from '@/components/NotificationBadge';
 import { useNotificationsBadge } from '@/context/NotificationContext';
+import { useTheme } from '@/context/ThemeContext';
 
 function TabIcon({
   icon,
@@ -19,17 +20,20 @@ function TabIcon({
 export default function TabLayout() {
   const router = useRouter();
   const { unreadCount } = useNotificationsBadge();
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   return (
     <Tabs
       screenOptions={{
         headerShadowVisible: false,
-        headerTitleStyle: styles.headerTitle,
-        tabBarStyle: styles.tabBar,
+        headerTitleStyle: [styles.headerTitle, { color: colors.text }],
+        headerStyle: { backgroundColor: colors.surface },
+        tabBarStyle: [styles.tabBar, { backgroundColor: colors.tabBar, borderTopColor: colors.tabBarBorder }],
         tabBarLabelStyle: styles.tabLabel,
-        tabBarActiveTintColor: '#1d4ed8',
-        tabBarInactiveTintColor: '#64748b',
-        sceneStyle: styles.scene,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.tabInactive,
+        sceneStyle: { backgroundColor: colors.backgroundSecondary },
       }}
     >
       <Tabs.Screen
@@ -40,7 +44,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabIcon icon="view-dashboard-outline" color={color} />,
           headerRight: () => (
             <Pressable onPress={() => router.push('/modules/settings')} style={styles.headerAction}>
-              <MaterialCommunityIcons name="cog-outline" size={22} color="#334155" />
+              <MaterialCommunityIcons name="cog-outline" size={22} color={colors.textSecondary} />
             </Pressable>
           ),
         }}
@@ -68,7 +72,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0f172a',
   },
   headerAction: {
     marginRight: 16,
@@ -77,16 +80,11 @@ const styles = StyleSheet.create({
     height: 72,
     paddingTop: 8,
     paddingBottom: 10,
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
   },
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
-  },
-  scene: {
-    backgroundColor: '#f8fafc',
   },
   tabIconWrap: {
     minWidth: 28,
