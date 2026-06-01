@@ -7,6 +7,9 @@ import { AutoReportGenerator } from '../components/AutoReportGenerator';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
+import { useSearchParams } from 'react-router-dom';
+import { disciplineToLabel, parseDiscipline } from '../../../utils/workspace';
+import { canonicalServiceKey, displayService, uniqueServiceOptions } from '../../../utils/serviceGroups';
 
 dayjs.extend(isBetween);
 
@@ -17,10 +20,13 @@ const { Option } = Select;
 type PeriodFilter = 'daily' | 'monthly' | 'yearly';
 
 export const ReportsHub = () => {
+  const [searchParams] = useSearchParams();
+  const discipline = parseDiscipline(searchParams.get('discipline'));
   const [activeTab, setActiveTab] = useState('entry');
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const [installations, setInstallations] = useState<any[]>([]);
   
   // Period Filter
@@ -28,9 +34,15 @@ export const ReportsHub = () => {
   
   // Filters
   const [filterInstallation, setFilterInstallation] = useState<string | null>(null);
-  const [filterDepartment, setFilterDepartment] = useState<string | null>(null);
+  const [filterService, setFilterService] = useState<string | null>(null);
   const [filterSection, setFilterSection] = useState<string | null>(null);
   const [filterDateRange, setFilterDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+
+  useEffect(() => {
+    if (discipline) {
+      setFilterSection(disciplineToLabel(discipline));
+    }
+  }, [discipline]);
 
   // Fetch logs based on period
   const fetchLogs = async () => {
@@ -46,6 +58,7 @@ export const ReportsHub = () => {
       }
       
       if (filterInstallation) params.installationId = filterInstallation;
+      if (discipline) params.discipline = discipline;
       
       const res = await axios.get(endpoint, { params });
       setLogs(res.data);
@@ -58,7 +71,9 @@ export const ReportsHub = () => {
 
   const fetchInstallations = async () => {
     try {
-      const res = await axios.get('/api/equipment/installations');
+      const res = await axios.get('/api/equipment/installations', {
+        params: discipline ? { discipline } : undefined,
+      });
       setInstallations(res.data);
     } catch (error) {
       console.error('Failed to fetch installations:', error);
@@ -67,18 +82,18 @@ export const ReportsHub = () => {
 
   useEffect(() => {
     fetchInstallations();
-  }, []);
+  }, [discipline]);
 
   useEffect(() => {
     fetchLogs();
-  }, [periodFilter, filterInstallation]);
+  }, [discipline, periodFilter, filterInstallation]);
 
-  // Filter logs client-side for department, section, and date range
+  // Filter logs client-side for service, section, and date range
   const filteredLogs = useMemo(() => {
     let result = [...logs];
     
-    if (filterDepartment) {
-      result = result.filter(log => log.department === filterDepartment);
+    if (filterService) {
+      result = result.filter(log => canonicalServiceKey(log.department) === filterService);
     }
     if (filterSection) {
       result = result.filter(log => log.section === filterSection);
@@ -90,13 +105,17 @@ export const ReportsHub = () => {
     }
     
     return result;
-  }, [logs, filterDepartment, filterSection, filterDateRange]);
+  }, [logs, filterService, filterSection, filterDateRange]);
 
-  // Get unique departments and sections from installations
-  const departments = useMemo(() => {
-    const types = [...new Set(installations.map(i => i.type))];
-    return types.filter(Boolean);
+  // Get unique services and sections from installations
+  const services = useMemo(() => {
+    return uniqueServiceOptions(installations.map(i => i.type));
   }, [installations]);
+
+  const filteredInstallations = useMemo(() => {
+    if (!filterService) return installations;
+    return installations.filter((installation) => canonicalServiceKey(installation.type) === filterService);
+  }, [filterService, installations]);
 
   const sections = ['Mechanical', 'Electrical', 'Instrumentation'];
 
@@ -110,9 +129,14 @@ export const ReportsHub = () => {
   };
 
   const getJobTypeTag = (type: string) => {
-    return type === 'PM' 
-      ? <Tag color="blue">PM</Tag> 
-      : <Tag color="red">BD</Tag>;
+    const colors: Record<string, string> = {
+      PM: 'blue',
+      BD: 'red',
+      CM: 'purple',
+      ERECTION: 'cyan',
+      DISMANTLING: 'orange',
+    };
+    return <Tag color={colors[type] || 'default'}>{type || 'NA'}</Tag>;
   };
 
   const getStatusTag = (status: string) => {
@@ -140,10 +164,11 @@ export const ReportsHub = () => {
       width: 120
     },
     {
-      title: 'Department',
+      title: 'Service',
       dataIndex: 'department',
       key: 'department',
-      width: 100
+      width: 120,
+      render: (service: string) => displayService(service),
     },
     {
       title: 'Section',
@@ -196,7 +221,7 @@ export const ReportsHub = () => {
 
   const clearFilters = () => {
     setFilterInstallation(null);
-    setFilterDepartment(null);
+    setFilterService(null);
     setFilterSection(null);
     setFilterDateRange(null);
   };
@@ -215,7 +240,7 @@ export const ReportsHub = () => {
           <DailyLogForm onSuccess={() => {
             fetchLogs();
             setActiveTab('view');
-          }} />
+          }} discipline={discipline ?? undefined} />
         </Card>
       )
     },
@@ -238,9 +263,9 @@ export const ReportsHub = () => {
                   value={periodFilter}
                   onChange={(v) => setPeriodFilter(v as PeriodFilter)}
                   options={[
-                    { label: '�� Daily (All)', value: 'daily' },
-                    { label: '📊 Monthly (★★+)', value: 'monthly' },
-                    { label: '📈 Yearly (★★★)', value: 'yearly' }
+                    { label: 'Daily (All)', value: 'daily' },
+                    { label: 'Monthly (Level 2+)', value: 'monthly' },
+                    { label: 'Yearly (Level 3)', value: 'yearly' }
                   ]}
                 />
               </div>
@@ -251,27 +276,17 @@ export const ReportsHub = () => {
           <Card size="small" className="mb-4" title={<><FilterOutlined /> Filters</>}>
             <Space wrap>
               <Select
-                placeholder="Installation"
-                allowClear
-                style={{ width: 160 }}
-                onChange={setFilterInstallation}
-                value={filterInstallation}
-              >
-                {installations.map((i: any) => (
-                  <Option key={i.id} value={i.id}>
-                    {i.installationId}
-                  </Option>
-                ))}
-              </Select>
-              <Select
-                placeholder="Department"
+                placeholder="Service"
                 allowClear
                 style={{ width: 140 }}
-                onChange={setFilterDepartment}
-                value={filterDepartment}
+                onChange={(value) => {
+                  setFilterService(value);
+                  setFilterInstallation(null);
+                }}
+                value={filterService}
               >
-                {departments.map((d: any) => (
-                  <Option key={d} value={d}>{d}</Option>
+                {services.map((service) => (
+                  <Option key={service.value} value={service.value}>{service.label}</Option>
                 ))}
               </Select>
               <Select
@@ -280,9 +295,24 @@ export const ReportsHub = () => {
                 style={{ width: 140 }}
                 onChange={setFilterSection}
                 value={filterSection}
+                disabled={Boolean(discipline)}
               >
                 {sections.map((s) => (
                   <Option key={s} value={s}>{s}</Option>
+                ))}
+              </Select>
+              <Select
+                placeholder={filterService ? 'Installation' : 'Select service first'}
+                allowClear
+                style={{ width: 160 }}
+                onChange={setFilterInstallation}
+                value={filterInstallation}
+                disabled={!filterService}
+              >
+                {filteredInstallations.map((i: any) => (
+                  <Option key={i.id} value={i.id}>
+                    {i.installationId}
+                  </Option>
                 ))}
               </Select>
               <RangePicker 
@@ -315,6 +345,10 @@ export const ReportsHub = () => {
             size="small"
             pagination={{ pageSize: 15, showSizeChanger: true }}
             scroll={{ x: 1200 }}
+            onRow={(record) => ({
+              onClick: () => setSelectedLog(record),
+              style: { cursor: 'pointer' },
+            })}
           />
         </div>
       )
@@ -341,6 +375,11 @@ export const ReportsHub = () => {
           <Text type="secondary" className="dark:text-gray-400">
             Log maintenance activities • Daily / Monthly / Yearly views
           </Text>
+          {discipline ? (
+            <div className="mt-3 inline-flex rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+              Discipline scope: {disciplineToLabel(discipline)}
+            </div>
+          ) : null}
         </div>
 
         <Tabs 
@@ -362,7 +401,64 @@ export const ReportsHub = () => {
         <DailyLogForm onSuccess={() => {
           setModalOpen(false);
           fetchLogs();
-        }} />
+        }} discipline={discipline ?? undefined} />
+      </Modal>
+
+      <Modal
+        title="Maintenance Report"
+        open={Boolean(selectedLog)}
+        onCancel={() => setSelectedLog(null)}
+        footer={null}
+        width={900}
+      >
+        {selectedLog ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+              <div>
+                <Text type="secondary">Date</Text>
+                <div className="font-semibold">{dayjs(selectedLog.date).format('DD-MMM-YYYY')}</div>
+              </div>
+              <div>
+                <Text type="secondary">Installation</Text>
+                <div className="font-semibold">{selectedLog.installation?.installationId || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Service</Text>
+                <div className="font-semibold">{displayService(selectedLog.department) || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Section</Text>
+                <div className="font-semibold">{selectedLog.section || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Type</Text>
+                <div>{getJobTypeTag(selectedLog.jobType)}</div>
+              </div>
+              <div>
+                <Text type="secondary">Status</Text>
+                <div>{getStatusTag(selectedLog.status)}</div>
+              </div>
+              <div>
+                <Text type="secondary">Notification</Text>
+                <div className="font-semibold">{selectedLog.notificationNo || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Duration</Text>
+                <div className="font-semibold">{selectedLog.durationHours ?? 0} h</div>
+              </div>
+            </div>
+            <div>
+              <Text type="secondary">Description</Text>
+              <div className="mt-1 font-medium">{selectedLog.description}</div>
+            </div>
+            <div>
+              <Text type="secondary">Original full report</Text>
+              <pre className="mt-2 max-h-[55vh] overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs leading-5 text-gray-800">
+                {selectedLog.remarks || 'No original report text stored for this log.'}
+              </pre>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </Layout>
   );

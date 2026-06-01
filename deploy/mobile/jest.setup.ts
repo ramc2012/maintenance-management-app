@@ -4,6 +4,10 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => undefined),
 }));
 
+jest.mock('@react-native-async-storage/async-storage', () => (
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+));
+
 jest.mock('expo-constants', () => ({
   expoConfig: {
     hostUri: '10.0.2.2:8081',

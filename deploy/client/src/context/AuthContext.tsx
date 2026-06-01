@@ -1,19 +1,12 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
-
-interface User {
-  id: string;
-  username: string;
-  role: string;
-  canCreateWorkOrder?: boolean;
-  canCloseWorkOrder?: boolean;
-}
+import type { WorkspaceUser } from "../utils/workspace";
 
 interface AuthContextType {
-  user: User | null;
+  user: WorkspaceUser | null;
   token: string | null;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: WorkspaceUser) => void;
   logout: () => void;
   loading: boolean;
 }
@@ -24,10 +17,10 @@ const LOGIN_PATH = "/login";
 
 const readStoredToken = () => localStorage.getItem("token");
 
-const readStoredUser = (): User | null => {
+const readStoredUser = (): WorkspaceUser | null => {
   try {
     const storedUser = localStorage.getItem("user");
-    return storedUser ? (JSON.parse(storedUser) as User) : null;
+    return storedUser ? (JSON.parse(storedUser) as WorkspaceUser) : null;
   } catch (error) {
     console.error("Failed to parse user from localStorage", error);
     return null;
@@ -46,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const redirectingForUnauthorizedRef = useRef(false);
-  const [user, setUser] = useState<User | null>(() => readStoredUser());
+  const [user, setUser] = useState<WorkspaceUser | null>(() => readStoredUser());
   const [token, setToken] = useState<string | null>(() => readStoredToken());
   const loading = false;
 
@@ -108,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [location.pathname, location.search, navigate]);
 
-  const login = (newToken: string, newUser: User) => {
+  const login = (newToken: string, newUser: WorkspaceUser) => {
     redirectingForUnauthorizedRef.current = false;
     setToken(newToken);
     setUser(newUser);

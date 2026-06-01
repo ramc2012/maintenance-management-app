@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, Button } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { parseDiscipline } from '../../../utils/workspace';
 
 // Existing Components
 import { MasterSetup } from '../components/MasterSetup';
@@ -26,6 +27,7 @@ import { AssetHistory } from '../components/AssetHistory';
 export const AssetsHub = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const discipline = parseDiscipline(searchParams.get('discipline'));
   const [activeView, setActiveView] = useState('hierarchy');
   const [initialTag, setInitialTag] = useState<string | null>(null);
 
@@ -54,7 +56,7 @@ export const AssetsHub = () => {
       case 'equipment-registry': return <CategoryRegistry />;
       case 'custody-meters': return <CustodyTransfer />;
       case 'internal-meters': return <InternalFlowMeters />;
-      case 'history': return <AssetHistory initialTag={initialTag} />;
+      case 'history': return <AssetHistory initialTag={initialTag} discipline={discipline ?? undefined} />;
       case 'calibration': return <CalibrationForm />;
       case 'master': return <MasterSetup />;
       default: return <AssetDashboard />;

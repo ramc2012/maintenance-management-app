@@ -81,9 +81,6 @@ export default function KPIDashboardScreen() {
             <MaterialCommunityIcons name="chart-box-outline" size={28} color="#93c5fd" />
           </View>
           <Text style={styles.heroTitle}>Maintenance KPIs</Text>
-          <Text style={styles.heroSubtitle}>
-            10 key performance indicators computed from live work orders, calibration events, and breakdown data.
-          </Text>
           <View style={styles.heroActions}>
             <ExportButton endpoint="/kpi/report/export" fileName="KPI_Report.xlsx" label="Export Report" />
           </View>
@@ -202,11 +199,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  hero: { borderRadius: 24, padding: 22, marginBottom: 20 },
-  heroIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  heroTitle: { fontSize: 26, fontWeight: '800', color: '#ffffff' },
-  heroSubtitle: { marginTop: 10, fontSize: 14, lineHeight: 21, color: '#94a3b8' },
-  heroActions: { marginTop: 18 },
+  hero: { borderRadius: 18, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { flex: 1, fontSize: 22, fontWeight: '800', color: '#ffffff' },
+  heroActions: { marginLeft: 'auto' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4 },
   sectionTitle: { fontSize: 17, fontWeight: '800' },
   sectionAction: { fontSize: 11 },

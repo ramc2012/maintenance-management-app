@@ -123,7 +123,17 @@ function RootLayoutNav() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <OfflineBanner />
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: theme.colors.surface },
+          headerTintColor: theme.colors.text,
+          headerTitleStyle: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
+          headerBackTitle: '',
+          headerBackButtonDisplayMode: 'minimal',
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: theme.colors.backgroundSecondary },
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

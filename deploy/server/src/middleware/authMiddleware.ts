@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
+import { buildAuthUserPayload } from "../services/disciplineAccess";
 
 const prisma = new PrismaClient();
 
@@ -25,29 +26,46 @@ export const authenticateToken = async (
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET as string) as TokenPayload;
 
-    if (payload.id && payload.username && payload.role) {
-      (req as any).user = {
-        id: payload.id,
-        username: payload.username,
-        role: payload.role,
-      };
-      return next();
-    }
-
     if (!payload.id) {
       return res.sendStatus(401);
     }
 
     const dbUser = await prisma.user.findUnique({
       where: { id: payload.id },
-      select: { id: true, username: true, role: true },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        jobTitle: true,
+        canCreateWorkOrder: true,
+        canCloseWorkOrder: true,
+        department: {
+          select: {
+            name: true,
+          },
+        },
+        disciplineAccesses: {
+          select: {
+            discipline: true,
+            accessLevel: true,
+            isDefault: true,
+            canViewProcurement: true,
+            canUpdateProcurement: true,
+            canRaiseRequirements: true,
+          },
+          orderBy: [
+            { isDefault: 'desc' },
+            { discipline: 'asc' },
+          ],
+        },
+      },
     });
 
     if (!dbUser) {
       return res.sendStatus(401);
     }
 
-    (req as any).user = dbUser;
+    (req as any).user = buildAuthUserPayload(dbUser);
     return next();
   } catch (err) {
     console.error("[Auth] Token verification failed:", err);

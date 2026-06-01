@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Tooltip } from 'antd';
 import { Activity, ClipboardCheck, Flame, Home, Radar, Settings, Wrench, Zap } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '../../core/components/Layout';
 import { AssetTimeline } from '../components/AssetTimeline';
 import { CompressionLog } from '../components/CompressionLog';
@@ -9,11 +9,14 @@ import { ElectricalTestLog } from '../components/ElectricalTestLog';
 import { MaintenanceLog } from '../components/MaintenanceLog';
 import { OperationsOverview } from '../components/OperationsOverview';
 import { RunningHoursLog } from '../components/RunningHoursLog';
+import { parseDiscipline } from '../../../utils/workspace';
 
 type LogbookCategory = 'mechanical' | 'electrical' | 'process';
 
 export const LogbookHub = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const discipline = parseDiscipline(searchParams.get('discipline'));
   const [category, setCategory] = useState<LogbookCategory>('mechanical');
   const [subView, setSubView] = useState<string>('overview');
 
@@ -22,6 +25,19 @@ export const LogbookHub = () => {
     { id: 'electrical', label: 'Electrical', icon: Zap, color: 'text-amber-500' },
     { id: 'process', label: 'Process', icon: Flame, color: 'text-red-500' },
   ] as const;
+  const effectiveCategories = discipline
+    ? categories.filter((item) => item.id === (discipline === 'ELECTRICAL' ? 'electrical' : 'mechanical'))
+    : categories;
+
+  useEffect(() => {
+    if (discipline === 'ELECTRICAL') {
+      setCategory('electrical');
+      setSubView('overview');
+    } else if (discipline === 'MECHANICAL') {
+      setCategory('mechanical');
+      setSubView('overview');
+    }
+  }, [discipline]);
 
   const menu = useMemo(() => {
     if (category === 'electrical') {
@@ -53,24 +69,24 @@ export const LogbookHub = () => {
   const renderContent = () => {
     if (category === 'mechanical') {
       if (subView === 'maintenance') return <MaintenanceLog category="mechanical" />;
-      if (subView === 'operations') return <RunningHoursLog category="mechanical" />;
-      if (subView === 'timeline') return <AssetTimeline />;
-      return <OperationsOverview focus="mechanical" />;
+      if (subView === 'operations') return <RunningHoursLog category="mechanical" discipline="MECHANICAL" />;
+      if (subView === 'timeline') return <AssetTimeline discipline="MECHANICAL" />;
+      return <OperationsOverview focus="mechanical" discipline="MECHANICAL" />;
     }
 
     if (category === 'electrical') {
       if (subView === 'maintenance') return <MaintenanceLog category="electrical" />;
-      if (subView === 'operations') return <RunningHoursLog category="electrical" />;
+      if (subView === 'operations') return <RunningHoursLog category="electrical" discipline="ELECTRICAL" />;
       if (subView === 'earthpit') return <ElectricalTestLog testType="Earth Pit Resistance" />;
       if (subView === 'irvalue') return <ElectricalTestLog testType="IR Value" />;
-      if (subView === 'timeline') return <AssetTimeline />;
-      return <OperationsOverview focus="electrical" />;
+      if (subView === 'timeline') return <AssetTimeline discipline="ELECTRICAL" />;
+      return <OperationsOverview focus="electrical" discipline="ELECTRICAL" />;
     }
 
-    if (subView === 'parameters') return <CompressionLog showParameters />;
-    if (subView === 'timeline') return <AssetTimeline />;
-    if (subView === 'compression') return <CompressionLog />;
-    return <OperationsOverview focus="process" />;
+    if (subView === 'parameters') return <CompressionLog showParameters discipline="MECHANICAL" />;
+    if (subView === 'timeline') return <AssetTimeline discipline="MECHANICAL" />;
+    if (subView === 'compression') return <CompressionLog discipline="MECHANICAL" />;
+    return <OperationsOverview focus="process" discipline="MECHANICAL" />;
   };
 
   const switchCategory = (nextCategory: LogbookCategory) => {
@@ -80,7 +96,7 @@ export const LogbookHub = () => {
 
   const sidebarIcons = (
     <>
-      {categories.map((item) => (
+      {effectiveCategories.map((item) => (
         <Tooltip key={item.id} title={item.label} placement="right">
           <button
             onClick={() => switchCategory(item.id)}
@@ -114,7 +130,7 @@ export const LogbookHub = () => {
         Logbook Domain
       </div>
       <div className="grid grid-cols-3 gap-2 px-2">
-        {categories.map((item) => (
+        {effectiveCategories.map((item) => (
           <button
             key={item.id}
             onClick={() => switchCategory(item.id)}

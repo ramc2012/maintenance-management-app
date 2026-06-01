@@ -4,6 +4,7 @@ import axios from "axios";
 import { ProcurementLayout } from "../components/ProcurementLayout";
 import { ArrowLeft, Folder, Info } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { parseDiscipline } from "../../../utils/workspace";
 
 const CASE_TYPES = ["STORES", "SPARES", "CAPITAL", "SERVICES", "PETTY"];
 const CURRENCIES = ["INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD"];
@@ -22,6 +23,7 @@ export const CreateCasePage = () => {
   // Get context from URL
   const contextType = searchParams.get("type") || "STORES";
   const contextDeptId = searchParams.get("departmentId") || "";
+  const discipline = parseDiscipline(searchParams.get("discipline"));
 
   const [orgData, setOrgData] = useState<OrgData | null>(null);
   const [contextInfo, setContextInfo] = useState<{ deptName?: string }>({});
@@ -34,6 +36,7 @@ export const CreateCasePage = () => {
     createdAt: new Date().toISOString().split('T')[0],
     procurementMethod: "", category: "", value: "",
     tag: "", processedBy: "",
+    primaryDiscipline: discipline || undefined,
     departmentId: contextDeptId
   });
   const [error, setError] = useState("");
@@ -65,8 +68,8 @@ export const CreateCasePage = () => {
     try {
       await axios.post("/api/cases", formData);
       // Navigate back to contextual page
-      if (contextDeptId) navigate(`/procurement/cases?departmentId=${contextDeptId}&type=${formData.type}`);
-      else navigate(formData.type === "PETTY" ? "/procurement/cases?type=PETTY" : "/procurement/cases");
+      if (contextDeptId) navigate(`/procurement/cases?departmentId=${contextDeptId}&type=${formData.type}${discipline ? `&discipline=${discipline}` : ''}`);
+      else navigate(formData.type === "PETTY" ? `/procurement/cases?type=PETTY${discipline ? `&discipline=${discipline}` : ''}` : `/procurement/cases${discipline ? `?discipline=${discipline}` : ''}`);
     } catch (error: any) { setError(error.response?.data?.message || "Failed to create case."); }
   };
 

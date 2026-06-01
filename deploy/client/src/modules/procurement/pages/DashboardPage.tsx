@@ -8,6 +8,7 @@ import {
   Package, Wrench, Briefcase, HardHat, Coins,
   Building2, Tag, ChevronDown, ChevronUp
 } from "lucide-react";
+import { disciplineToLabel, parseDiscipline } from "../../../utils/workspace";
 
 const CATEGORIES = ["STORES", "SPARES", "SERVICES", "CAPITAL", "PETTY"];
 
@@ -54,8 +55,9 @@ export const DashboardPage = () => {
   const { token } = useAuth();
 
   const departmentId = searchParams.get("departmentId");
+  const discipline = parseDiscipline(searchParams.get("discipline"));
 
-  useEffect(() => { if (token) fetchData(); }, [token, departmentId]);
+  useEffect(() => { if (token) fetchData(); }, [discipline, token, departmentId]);
 
   const normalizeAnalytics = (data: Partial<AnalyticsData> | null | undefined): AnalyticsData | null => {
     if (!data || !data.fy) {
@@ -77,6 +79,7 @@ export const DashboardPage = () => {
     try {
       const params: any = {};
       if (departmentId) params.departmentId = departmentId;
+      if (discipline) params.discipline = discipline;
 
       const [analyticsRes, orgRes, budgetRes] = await Promise.all([
         axios.get("/api/cases/analytics", { params }),
@@ -103,6 +106,9 @@ export const DashboardPage = () => {
     const dept = orgData.departments?.find(d => d.id === departmentId);
     if (dept) { contextTitle = `${orgData.name} › ${dept.name}`; contextIcon = <Folder className="w-4 h-4 mr-2 text-blue-500" />; }
   }
+  if (discipline) {
+    contextTitle = `${disciplineToLabel(discipline)} Procurement Workspace`;
+  }
 
   if (loading) return <ProcurementLayout><div className="flex items-center justify-center h-48 text-gray-500">Loading dashboard…</div></ProcurementLayout>;
   if (!analytics) return <ProcurementLayout><div className="text-red-500 p-4">Error loading data.</div></ProcurementLayout>;
@@ -119,6 +125,7 @@ export const DashboardPage = () => {
     let url = `/procurement/cases?type=${cat}`;
     const dId = deptId || departmentId;
     if (dId) url += `&departmentId=${dId}`;
+    if (discipline) url += `&discipline=${discipline}`;
     navigate(url);
   };
 

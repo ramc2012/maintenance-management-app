@@ -5,27 +5,45 @@ from typing import Optional, Dict, Any, List, Tuple
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
 OLLAMA_REQUEST_TIMEOUT = float(os.getenv("OLLAMA_REQUEST_TIMEOUT", "120"))
-OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "160"))
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "640"))
 OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.2"))
 OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
-OLLAMA_MAX_CONTEXT_CHARS = int(os.getenv("OLLAMA_MAX_CONTEXT_CHARS", "3000"))
+OLLAMA_MAX_CONTEXT_CHARS = int(os.getenv("OLLAMA_MAX_CONTEXT_CHARS", "6000"))
 OLLAMA_MAX_PROMPT_CHARS = int(os.getenv("OLLAMA_MAX_PROMPT_CHARS", "1200"))
 
-# Available models - user can select from these
+# Available models - user can select from these. Keep the installed local
+# workstation model first so Kelvin defaults to it in the picker.
 AVAILABLE_MODELS = [
-    {"id": "gemma4:e2b", "name": "Gemma 4 E2B", "description": "Local Gemma 4 5.1B profile currently installed on this workstation."},
-    {"id": "gemma4:e4b", "name": "Gemma 4 E4B", "description": "Higher-memory Gemma 4 8B profile for better synthesis when available."},
+    {"id": "gemma4:e4b", "name": "Gemma 4 E4B", "description": "Local Gemma 4 8B profile installed on this workstation."},
+    {"id": "gemma4:e2b", "name": "Gemma 4 E2B", "description": "Smaller Gemma 4 profile retained as a fallback when installed."},
     {"id": "tinyllama", "name": "TinyLlama ⚡", "description": "Fastest fallback (3-4 sec, 1.1B params)"},
     {"id": "gemma2", "name": "Gemma 2", "description": "Legacy Google model retained for compatibility."},
     {"id": "llama3.2", "name": "Llama 3.2", "description": "Balanced (6-8 sec, 3.2B params)"},
     {"id": "mistral", "name": "Mistral ⏱️", "description": "Best quality (10-15 sec, 7.2B params)"},
 ]
 
-DEFAULT_MODEL = os.getenv("DEFAULT_OLLAMA_MODEL", "gemma4:e2b")
+DEFAULT_MODEL = os.getenv("DEFAULT_OLLAMA_MODEL", "gemma4:e4b")
 
 
 def _base_model_name(model_name: str) -> str:
     return model_name.split(":", 1)[0]
+
+
+def _matches_installed_model(configured_model_id: str, installed_model_name: str) -> bool:
+    if configured_model_id == installed_model_name:
+        return True
+
+    if ":" in configured_model_id:
+        return False
+
+    return _base_model_name(configured_model_id) == _base_model_name(installed_model_name)
+
+
+def _find_installed_match(configured_model_id: str, installed_models: List[str]) -> Optional[str]:
+    for installed_model in installed_models:
+        if _matches_installed_model(configured_model_id, installed_model):
+            return installed_model
+    return None
 
 
 def _compact_text(value: str, limit: int) -> str:
@@ -48,23 +66,17 @@ async def _fetch_installed_model_names() -> List[str]:
 
 
 def _resolve_installed_model(requested_model: str, installed_models: List[str]) -> Tuple[Optional[str], Optional[str]]:
-    for installed_model in installed_models:
-        if installed_model == requested_model:
-            return installed_model, None
-
-    requested_base = _base_model_name(requested_model)
-    for installed_model in installed_models:
-        if _base_model_name(installed_model) == requested_base:
-            return installed_model, None
+    requested_installed = _find_installed_match(requested_model, installed_models)
+    if requested_installed:
+        return requested_installed, None
 
     for preferred in [DEFAULT_MODEL, *[model["id"] for model in AVAILABLE_MODELS]]:
-        preferred_base = _base_model_name(preferred)
-        for installed_model in installed_models:
-            if installed_model == preferred or _base_model_name(installed_model) == preferred_base:
-                return installed_model, (
-                    f"Requested model '{requested_model}' is not installed. "
-                    f"Using '{installed_model}' instead."
-                )
+        preferred_installed = _find_installed_match(preferred, installed_models)
+        if preferred_installed:
+            return preferred_installed, (
+                f"Requested model '{requested_model}' is not installed. "
+                f"Using '{preferred_installed}' instead."
+            )
 
     if installed_models:
         return installed_models[0], (
@@ -87,19 +99,11 @@ async def get_available_models() -> List[Dict[str, Any]]:
     """Get list of available models from Ollama."""
     try:
         installed_names = await _fetch_installed_model_names()
-        installed_name_set = set(installed_names)
-        installed_base_map = {
-            _base_model_name(installed_name): installed_name for installed_name in installed_names
-        }
         return [
             {
                 **model,
-                "installed": model["id"] in installed_name_set or _base_model_name(model["id"]) in installed_base_map,
-                "installed_name": (
-                    model["id"]
-                    if model["id"] in installed_name_set
-                    else installed_base_map.get(_base_model_name(model["id"]))
-                ),
+                "installed": bool(_find_installed_match(model["id"], installed_names)),
+                "installed_name": _find_installed_match(model["id"], installed_names),
             }
             for model in AVAILABLE_MODELS
         ]
@@ -118,7 +122,13 @@ async def generate_response(
     if system_prompt is None:
         system_prompt = (
             "You are Kelvin AI for a maintenance management system. "
-            "Answer concisely, prefer operationally useful guidance, and cite document names when they appear in context."
+            "Answer concisely with probable answers and practical options first. "
+            "When a query is broad or incomplete, infer the likely intent from the current context and retrieved data, "
+            "then list the best matching options. Avoid ending with questions; present follow-up choices as available filters or next actions instead. "
+            "Ask a clarifying question only if the user is requesting a risky write/change action and a wrong choice could change data. "
+            "Do not reply with only 'please specify' when context contains matching equipment, installations, logs, reports, or documents. "
+            "Keep broad search answers compact: identify the likely installation or module, group the top candidates, and show no more than 8 bullets unless the user asks for a full list. "
+            "Cite document or module names when they appear in context."
         )
 
     compact_prompt = _compact_text(prompt, OLLAMA_MAX_PROMPT_CHARS)
@@ -137,12 +147,15 @@ async def generate_response(
 
         async with httpx.AsyncClient(timeout=OLLAMA_REQUEST_TIMEOUT) as client:
             response = await client.post(
-                f"{OLLAMA_URL}/api/generate",
+                f"{OLLAMA_URL}/api/chat",
                 json={
                     "model": resolved_model,
-                    "prompt": full_prompt,
-                    "system": system_prompt,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": full_prompt},
+                    ],
                     "stream": False,
+                    "think": False,
                     "keep_alive": OLLAMA_KEEP_ALIVE,
                     "options": {
                         "temperature": OLLAMA_TEMPERATURE,
@@ -155,7 +168,11 @@ async def generate_response(
             
             if response.status_code == 200:
                 data = response.json()
-                model_response = data.get("response", "I couldn't generate a response.")
+                model_response = (
+                    data.get("message", {}).get("content")
+                    or data.get("response")
+                    or "I couldn't generate a response."
+                )
                 if fallback_notice:
                     return f"{fallback_notice}\n\n{model_response}"
                 return model_response

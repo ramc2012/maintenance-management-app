@@ -62,12 +62,15 @@ export const LightColors = {
   backgroundTertiary: '#f1f5f9',
   surface: '#ffffff',
   surfaceElevated: '#ffffff',
+  heroSurface: '#ffffff',
 
   // Text
   text: '#0f172a',
   textSecondary: '#475569',
   textTertiary: '#94a3b8',
   textInverse: '#ffffff',
+  heroText: '#0f172a',
+  heroTextSecondary: '#475569',
 
   // Borders
   border: '#e2e8f0',
@@ -96,6 +99,7 @@ export const LightColors = {
   // Cards
   card: '#ffffff',
   cardBorder: '#e2e8f0',
+  cardMuted: '#f8fafc',
 
   // Overlays
   overlay: 'rgba(15, 23, 42, 0.5)',
@@ -110,6 +114,8 @@ export const LightColors = {
   skeleton: '#e2e8f0',
   divider: '#f1f5f9',
   shadow: 'rgba(0, 0, 0, 0.08)',
+  screenGradientStart: '#eef4fb',
+  screenGradientEnd: '#f8fafc',
 };
 
 export const DarkColors: typeof LightColors = {
@@ -119,12 +125,15 @@ export const DarkColors: typeof LightColors = {
   backgroundTertiary: '#334155',
   surface: '#1e293b',
   surfaceElevated: '#334155',
+  heroSurface: '#111827',
 
   // Text
   text: '#f1f5f9',
   textSecondary: '#cbd5e1',
   textTertiary: '#64748b',
   textInverse: '#0f172a',
+  heroText: '#f8fafc',
+  heroTextSecondary: '#cbd5e1',
 
   // Borders
   border: '#334155',
@@ -153,6 +162,7 @@ export const DarkColors: typeof LightColors = {
   // Cards
   card: '#1e293b',
   cardBorder: '#334155',
+  cardMuted: '#0f172a',
 
   // Overlays
   overlay: 'rgba(0, 0, 0, 0.7)',
@@ -167,6 +177,8 @@ export const DarkColors: typeof LightColors = {
   skeleton: '#334155',
   divider: '#334155',
   shadow: 'rgba(0, 0, 0, 0.3)',
+  screenGradientStart: '#0f172a',
+  screenGradientEnd: '#111827',
 };
 
 // ─── Typography ─────────────────────────────────────────────────────────────

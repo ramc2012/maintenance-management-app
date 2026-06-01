@@ -1,6 +1,6 @@
 import React, { ReactNode, useState, useEffect, createContext, useContext } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, Settings, LayoutDashboard, BookOpen, BookOpenCheck, HelpCircle } from "lucide-react";
+import { LogOut, Settings, LayoutDashboard, BookOpen, BookOpenCheck, HelpCircle, Wrench, Zap, Gauge } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
 import { Tooltip } from "antd";
@@ -44,6 +44,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, sidebarContent, sideba
     return "bg-" + accentColor + "-600 text-white";
   };
 
+  const workspaceLinks = [
+    { label: "Mechanical", path: "/mechanical", Icon: Wrench },
+    { label: "Electrical", path: "/electrical", Icon: Zap },
+    { label: "Instrumentation", path: "/instrumentation", Icon: Gauge },
+  ];
+
   return (
     <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-200">
@@ -74,6 +80,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, sidebarContent, sideba
                 <LayoutDashboard className="w-5 h-5" />{!collapsed && <span className="ml-3">Maintenance Hub</span>}
               </Link>
             </Tooltip>
+
+            <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+              {!collapsed && <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Workspaces</div>}
+              {workspaceLinks.map(({ label, path, Icon }) => (
+                <Tooltip key={path} title={collapsed ? label : ""} placement="right">
+                  <Link to={path} className={`flex items-center ${collapsed ? 'justify-center px-2' : 'px-3'} py-2.5 rounded transition-colors ${getAccentClass(isActiveLink(path))}`}>
+                    <Icon className="w-5 h-5" />{!collapsed && <span className="ml-3">{label}</span>}
+                  </Link>
+                </Tooltip>
+              ))}
+            </div>
 
             {collapsed ? (
               sidebarIcons && (

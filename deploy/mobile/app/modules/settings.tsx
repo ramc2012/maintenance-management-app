@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, ScrollView, View, Pressable, Switch, Alert, TextInput } from 'react-native';
+import { StyleSheet, ScrollView, View, Pressable, Switch, Alert, TextInput, Linking } from 'react-native';
 import { Text } from '@/components/Themed';
 import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,6 +8,9 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { AccentPalettes, AccentName, ColorScheme } from '@/constants/theme';
+import { WEB_MODULE_LINKS, buildWebModuleUrl } from '@/constants/moduleRegistry';
+import { SUBSCRIBABLE_MODULES, type ModuleSubscriptionId } from '@/constants/moduleSubscriptions';
+import { useModuleSubscriptions } from '@/hooks/useModuleSubscriptions';
 import api from '@/services/api';
 
 const ACCENT_OPTIONS: { name: AccentName; label: string }[] = [
@@ -20,7 +23,7 @@ const ACCENT_OPTIONS: { name: AccentName; label: string }[] = [
 ];
 
 const SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
-  { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
+  { value: 'light', label: 'Day', icon: 'white-balance-sunny' },
   { value: 'dark', label: 'Dark', icon: 'moon-waning-crescent' },
   { value: 'system', label: 'System', icon: 'cellphone' },
 ];
@@ -30,6 +33,7 @@ export default function SettingsScreen() {
   const { theme, colorScheme, accentName, setColorScheme, setAccentColor, isDark } = useTheme();
   const { colors } = theme;
   const router = useRouter();
+  const moduleSubscriptions = useModuleSubscriptions();
 
   const [pushNotifications, setPushNotifications] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(false);
@@ -91,25 +95,61 @@ export default function SettingsScreen() {
     setAccentColor(name);
   };
 
+  const subscribedWebModules = WEB_MODULE_LINKS.filter((module) => {
+    const subscriptionId = module.id as ModuleSubscriptionId;
+    return moduleSubscriptions.subscriptions[subscriptionId] !== false;
+  });
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: 'Settings', headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text }} />
 
-      {/* Profile */}
-      <SectionHeader title="Profile" colors={colors} />
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-        <View style={styles.profileRow}>
-          <View style={[styles.avatar, { backgroundColor: colors.primarySubtle }]}>
-            <MaterialCommunityIcons name="account" size={28} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.profileName, { color: colors.text }]}>{user?.username || 'User'}</Text>
-            <Text style={[styles.profileRole, { color: colors.textSecondary }]}>{user?.role || 'Member'}</Text>
-          </View>
-          <View style={[styles.roleBadge, { backgroundColor: colors.primarySubtle }]}>
-            <Text style={[styles.roleBadgeText, { color: colors.primary }]}>{user?.role || 'USER'}</Text>
-          </View>
+      <View style={styles.accountHeader}>
+        <View style={[styles.avatar, { backgroundColor: colors.primarySubtle }]}>
+          <MaterialCommunityIcons name="account" size={24} color={colors.primary} />
         </View>
+        <View style={styles.accountCopy}>
+          <Text style={[styles.accountName, { color: colors.text }]}>{user?.username || 'User'}</Text>
+          <Text style={[styles.accountRole, { color: colors.textSecondary }]}>{user?.role || 'Member'}</Text>
+        </View>
+      </View>
+
+      <SectionHeader title="Account" colors={colors} />
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+        <SettingRow icon="account-outline" label="Profile" description={user?.username || 'Signed in user'} colors={colors} right={<Text style={[styles.metaText, { color: colors.textSecondary }]}>{user?.role || 'Member'}</Text>} />
+      </View>
+
+      <SectionHeader title="Module Subscriptions" colors={colors} />
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+        {SUBSCRIBABLE_MODULES.map((module, index) => (
+          <React.Fragment key={module.id}>
+            <SettingRow
+              icon={module.icon}
+              label={module.name}
+              description={module.description}
+              colors={colors}
+              right={
+                <Switch
+                  value={moduleSubscriptions.isSubscribed(module.id)}
+                  onValueChange={(value) => moduleSubscriptions.setSubscribed(module.id, value)}
+                  trackColor={{ false: colors.backgroundTertiary, true: colors.primary }}
+                  thumbColor="#ffffff"
+                />
+              }
+            />
+            {index < SUBSCRIBABLE_MODULES.length - 1 ? <Divider colors={colors} /> : null}
+          </React.Fragment>
+        ))}
+        <Divider colors={colors} />
+        <Pressable onPress={moduleSubscriptions.resetSubscriptions}>
+          <SettingRow
+            icon="restore"
+            label="Reset Subscriptions"
+            description="Return to the default module set"
+            colors={colors}
+            right={<MaterialCommunityIcons name="chevron-right" size={18} color={colors.textTertiary} />}
+          />
+        </Pressable>
       </View>
 
       {/* Appearance */}
@@ -258,6 +298,44 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         )}
+        <Divider colors={colors} />
+        <Pressable onPress={handleLogout}>
+          <SettingRow
+            icon="logout"
+            label="Log Out"
+            description="End this session"
+            colors={colors}
+            iconColor={colors.error}
+            labelColor={colors.error}
+            right={<MaterialCommunityIcons name="chevron-right" size={18} color={colors.textTertiary} />}
+          />
+        </Pressable>
+      </View>
+
+      <SectionHeader title="Web Modules" colors={colors} />
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+        {subscribedWebModules.length === 0 ? (
+          <SettingRow
+            icon="eye-off-outline"
+            label="No modules subscribed"
+            description="Enable modules above to show links"
+            colors={colors}
+            right={<Text style={[styles.metaText, { color: colors.textTertiary }]}>Hidden</Text>}
+          />
+        ) : subscribedWebModules.map((module, index) => (
+          <React.Fragment key={module.id}>
+            <Pressable onPress={() => Linking.openURL(buildWebModuleUrl(module.path))}>
+              <SettingRow
+                icon={module.icon}
+                label={module.name}
+                description={module.description}
+                colors={colors}
+                right={<Text style={[styles.webPath, { color: colors.textTertiary }]}>{module.path}</Text>}
+              />
+            </Pressable>
+            {index < subscribedWebModules.length - 1 ? <Divider colors={colors} /> : null}
+          </React.Fragment>
+        ))}
       </View>
 
       {/* About */}
@@ -267,12 +345,6 @@ export default function SettingsScreen() {
         <Divider colors={colors} />
         <SettingRow icon="office-building" label="Organisation" colors={colors} right={<Text style={[styles.metaText, { color: colors.textSecondary }]}>ONGC Ankleshwar</Text>} />
       </View>
-
-      {/* Logout */}
-      <Pressable style={[styles.logoutBtn, { backgroundColor: colors.error }]} onPress={handleLogout}>
-        <MaterialCommunityIcons name="logout" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </Pressable>
 
       <View style={{ height: 32 }} />
     </ScrollView>
@@ -289,15 +361,18 @@ function Divider({ colors }: { colors: any }) {
   return <View style={[styles.divider, { backgroundColor: colors.divider }]} />;
 }
 
-function SettingRow({ icon, label, right, colors, iconColor, labelColor }: {
-  icon: string; label: string; right: React.ReactNode; colors: any; iconColor?: string; labelColor?: string;
+function SettingRow({ icon, label, description, right, colors, iconColor, labelColor }: {
+  icon: string; label: string; description?: string; right: React.ReactNode; colors: any; iconColor?: string; labelColor?: string;
 }) {
   return (
     <View style={styles.settingRow}>
       <View style={[styles.settingIconWrap, { backgroundColor: (iconColor || colors.primary) + '15' }]}>
         <MaterialCommunityIcons name={icon as any} size={18} color={iconColor || colors.primary} />
       </View>
-      <Text style={[styles.settingLabel, { color: labelColor || colors.text }]}>{label}</Text>
+      <View style={styles.settingCopy}>
+        <Text style={[styles.settingLabel, { color: labelColor || colors.text }]} numberOfLines={1}>{label}</Text>
+        {description ? <Text style={[styles.settingDescription, { color: colors.textTertiary }]} numberOfLines={1}>{description}</Text> : null}
+      </View>
       {right}
     </View>
   );
@@ -327,15 +402,14 @@ function PasswordField({ placeholder, value, onChangeText, colors }: { placehold
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingBottom: 48 },
-  sectionHeader: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8 },
+  content: { paddingBottom: 48, paddingTop: 12 },
+  accountHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+  accountCopy: { flex: 1, marginLeft: 12 },
+  accountName: { fontSize: 24, lineHeight: 30, fontWeight: '800' },
+  accountRole: { marginTop: 2, fontSize: 13, fontWeight: '600' },
+  sectionHeader: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 8 },
   card: { marginHorizontal: 16, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
-  profileRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  profileName: { fontSize: 17, fontWeight: '700' },
-  profileRole: { fontSize: 13, marginTop: 2 },
-  roleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  roleBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
 
   // Appearance
   settingSection: { padding: 16 },
@@ -364,8 +438,11 @@ const styles = StyleSheet.create({
   // Settings Rows
   settingRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13 },
   settingIconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  settingLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
+  settingCopy: { flex: 1, minWidth: 0 },
+  settingLabel: { fontSize: 15, fontWeight: '600' },
+  settingDescription: { marginTop: 2, fontSize: 11 },
   metaText: { fontSize: 14 },
+  webPath: { maxWidth: 120, fontSize: 11, fontWeight: '600' },
   divider: { height: 1, marginLeft: 60 },
 
   // Password
@@ -377,7 +454,4 @@ const styles = StyleSheet.create({
   changePassText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   btnDisabled: { opacity: 0.5 },
 
-  // Logout
-  logoutBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginHorizontal: 16, marginTop: 28, borderRadius: 14, padding: 15 },
-  logoutText: { color: '#fff', fontWeight: '700', fontSize: 16, marginLeft: 8 },
 });

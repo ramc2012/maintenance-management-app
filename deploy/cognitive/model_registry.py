@@ -12,17 +12,17 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://host.docker.internal:11434")
 REGISTRY_PATH = Path(__file__).with_name("model_registry.json")
 
 DEFAULT_REGISTRY: Dict[str, Any] = {
-    "default_model": "gemma4:e2b",
+    "default_model": "gemma4:e4b",
     "models": [
-        {
-            "id": "gemma4:e2b",
-            "name": "Gemma 4 E2B",
-            "description": "Local Gemma 4 5.1B profile currently installed on this workstation.",
-        },
         {
             "id": "gemma4:e4b",
             "name": "Gemma 4 E4B",
-            "description": "Higher-memory Gemma 4 8B profile for better synthesis when available.",
+            "description": "Local Gemma 4 8B profile installed on this workstation.",
+        },
+        {
+            "id": "gemma4:e2b",
+            "name": "Gemma 4 E2B",
+            "description": "Smaller Gemma 4 profile retained as a fallback when installed.",
         },
         {
             "id": "phi4-mini",

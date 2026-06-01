@@ -5,6 +5,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Plus, DollarSign, Briefcase, FileText, Trash2, MessageSquare, Building, Filter } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme, getColorClass } from "../../../context/ThemeContext";
+import { parseDiscipline } from "../../../utils/workspace";
 
 interface Comment {
   effectiveDate?: string;
@@ -49,11 +50,12 @@ export const CaseListPage = () => {
   
   const typeFilter = searchParams.get("type") || "";
   const departmentId = searchParams.get("departmentId") || "";
+  const discipline = parseDiscipline(searchParams.get("discipline"));
 
   const { user, token } = useAuth();
   const { accentColor } = useTheme();
 
-  useEffect(() => { if (token) { fetchOrg(); fetchCases(); } }, [token, typeFilter, departmentId]);
+  useEffect(() => { if (token) { fetchOrg(); fetchCases(); } }, [discipline, token, typeFilter, departmentId]);
 
   const fetchOrg = async () => {
     try { const res = await axios.get("/api/org/hierarchy"); setOrgData(res.data); } 
@@ -65,6 +67,7 @@ export const CaseListPage = () => {
       const params: any = {};
       if (typeFilter) params.type = typeFilter;
       if (departmentId) params.departmentId = departmentId;
+      if (discipline) params.discipline = discipline;
       const response = await axios.get("/api/cases", { params });
       setCases(response.data);
     } catch (error) { console.error("Error fetching cases", error); }
@@ -73,6 +76,7 @@ export const CaseListPage = () => {
   const handleFilterChange = (key: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);
     if (value) newParams.set(key, value); else newParams.delete(key);
+    if (discipline) newParams.set('discipline', discipline);
     setSearchParams(newParams);
   };
 
@@ -106,7 +110,7 @@ export const CaseListPage = () => {
     <ProcurementLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{pageTitle}</h1>
-        <Link to={`/procurement/create?${departmentId ? `departmentId=${departmentId}&` : ""}${typeFilter ? `type=${typeFilter}` : ""}`} className={`${getColorClass(accentColor)} text-white px-4 py-2 rounded-lg font-medium flex items-center hover:opacity-90`}><Plus className="w-5 h-5 mr-2" />New Case</Link>
+        <Link to={`/procurement/create?${departmentId ? `departmentId=${departmentId}&` : ""}${typeFilter ? `type=${typeFilter}&` : ""}${discipline ? `discipline=${discipline}` : ""}`} className={`${getColorClass(accentColor)} text-white px-4 py-2 rounded-lg font-medium flex items-center hover:opacity-90`}><Plus className="w-5 h-5 mr-2" />New Case</Link>
       </div>
 
       {/* Filter Row */}
@@ -127,7 +131,7 @@ export const CaseListPage = () => {
               {CASE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-          {(departmentId || typeFilter) && <button onClick={() => setSearchParams(new URLSearchParams())} className="text-xs text-red-500 hover:text-red-700 underline">Clear Filters</button>}
+          {(departmentId || typeFilter) && <button onClick={() => setSearchParams(new URLSearchParams(discipline ? { discipline } : undefined))} className="text-xs text-red-500 hover:text-red-700 underline">Clear Filters</button>}
         </div>
       </div>
 
@@ -139,7 +143,7 @@ export const CaseListPage = () => {
           const currentStageIndex = stages.indexOf(c.currentStage);
           const lastComment = getLastComment(c.comments);
           return (
-            <Link key={c.id} to={`/procurement/cases/${c.id}`} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-500 transition-all hover:shadow-lg block group relative shadow-sm">
+            <Link key={c.id} to={`/procurement/cases/${c.id}${discipline ? `?discipline=${discipline}` : ''}`} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-500 transition-all hover:shadow-lg block group relative shadow-sm">
               <button onClick={(e) => handleDelete(e, c.id)} className="absolute top-3 right-3 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 p-1.5 rounded-lg z-20" title="Delete Case"><Trash2 className="w-3.5 h-3.5" /></button>
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-2 pr-20">

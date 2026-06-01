@@ -11,6 +11,7 @@ interface Message {
   toolUsed?: string;
   modelUsed?: string;
   llmEnhanced?: boolean;
+  sources?: SourceInfo[];
   timestamp: Date;
 }
 
@@ -19,6 +20,20 @@ interface ModelInfo {
   name: string;
   description: string;
   installed?: boolean;
+}
+
+interface SourceInfo {
+  module?: string;
+  source?: string;
+  title?: string;
+  source_type?: string;
+  relevance?: number;
+}
+
+interface IndexStatus {
+  status: string;
+  total_chunks: number;
+  collections?: Record<string, { chunks?: number }>;
 }
 
 const COGNITIVE_API = COGNITIVE_API_BASE_URL;
@@ -38,10 +53,11 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState("gemma4:e2b");
-  const [useLLM, setUseLLM] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gemma4:e4b");
+  const [useLLM, setUseLLM] = useState(true);
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
   const [showModelSelect, setShowModelSelect] = useState(false);
+  const [indexStatus, setIndexStatus] = useState<IndexStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Context Awareness (for backend reference only)
@@ -52,7 +68,10 @@ export const ChatInterface: React.FC = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen) fetchModels();
+    if (isOpen) {
+      fetchModels();
+      fetchIndexStatus();
+    }
   }, [isOpen]);
 
   const fetchModels = async () => {
@@ -64,6 +83,23 @@ export const ChatInterface: React.FC = () => {
     } catch (e) {
       console.error("Failed to fetch models");
     }
+  };
+
+  const fetchIndexStatus = async () => {
+    try {
+      const res = await axios.get(`${COGNITIVE_API}/cognitive/index/status`);
+      setIndexStatus(res.data);
+    } catch (e) {
+      setIndexStatus(null);
+    }
+  };
+
+  const formatSourceLabel = (source: SourceInfo) => {
+    const title = source.title || source.source || source.module || "source";
+    const cleanTitle = title.length > 44 ? `${title.slice(0, 41)}...` : title;
+    const module = source.module ? source.module.replace(/_/g, " ") : "rag";
+    const score = typeof source.relevance === "number" ? ` ${Math.round(source.relevance * 100)}%` : "";
+    return `${module}: ${cleanTitle}${score}`;
   };
 
   const sendMessage = async (query: string) => {
@@ -86,6 +122,8 @@ export const ChatInterface: React.FC = () => {
         query,
         model: selectedModel,
         use_llm: useLLM,
+        use_rag: true,
+        use_multi_hop: true,
         current_path: location.pathname, // Provide context, but don't limit scope
         context: "global" 
       });
@@ -97,6 +135,7 @@ export const ChatInterface: React.FC = () => {
         toolUsed: response.data.tool_used,
         modelUsed: response.data.model_used,
         llmEnhanced: response.data.llm_enhanced,
+        sources: response.data.sources || [],
         timestamp: new Date(),
       };
 
@@ -141,6 +180,19 @@ export const ChatInterface: React.FC = () => {
               {msg.llmEnhanced && msg.modelUsed && <span className="flex items-center gap-1"><Bot className="w-3 h-3 text-purple-500" />{msg.modelUsed}</span>}
             </div>
           )}
+          {!isUser && msg.sources && msg.sources.length > 0 && (
+            <div className="mt-2 border-t border-gray-200 dark:border-gray-600 pt-2">
+              <div className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Sources</div>
+              <div className="flex flex-col gap-1">
+                {msg.sources.slice(0, 5).map((source, i) => (
+                  <div key={`${source.source || source.title || source.module}-${i}`} className="text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-1">
+                    <FileText className="w-3 h-3 mt-0.5 text-blue-500 shrink-0" />
+                    <span>{formatSourceLabel(source)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -181,11 +233,17 @@ export const ChatInterface: React.FC = () => {
                 <Sparkles className="w-5 h-5" />
                 <span className="font-semibold">KELVIN AI</span>
                 {isExpanded && <span className="text-xs opacity-70">| Global Oracle</span>}
+                {indexStatus && (
+                  <span className="hidden sm:inline-flex text-[10px] bg-white/15 px-2 py-0.5 rounded-full">
+                    RAG {indexStatus.total_chunks}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setIsExpanded(!isExpanded)} className="p-1.5 hover:bg-white/20 rounded-lg" title={isExpanded ? "Minimize" : "Expand"}>
                   {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
+                <button onClick={fetchIndexStatus} className="p-1.5 hover:bg-white/20 rounded-lg" title="Refresh RAG status"><Activity className="w-4 h-4" /></button>
                 <button onClick={clearChat} className="p-1.5 hover:bg-white/20 rounded-lg" title="Clear chat"><RefreshCw className="w-4 h-4" /></button>
                 <button onClick={() => { setIsOpen(false); setIsExpanded(false); }} className="p-1.5 hover:bg-white/20 rounded-lg"><X className="w-5 h-5" /></button>
               </div>
@@ -233,6 +291,11 @@ export const ChatInterface: React.FC = () => {
               </label>
             </div>
             {!ollamaAvailable && <div className="text-[10px] text-yellow-200 mt-1">⚠️ Ollama not detected - using rule-based responses</div>}
+            {indexStatus && (
+              <div className="text-[10px] text-blue-100/80 mt-1">
+                Knowledge index: {indexStatus.status} · {indexStatus.total_chunks.toLocaleString()} chunks
+              </div>
+            )}
           </div>
 
           {/* Messages */}

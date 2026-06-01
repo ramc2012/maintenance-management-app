@@ -1,5 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import {
+  applyDisciplineScope,
+  resolvePrimaryDisciplineForEquipmentTag,
+  resolvePrimaryDisciplineForText,
+  resolveScopedDisciplines,
+} from '../services/disciplineAccess';
 
 const prisma = new PrismaClient();
 
@@ -7,15 +13,17 @@ const prisma = new PrismaClient();
 
 export const getMaintenanceLogs = async (req: Request, res: Response) => {
   try {
-    const { date, installationId, department, status, criticality, equipmentTag } = req.query;
+    const { date, installationId, department, status, criticality, equipmentTag, discipline, section } = req.query;
     
     const where: any = {};
     if (date) where.date = new Date(date as string);
     if (installationId) where.installationId = installationId;
     if (department) where.department = department;
+    if (section) where.section = String(section);
     if (status) where.status = status;
     if (criticality) where.reportCriticality = parseInt(criticality as string);
     if (equipmentTag) where.equipmentTag = String(equipmentTag);
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
     
     const logs = await prisma.maintenanceLog.findMany({
       where,
@@ -55,13 +63,21 @@ export const createMaintenanceLog = async (req: Request, res: Response) => {
       teamReportTime,
       jobCompletionTime,
       teamMemberIds,
+      externalCrew,
       createdBy
     } = req.body;
+
+    const primaryDiscipline = await resolvePrimaryDisciplineForEquipmentTag(
+      prisma,
+      equipmentTag,
+      resolvePrimaryDisciplineForText(`${department} ${section} ${equipmentType}`),
+    );
 
     const log = await prisma.maintenanceLog.create({
       data: {
         date: new Date(date),
         installationId,
+        primaryDiscipline,
         department,
         section,
         jobType,
@@ -78,6 +94,7 @@ export const createMaintenanceLog = async (req: Request, res: Response) => {
         bdReportTime: bdReportTime ? new Date(bdReportTime) : undefined,
         teamReportTime: teamReportTime ? new Date(teamReportTime) : undefined,
         jobCompletionTime: jobCompletionTime ? new Date(jobCompletionTime) : undefined,
+        externalCrew: Array.isArray(externalCrew) ? externalCrew : undefined,
         createdBy,
         teamMembers: {
           create: (teamMemberIds || []).map((manpowerId: string) => ({
@@ -120,7 +137,8 @@ export const updateMaintenanceLog = async (req: Request, res: Response) => {
       bdReportTime,
       teamReportTime,
       jobCompletionTime,
-      teamMemberIds
+      teamMemberIds,
+      externalCrew
     } = req.body;
 
     // Remove all existing team members
@@ -128,11 +146,26 @@ export const updateMaintenanceLog = async (req: Request, res: Response) => {
       where: { maintenanceLogId: id }
     });
 
+    const existingLog = await prisma.maintenanceLog.findUnique({
+      where: { id },
+      select: { primaryDiscipline: true, equipmentTag: true, department: true, section: true, equipmentTypeName: true },
+    });
+
+    const resolvedPrimaryDiscipline = await resolvePrimaryDisciplineForEquipmentTag(
+      prisma,
+      equipmentTag || existingLog?.equipmentTag,
+      resolvePrimaryDisciplineForText(
+        `${department || existingLog?.department || ''} ${section || existingLog?.section || ''} ${equipmentType || existingLog?.equipmentTypeName || ''}`,
+        existingLog?.primaryDiscipline || 'MECHANICAL',
+      ),
+    );
+
     const log = await prisma.maintenanceLog.update({
       where: { id },
       data: {
         date: date ? new Date(date) : undefined,
         installationId,
+        primaryDiscipline: resolvedPrimaryDiscipline,
         department,
         section,
         jobType,
@@ -149,6 +182,7 @@ export const updateMaintenanceLog = async (req: Request, res: Response) => {
         bdReportTime: bdReportTime ? new Date(bdReportTime) : undefined,
         teamReportTime: teamReportTime ? new Date(teamReportTime) : undefined,
         jobCompletionTime: jobCompletionTime ? new Date(jobCompletionTime) : undefined,
+        externalCrew: Array.isArray(externalCrew) ? externalCrew : undefined,
         teamMembers: {
           create: (teamMemberIds || []).map((manpowerId: string) => ({
             manpowerId
@@ -187,6 +221,97 @@ export const getManpower = async (req: Request, res: Response) => {
   }
 };
 
+export const getManpowerHours = async (req: Request, res: Response) => {
+  try {
+    const { date, from, to, department, section, isActive } = req.query;
+    const targetDate = date ? new Date(String(date)) : new Date();
+    const start = from ? new Date(String(from)) : new Date(targetDate);
+    start.setHours(0, 0, 0, 0);
+    const end = to ? new Date(String(to)) : new Date(start);
+    end.setHours(23, 59, 59, 999);
+
+    const manpowerWhere: any = {};
+    if (department) manpowerWhere.department = String(department);
+    if (section) manpowerWhere.section = String(section);
+    if (isActive !== undefined) manpowerWhere.isActive = isActive === 'true';
+
+    const [manpower, teamRows] = await Promise.all([
+      prisma.manpower.findMany({
+        where: manpowerWhere,
+        orderBy: [{ section: 'asc' }, { name: 'asc' }],
+      }),
+      prisma.maintenanceLogTeam.findMany({
+        where: {
+          maintenanceLog: {
+            date: { gte: start, lte: end },
+            ...(department ? { department: String(department) } : {}),
+            ...(section ? { section: String(section) } : {}),
+          },
+        },
+        include: {
+          manpower: true,
+          maintenanceLog: {
+            select: {
+              id: true,
+              date: true,
+              department: true,
+              section: true,
+              durationHours: true,
+              description: true,
+              installation: { select: { installationId: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const hoursByManpower = new Map<string, { totalHours: number; jobs: any[] }>();
+    teamRows.forEach((row) => {
+      const bucket = hoursByManpower.get(row.manpowerId) ?? { totalHours: 0, jobs: [] };
+      const hours = Number(row.maintenanceLog.durationHours || 0);
+      bucket.totalHours += hours;
+      bucket.jobs.push({
+        logId: row.maintenanceLog.id,
+        date: row.maintenanceLog.date,
+        hours,
+        department: row.maintenanceLog.department,
+        section: row.maintenanceLog.section,
+        installationId: row.maintenanceLog.installation?.installationId,
+        description: row.maintenanceLog.description,
+      });
+      hoursByManpower.set(row.manpowerId, bucket);
+    });
+
+    const manpowerById = new Map(manpower.map((person) => [person.id, person]));
+    teamRows.forEach((row) => {
+      if (!manpowerById.has(row.manpowerId)) {
+        manpowerById.set(row.manpowerId, row.manpower);
+      }
+    });
+
+    const employees = Array.from(manpowerById.values()).map((person) => {
+      const bucket = hoursByManpower.get(person.id) ?? { totalHours: 0, jobs: [] };
+      return {
+        ...person,
+        totalHours: Number(bucket.totalHours.toFixed(2)),
+        jobCount: bucket.jobs.length,
+        jobs: bucket.jobs,
+      };
+    });
+
+    res.json({
+      from: start.toISOString().slice(0, 10),
+      to: end.toISOString().slice(0, 10),
+      totalEmployees: employees.length,
+      totalHours: Number(employees.reduce((sum, person) => sum + person.totalHours, 0).toFixed(2)),
+      employees,
+    });
+  } catch (error) {
+    console.error('Manpower hours error:', error);
+    res.status(500).json({ error: 'Failed to fetch manpower hours' });
+  }
+};
+
 export const createManpower = async (req: Request, res: Response) => {
   try {
     const { employeeId, name, department, section, designation } = req.body;
@@ -217,7 +342,7 @@ export const updateManpower = async (req: Request, res: Response) => {
 
 export const getMonthlyReportLogs = async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, installationId } = req.query;
+    const { startDate, endDate, installationId, discipline } = req.query;
     
     const where: any = {
       reportCriticality: { gte: 2 } // Significant and Critical
@@ -230,6 +355,7 @@ export const getMonthlyReportLogs = async (req: Request, res: Response) => {
       };
     }
     if (installationId) where.installationId = installationId;
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
     
     const logs = await prisma.maintenanceLog.findMany({
       where,
@@ -247,7 +373,7 @@ export const getMonthlyReportLogs = async (req: Request, res: Response) => {
 
 export const getAnnualReportLogs = async (req: Request, res: Response) => {
   try {
-    const { year, installationId } = req.query;
+    const { year, installationId, discipline } = req.query;
     
     const where: any = {
       reportCriticality: 3 // Critical only
@@ -261,6 +387,7 @@ export const getAnnualReportLogs = async (req: Request, res: Response) => {
       };
     }
     if (installationId) where.installationId = installationId;
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
     
     const logs = await prisma.maintenanceLog.findMany({
       where,
@@ -283,7 +410,7 @@ export const getAnnualReportLogs = async (req: Request, res: Response) => {
 export const exportMaintenanceLogs = async (req: Request, res: Response) => {
   try {
     const ExcelJS = require('exceljs');
-    const { from, to, installationId, jobType } = req.query;
+    const { from, to, installationId, jobType, discipline } = req.query;
 
     const where: any = {};
     if (jobType) where.jobType = String(jobType);
@@ -293,6 +420,7 @@ export const exportMaintenanceLogs = async (req: Request, res: Response) => {
       if (from) where.date.gte = new Date(String(from));
       if (to) where.date.lte = new Date(String(to));
     }
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
 
     const logs = await prisma.maintenanceLog.findMany({
       where,

@@ -15,7 +15,7 @@ const timelineIcon = (type: string) => {
   return <Activity className="w-4 h-4 text-blue-500" />;
 };
 
-export const AssetTimeline: React.FC = () => {
+export const AssetTimeline: React.FC<{ discipline?: 'MECHANICAL' | 'ELECTRICAL' }> = ({ discipline }) => {
   const [installations, setInstallations] = useState<any[]>([]);
   const [equipment, setEquipment] = useState<any[]>([]);
   const [installationId, setInstallationId] = useState<string>('');
@@ -44,7 +44,7 @@ export const AssetTimeline: React.FC = () => {
       }
       try {
         const response = await axios.get('/api/equipment/running-equip', {
-          params: { installationId },
+          params: { installationId, ...(discipline ? { discipline } : {}) },
         });
         setEquipment(response.data || []);
       } catch (error) {
@@ -63,7 +63,9 @@ export const AssetTimeline: React.FC = () => {
       }
       setLoading(true);
       try {
-        const response = await axios.get(`/api/operations/assets/${encodeURIComponent(equipmentTag)}/timeline`);
+        const response = await axios.get(`/api/operations/assets/${encodeURIComponent(equipmentTag)}/timeline`, {
+          params: discipline ? { discipline } : undefined,
+        });
         setTimeline(response.data);
       } catch (error) {
         console.error(error);
@@ -73,7 +75,7 @@ export const AssetTimeline: React.FC = () => {
       }
     };
     fetchTimeline();
-  }, [equipmentTag]);
+  }, [discipline, equipmentTag]);
 
   const counters = useMemo(() => {
     const items = timeline?.timeline || [];

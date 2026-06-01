@@ -6,12 +6,13 @@ import { useRouter } from 'expo-router';
 import { HealthBadge } from '@/components/HealthBadge';
 import { KPICard } from '@/components/KPICard';
 import { ModuleCard, type ModuleCardProps } from '@/components/ModuleCard';
-import { NotificationBadge } from '@/components/NotificationBadge';
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/context/AuthContext';
-import { useNotificationsBadge } from '@/context/NotificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useHealthTable, useKpiSummary } from '@/hooks/useAPI';
+import { useModuleSubscriptions } from '@/hooks/useModuleSubscriptions';
+import { DEPARTMENT_SUBSCRIPTION_BY_DISCIPLINE, SUBSCRIBABLE_MODULES, type ModuleSubscriptionId } from '@/constants/moduleSubscriptions';
+import { buildWebModuleUrl, WEB_MODULE_LINKS } from '@/constants/moduleRegistry';
 import { getAssignedDisciplines, getDefaultDiscipline, disciplineToLabel, type Discipline } from '@/utils/workspace';
 
 const DISCIPLINE_META: Record<Discipline, { icon: keyof typeof MaterialCommunityIcons.glyphMap; accent: string; bg: string; bgDark: string; caption: string }> = {
@@ -40,40 +41,94 @@ const DISCIPLINE_META: Record<Discipline, { icon: keyof typeof MaterialCommunity
 
 const FIELD_MODULES: Record<Discipline, ModuleCardProps[]> = {
   MECHANICAL: [
-    { id: 'wo', name: 'My Work Orders', icon: 'clipboard-list-outline', color: '#2563eb', bg: '#eff6ff', link: '/modules/workorders?discipline=MECHANICAL' },
-    { id: 'inspect', name: 'Inspections', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections' },
-    { id: 'report', name: 'New Field Report', icon: 'file-document-edit-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/reports?discipline=MECHANICAL' },
-    { id: 'logbook', name: 'Digital Logbook', icon: 'book-open-page-variant', color: '#d97706', bg: '#fff7ed', link: '/modules/logbook?discipline=MECHANICAL' },
-    { id: 'manuals', name: 'Manuals & Drawings', icon: 'file-document-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/manuals?discipline=MECHANICAL' },
-    { id: 'proc', name: 'Raise Requirement', icon: 'cart-outline', color: '#7c3aed', bg: '#f5f3ff', link: '/modules/procurement?discipline=MECHANICAL' },
+    { id: 'operations', name: 'Operations', caption: 'Summary', icon: 'chart-arc', color: '#059669', bg: '#ecfdf5', link: '/modules/operations' },
+    { id: 'workorders', name: 'Orders', caption: 'Assigned', icon: 'clipboard-list-outline', color: '#2563eb', bg: '#eff6ff', link: '/modules/workorders?discipline=MECHANICAL' },
+    { id: 'reports', name: 'Report', caption: 'New', icon: 'file-document-edit-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/reports?mode=new&discipline=MECHANICAL' },
+    { id: 'reports', name: 'View Reports', caption: 'Past', icon: 'file-search-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/reports?mode=view&discipline=MECHANICAL' },
+    { id: 'logbook', name: 'Run Hours', caption: 'Stats', icon: 'chart-timeline-variant', color: '#d97706', bg: '#fff7ed', link: '/modules/logbook?discipline=MECHANICAL' },
+    { id: 'manuals', name: 'Manuals', caption: 'Docs', icon: 'file-document-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/manuals?discipline=MECHANICAL' },
+    { id: 'procurement', name: 'Procurement', caption: 'MR', icon: 'cart-outline', color: '#7c3aed', bg: '#f5f3ff', link: '/modules/procurement?discipline=MECHANICAL' },
+    { id: 'inspections', name: 'Rounds', caption: 'Optional', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections?discipline=MECHANICAL' },
   ],
   ELECTRICAL: [
-    { id: 'wo', name: 'My Work Orders', icon: 'clipboard-list-outline', color: '#d97706', bg: '#fff7ed', link: '/modules/workorders?discipline=ELECTRICAL' },
-    { id: 'inspect', name: 'Inspections', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections' },
-    { id: 'report', name: 'New Field Report', icon: 'file-document-edit-outline', color: '#2563eb', bg: '#eff6ff', link: '/modules/reports?discipline=ELECTRICAL' },
-    { id: 'logbook', name: 'Digital Logbook', icon: 'book-open-page-variant', color: '#0f766e', bg: '#ecfeff', link: '/modules/logbook?discipline=ELECTRICAL' },
-    { id: 'manuals', name: 'Manuals & Drawings', icon: 'file-document-outline', color: '#9333ea', bg: '#faf5ff', link: '/modules/manuals?discipline=ELECTRICAL' },
-    { id: 'proc', name: 'Raise Requirement', icon: 'cart-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/procurement?discipline=ELECTRICAL' },
+    { id: 'operations', name: 'Operations', caption: 'Summary', icon: 'chart-arc', color: '#059669', bg: '#ecfdf5', link: '/modules/operations' },
+    { id: 'workorders', name: 'Orders', caption: 'Assigned', icon: 'clipboard-list-outline', color: '#d97706', bg: '#fff7ed', link: '/modules/workorders?discipline=ELECTRICAL' },
+    { id: 'reports', name: 'Report', caption: 'New', icon: 'file-document-edit-outline', color: '#2563eb', bg: '#eff6ff', link: '/modules/reports?mode=new&discipline=ELECTRICAL' },
+    { id: 'reports', name: 'View Reports', caption: 'Past', icon: 'file-search-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/reports?mode=view&discipline=ELECTRICAL' },
+    { id: 'logbook', name: 'Run Hours', caption: 'Stats', icon: 'chart-timeline-variant', color: '#0f766e', bg: '#ecfeff', link: '/modules/logbook?discipline=ELECTRICAL' },
+    { id: 'manuals', name: 'Manuals', caption: 'Docs', icon: 'file-document-outline', color: '#9333ea', bg: '#faf5ff', link: '/modules/manuals?discipline=ELECTRICAL' },
+    { id: 'procurement', name: 'Procurement', caption: 'MR', icon: 'cart-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/procurement?discipline=ELECTRICAL' },
+    { id: 'inspections', name: 'Rounds', caption: 'Optional', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections?discipline=ELECTRICAL' },
   ],
   INSTRUMENTATION: [
-    { id: 'wo', name: 'My Work Orders', icon: 'clipboard-list-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/workorders?discipline=INSTRUMENTATION' },
-    { id: 'inspect', name: 'Inspections', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections' },
-    { id: 'cal', name: 'Calibration', icon: 'chart-bell-curve', color: '#2563eb', bg: '#eff6ff', link: '/modules/calibration?discipline=INSTRUMENTATION' },
-    { id: 'history', name: 'Instrument History', icon: 'history', color: '#d97706', bg: '#fff7ed', link: '/modules/assets?discipline=INSTRUMENTATION' },
-    { id: 'report', name: 'New Field Report', icon: 'file-document-edit-outline', color: '#7c3aed', bg: '#f5f3ff', link: '/modules/reports?discipline=INSTRUMENTATION' },
-    { id: 'proc', name: 'Raise Requirement', icon: 'cart-outline', color: '#0f172a', bg: '#f8fafc', link: '/modules/procurement?discipline=INSTRUMENTATION' },
+    { id: 'operations', name: 'Operations', caption: 'Summary', icon: 'chart-arc', color: '#059669', bg: '#ecfdf5', link: '/modules/operations' },
+    { id: 'workorders', name: 'Orders', caption: 'Assigned', icon: 'clipboard-list-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/workorders?discipline=INSTRUMENTATION' },
+    { id: 'calibration', name: 'Calibrate', caption: 'Due', icon: 'chart-bell-curve', color: '#2563eb', bg: '#eff6ff', link: '/modules/calibration?discipline=INSTRUMENTATION' },
+    { id: 'assets', name: 'Maintenance History', caption: 'Logs', icon: 'history', color: '#d97706', bg: '#fff7ed', link: '/modules/assets?discipline=INSTRUMENTATION' },
+    { id: 'reports', name: 'Report', caption: 'New', icon: 'file-document-edit-outline', color: '#7c3aed', bg: '#f5f3ff', link: '/modules/reports?mode=new&discipline=INSTRUMENTATION' },
+    { id: 'reports', name: 'View Reports', caption: 'Past', icon: 'file-search-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/reports?mode=view&discipline=INSTRUMENTATION' },
+    { id: 'procurement', name: 'Procurement', caption: 'MR', icon: 'cart-outline', color: '#0f172a', bg: '#f8fafc', link: '/modules/procurement?discipline=INSTRUMENTATION' },
+    { id: 'inspections', name: 'Rounds', caption: 'Optional', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections?discipline=INSTRUMENTATION' },
   ],
 };
 
+const MOBILE_MODULE_LINKS: Partial<Record<ModuleSubscriptionId, string>> = {
+  assets: '/modules/assets',
+  operations: '/modules/operations',
+  workorders: '/modules/workorders',
+  kpis: '/modules/kpis',
+  inspections: '/modules/inspections',
+  reports: '/modules/reports?mode=view',
+  logbook: '/modules/logbook',
+  manuals: '/modules/manuals',
+  procurement: '/modules/procurement',
+  stock: '/modules/mrp',
+  workshop: '/modules/workshop',
+  energy: '/modules/energy',
+  training: '/modules/training',
+  calibration: '/modules/calibration',
+  collaboration: '/modules/collaboration',
+  moh: '/modules/overhaul',
+  manpower: '/modules/manpower',
+  feedback: buildWebModuleUrl(WEB_MODULE_LINKS.find((module) => module.id === 'feedback')?.path ?? '/feedback'),
+  contracts: buildWebModuleUrl(WEB_MODULE_LINKS.find((module) => module.id === 'contracts')?.path ?? '/contracts'),
+  presentations: buildWebModuleUrl(WEB_MODULE_LINKS.find((module) => module.id === 'presentations')?.path ?? '/presentations'),
+  settings: '/modules/settings',
+};
+
+const MODULE_ACCENTS: Partial<Record<ModuleSubscriptionId, { color: string; bg: string }>> = {
+  assets: { color: '#0f766e', bg: '#ecfeff' },
+  operations: { color: '#059669', bg: '#ecfdf5' },
+  workorders: { color: '#2563eb', bg: '#eff6ff' },
+  kpis: { color: '#6366f1', bg: '#eef2ff' },
+  inspections: { color: '#0f766e', bg: '#ecfdf5' },
+  reports: { color: '#059669', bg: '#ecfdf5' },
+  logbook: { color: '#d97706', bg: '#fff7ed' },
+  manuals: { color: '#0f766e', bg: '#ecfeff' },
+  procurement: { color: '#7c3aed', bg: '#f5f3ff' },
+  stock: { color: '#475569', bg: '#f8fafc' },
+  workshop: { color: '#d97706', bg: '#fff7ed' },
+  energy: { color: '#ea580c', bg: '#fff7ed' },
+  training: { color: '#2563eb', bg: '#eff6ff' },
+  calibration: { color: '#16a34a', bg: '#ecfdf5' },
+  collaboration: { color: '#7c3aed', bg: '#f5f3ff' },
+  moh: { color: '#dc2626', bg: '#fef2f2' },
+  manpower: { color: '#db2777', bg: '#fdf2f8' },
+  feedback: { color: '#dc2626', bg: '#fef2f2' },
+  contracts: { color: '#475569', bg: '#f8fafc' },
+  presentations: { color: '#7c3aed', bg: '#f5f3ff' },
+  settings: { color: '#64748b', bg: '#f8fafc' },
+};
+
 export default function HomeScreen() {
-  const { user, token, logout, loading } = useAuth();
-  const { unreadCount } = useNotificationsBadge();
+  const { user, token, loading } = useAuth();
   const { theme } = useTheme();
   const { colors } = theme;
   const router = useRouter();
 
   const kpiSummary = useKpiSummary(Boolean(token));
   const healthTable = useHealthTable(Boolean(token));
+  const moduleSubscriptions = useModuleSubscriptions();
   const assignedDisciplines = useMemo(() => getAssignedDisciplines(user), [user]);
   const defaultDiscipline = useMemo(() => getDefaultDiscipline(user), [user]);
   const [selectedDiscipline, setSelectedDiscipline] = useState<Discipline | null>(defaultDiscipline);
@@ -143,48 +198,35 @@ export default function HomeScreen() {
     ];
   }, [kpiSummary.data?.kpis, kpiSummary.data?.totals]);
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
-  };
-
   if (loading || !token) {
     return null;
   }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.backgroundSecondary }]} contentContainerStyle={styles.content}>
-      <View style={[styles.hero, { backgroundColor: theme.isDark ? colors.surface : '#0f172a' }]}>
+      <Pressable style={[styles.hero, { backgroundColor: colors.heroSurface, borderColor: colors.cardBorder, shadowColor: colors.shadow }]} onPress={() => router.push('/modules/settings')}>
         <View style={styles.heroCopy}>
-          <Text style={styles.eyebrow}>{user?.persona === 'FIELD' ? 'FIELD WORKSPACE' : 'MANAGER OVERVIEW'}</Text>
-          <Text style={styles.title}>
-            {user?.persona === 'FIELD' ? 'Discipline-first mobile workspace' : 'Mobile executive summary'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {user?.persona === 'FIELD'
-              ? 'The mobile shell now hides unrelated modules and launches only the workflows relevant to your discipline.'
-              : 'Managers and hybrid users see KPI summary, alerts, and department drill-downs instead of the old full module grid.'}
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>MAINTENANCE MANAGEMENT</Text>
+          <Text style={[styles.title, { color: colors.heroText }]}>Maintenance Hub</Text>
+          <Text style={[styles.subtitle, { color: colors.heroTextSecondary }]} numberOfLines={1}>
+            {user?.username ?? 'User'} · {user?.role ?? 'Member'}{user?.persona ? ` · ${user.persona}` : ''}
           </Text>
         </View>
-        <View style={styles.heroMeta}>
-          <View style={[styles.userCard, { backgroundColor: colors.card }]}>
-            <View>
-              <Text style={[styles.userName, { color: colors.text }]}>{user?.username ?? 'User'}</Text>
-              <Text style={[styles.userRole, { color: colors.textSecondary }]}>{user?.role ?? 'Member'}{user?.persona ? ` · ${user.persona}` : ''}</Text>
-            </View>
-            <Pressable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.backgroundTertiary }]}>
-              <MaterialCommunityIcons name="logout" size={18} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-          <Pressable style={[styles.inboxCard, { backgroundColor: colors.primary }]} onPress={() => router.push('/(tabs)/two')}>
-            <View>
-              <Text style={styles.inboxLabel}>Unread alerts</Text>
-              <Text style={styles.inboxValue}>{unreadCount}</Text>
-            </View>
-            <NotificationBadge count={unreadCount} />
-          </Pressable>
+        <View style={[styles.accountBadge, { backgroundColor: colors.card }]}>
+          <MaterialCommunityIcons name="account-cog-outline" size={20} color={colors.textSecondary} />
         </View>
-      </View>
+      </Pressable>
+
+      {user?.persona === 'FIELD' ? (
+        <FieldWorkspaceSection
+          assignedDisciplines={assignedDisciplines}
+          selectedDiscipline={selectedDiscipline}
+          onSelectDiscipline={setSelectedDiscipline}
+          isSubscribed={moduleSubscriptions.isSubscribed}
+        />
+      ) : (
+        <ManagerSection assignedDisciplines={assignedDisciplines} isSubscribed={moduleSubscriptions.isSubscribed} />
+      )}
 
       <SectionHeader title="KPI strip" actionLabel={kpiSummary.isRefetching ? 'Refreshing...' : 'Updated from live API'} colors={colors} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kpiStrip}>
@@ -224,16 +266,6 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {user?.persona === 'FIELD' ? (
-        <FieldWorkspaceSection
-          assignedDisciplines={assignedDisciplines}
-          selectedDiscipline={selectedDiscipline}
-          onSelectDiscipline={setSelectedDiscipline}
-        />
-      ) : (
-        <ManagerSection assignedDisciplines={assignedDisciplines} />
-      )}
-
       <Pressable style={[styles.kelvinFab, { backgroundColor: colors.primary, shadowColor: colors.primary }]} onPress={() => router.push('/modules/kelvin')}>
         <MaterialCommunityIcons name="robot-outline" size={20} color="#fff" />
         <Text style={styles.kelvinFabText}>Kelvin AI</Text>
@@ -246,10 +278,12 @@ function FieldWorkspaceSection({
   assignedDisciplines,
   selectedDiscipline,
   onSelectDiscipline,
+  isSubscribed,
 }: {
   assignedDisciplines: Discipline[];
   selectedDiscipline: Discipline | null;
   onSelectDiscipline: (discipline: Discipline | null) => void;
+  isSubscribed: (id: ModuleSubscriptionId) => boolean;
 }) {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -308,44 +342,75 @@ function FieldWorkspaceSection({
         ) : null}
       </View>
       <View style={styles.grid}>
-        {FIELD_MODULES[workspace].map((module) => (
-          <ModuleCard key={module.id} {...module} />
+        {FIELD_MODULES[workspace].filter((module) => isSubscribed(module.id as ModuleSubscriptionId)).map((module) => (
+          <ModuleCard key={`${module.id}-${module.name}`} {...module} />
         ))}
       </View>
     </View>
   );
 }
 
-function ManagerSection({ assignedDisciplines }: { assignedDisciplines: Discipline[] }) {
+function ManagerSection({ assignedDisciplines, isSubscribed }: { assignedDisciplines: Discipline[]; isSubscribed: (id: ModuleSubscriptionId) => boolean }) {
   const { theme } = useTheme();
   const { colors } = theme;
   const disciplines = assignedDisciplines.length
     ? assignedDisciplines
     : (['MECHANICAL', 'ELECTRICAL', 'INSTRUMENTATION'] as Discipline[]);
+  const visibleDisciplines = disciplines.filter((discipline) => isSubscribed(DEPARTMENT_SUBSCRIPTION_BY_DISCIPLINE[discipline]));
+  const subscribedModules = SUBSCRIBABLE_MODULES
+    .filter((module) => module.category !== 'department' && module.id !== 'hub' && module.id !== 'inbox')
+    .filter((module) => isSubscribed(module.id) && MOBILE_MODULE_LINKS[module.id])
+    .map<ModuleCardProps>((module) => {
+      const accent = MODULE_ACCENTS[module.id] ?? { color: colors.primary, bg: colors.primarySubtle };
+      return {
+        id: module.id,
+        name: module.name,
+        icon: module.icon,
+        color: accent.color,
+        bg: theme.isDark ? colors.card : accent.bg,
+        link: MOBILE_MODULE_LINKS[module.id]!,
+      };
+    });
+  const unsupportedSubscribed = SUBSCRIBABLE_MODULES
+    .filter((module) => module.category !== 'department' && module.id !== 'hub' && module.id !== 'inbox')
+    .filter((module) => isSubscribed(module.id) && !MOBILE_MODULE_LINKS[module.id]);
 
   return (
     <View>
-      <SectionHeader title="Department Dashboards" actionLabel="Manager and hybrid users" colors={colors} />
+      <SectionHeader title="Workspaces" actionLabel="View access" colors={colors} />
       <View style={styles.grid}>
-        {disciplines.map((discipline) => {
+        {visibleDisciplines.map((discipline) => {
           const meta = DISCIPLINE_META[discipline];
           return (
             <ModuleCard
               key={discipline}
               id={`${discipline}-dashboard`}
-              name={`${disciplineToLabel(discipline)} Dashboard`}
+              name={discipline === 'MECHANICAL' ? 'Mech' : discipline === 'ELECTRICAL' ? 'Elec' : 'Instr'}
               icon={meta.icon}
               color={meta.accent}
               bg={theme.isDark ? meta.bgDark : meta.bg}
-              link={`/modules/reports?discipline=${discipline}`}
+              link={`/modules/department?discipline=${discipline}`}
             />
           );
         })}
-        <ModuleCard id="kpis" name="KPI Dashboard" icon="chart-box-outline" color="#6366f1" bg={theme.isDark ? '#2e1065' : '#eef2ff'} link="/modules/kpis" />
-        <ModuleCard id="inspections" name="Inspections" icon="clipboard-check-outline" color="#0f766e" bg={theme.isDark ? '#052e16' : '#ecfdf5'} link="/modules/inspections" />
-        <ModuleCard id="inbox" name="Inbox & Alerts" icon="bell-outline" color="#7c3aed" bg={theme.isDark ? '#2e1065' : '#f5f3ff'} link="/(tabs)/two" />
-        <ModuleCard id="settings" name="Settings" icon="cog-outline" color={colors.textSecondary} bg={colors.backgroundTertiary} link="/modules/settings" />
       </View>
+
+      <SectionHeader
+        title="Subscribed Modules"
+        actionLabel={unsupportedSubscribed.length ? `${unsupportedSubscribed.length} web only` : 'From Settings'}
+        colors={colors}
+      />
+      <View style={styles.grid}>
+        {subscribedModules.map((module) => (
+          <ModuleCard key={module.id} {...module} />
+        ))}
+      </View>
+      {visibleDisciplines.length === 0 && subscribedModules.length === 0 ? (
+        <View style={[styles.emptyPanel, { backgroundColor: colors.card, borderColor: colors.cardBorder, borderWidth: 1 }]}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No subscribed modules</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Open Settings and subscribe to the modules you want on this dashboard.</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -361,22 +426,35 @@ function SectionHeader({ title, actionLabel, colors }: { title: string; actionLa
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 18, paddingBottom: 110 },
-  hero: { borderRadius: 28, padding: 22, marginBottom: 24, gap: 18 },
-  heroCopy: { gap: 10 },
-  eyebrow: { color: '#93c5fd', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  title: { color: '#ffffff', fontSize: 28, lineHeight: 34, fontWeight: '800' },
-  subtitle: { color: '#cbd5e1', fontSize: 14, lineHeight: 22 },
-  heroMeta: { gap: 12 },
-  userCard: { borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  userName: { fontSize: 16, fontWeight: '800' },
-  userRole: { marginTop: 4, fontSize: 12 },
-  logoutBtn: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  inboxCard: { borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  content: { padding: 14, paddingBottom: 104 },
+  hero: {
+    borderRadius: 20,
+    padding: 12,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  heroCopy: { flex: 1, minWidth: 0, gap: 4 },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  title: { fontSize: 18, lineHeight: 22, fontWeight: '800' },
+  subtitle: { fontSize: 12, lineHeight: 16 },
+  heroMeta: { flexDirection: 'row', gap: 10 },
+  userCard: { borderRadius: 14, padding: 12, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  userName: { fontSize: 14, fontWeight: '800' },
+  userRole: { marginTop: 2, fontSize: 11 },
+  accountBadge: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  inboxCard: { width: 116, borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   inboxLabel: { color: '#bfdbfe', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  inboxValue: { marginTop: 4, color: '#ffffff', fontSize: 28, fontWeight: '800' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 8 },
-  sectionTitle: { fontSize: 17, fontWeight: '800' },
+  inboxValue: { marginTop: 2, color: '#ffffff', fontSize: 22, fontWeight: '800' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, marginTop: 6 },
+  sectionTitle: { fontSize: 16, fontWeight: '800' },
   sectionAction: { fontSize: 12 },
   kpiStrip: { paddingBottom: 10 },
   healthPanel: { borderRadius: 22, borderWidth: 1, padding: 14, marginBottom: 8, gap: 10 },
@@ -390,19 +468,19 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 14, fontWeight: '700' },
   emptyText: { marginTop: 6, fontSize: 12, lineHeight: 18 },
   workspaceGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  workspaceCard: { width: '47%', borderRadius: 20, padding: 18, marginBottom: 14, minHeight: 180, borderWidth: 1 },
-  workspaceName: { marginTop: 14, fontSize: 16, fontWeight: '800' },
-  workspaceCopy: { marginTop: 8, fontSize: 12, lineHeight: 18 },
-  workspaceHero: { borderRadius: 22, padding: 18, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  workspaceHeroCopy: { flex: 1, gap: 8 },
-  workspaceHeroTitle: { fontSize: 20, fontWeight: '800' },
-  workspaceHeroText: { fontSize: 13, lineHeight: 20 },
+  workspaceCard: { width: '47%', borderRadius: 16, padding: 14, marginBottom: 12, minHeight: 148, borderWidth: 1 },
+  workspaceName: { marginTop: 10, fontSize: 15, fontWeight: '800' },
+  workspaceCopy: { marginTop: 6, fontSize: 11, lineHeight: 16 },
+  workspaceHero: { borderRadius: 16, padding: 14, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  workspaceHeroCopy: { flex: 1, gap: 6 },
+  workspaceHeroTitle: { fontSize: 17, fontWeight: '800' },
+  workspaceHeroText: { fontSize: 12, lineHeight: 17 },
   switchBtn: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
   switchBtnText: { fontSize: 12, fontWeight: '700' },
   assignmentCard: { borderRadius: 22, borderWidth: 1, padding: 20, marginTop: 8 },
   assignmentTitle: { fontSize: 18, fontWeight: '800' },
   assignmentText: { marginTop: 8, fontSize: 13, lineHeight: 20 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 0 },
   kelvinFab: {
     position: 'absolute',
     right: 18,

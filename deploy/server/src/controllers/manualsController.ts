@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { ensureManualRepositoryStructure } from '../services/manualRepositoryService';
+import { applyDisciplineScope, mapCategoryToDiscipline, resolveScopedDisciplines } from '../services/disciplineAccess';
 
 const VALID_CATEGORIES = ['mechanical', 'electrical', 'instrumentation'] as const;
 const STORAGE_ROOT = path.resolve(__dirname, '../../storage/manuals');
@@ -134,8 +135,11 @@ export const getRepository = async (req: Request, res: Response) => {
     await ensureStorageRoot();
     await ensureManualRepositoryStructure();
 
+    const where: any = category ? { category } : {};
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, category ? mapCategoryToDiscipline(category) : req.query.discipline));
+
     const folders = await prisma.manualFolder.findMany({
-      where: category ? { category } : undefined,
+      where,
       select: folderSelect,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
@@ -172,6 +176,7 @@ export const createFolder = async (req: Request, res: Response) => {
       data: {
         name,
         category,
+        primaryDiscipline: mapCategoryToDiscipline(category),
         parentId: parentId ?? null,
       },
       select: folderSelect,
@@ -277,6 +282,7 @@ export const uploadDocuments = async (req: Request, res: Response) => {
       const document = await prisma.repositoryDocument.create({
         data: {
           folderId: folder.id,
+          primaryDiscipline: folder.category === 'instrumentation' ? 'INSTRUMENTATION' : folder.category === 'electrical' ? 'ELECTRICAL' : 'MECHANICAL',
           originalName: file.originalname,
           storedName,
           mimeType: file.mimetype || 'application/octet-stream',

@@ -11,9 +11,11 @@ import {
   getOperationalOverview,
   getOperationalProfiles,
 } from '../controllers/operations.controller';
-import { authorizeRole } from '../middleware/auth';
+import { authenticateToken, authorizeRole } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticateToken);
 
 router.get('/overview', getOperationalOverview);
 router.get('/profiles', getOperationalProfiles);

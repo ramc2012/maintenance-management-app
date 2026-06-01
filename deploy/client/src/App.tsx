@@ -8,8 +8,11 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { LoginPage } from "./modules/core/pages/LoginPage";
 import { SettingsPage } from "./modules/core/pages/SettingsPage";
 import { EnterpriseHub } from "./modules/core/pages/EnterpriseHub";
+import { DisciplineWorkspacePage } from "./modules/core/pages/DisciplineWorkspacePage";
+import { FieldWorkspaceChooser } from "./modules/core/pages/FieldWorkspaceChooser";
 import { AssetsHub } from "./modules/assets/pages/AssetsHub";
 import { ReportsHub } from "./modules/reports/pages/ReportsHub";
+import { OperationsSummaryPage } from "./modules/operations/pages/OperationsSummaryPage";
 import { LogbookHub } from "./modules/logbook/pages/LogbookHub";
 import { CalibrationHub } from "./modules/calibration/pages/CalibrationHub";
 import { TrainingHub } from "./modules/training/pages/TrainingHub";
@@ -35,6 +38,13 @@ import { PresentationsHub } from "./modules/presentations/pages/PresentationsHub
 import { WorkOrderHub } from "./modules/workorders/pages/WorkOrderHub";
 import { KPIDashboard } from "./modules/kpi/pages/KPIDashboard";
 import { InspectionHub } from "./modules/inspections/pages/InspectionHub";
+import { getUserHomePath, getWorkspaceModuleHref, shouldRedirectFieldUserFromLegacyRoute, type Discipline } from "./utils/workspace";
+
+const FIELD_MODULES: Record<Discipline, string[]> = {
+  MECHANICAL: ["equipment", "operations", "workorders", "reports", "procurement", "manuals", "logbook", "history"],
+  ELECTRICAL: ["equipment", "operations", "workorders", "reports", "procurement", "manuals", "logbook", "history"],
+  INSTRUMENTATION: ["equipment", "operations", "workorders", "reports", "procurement", "manuals", "calibration", "history"],
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, token, loading } = useAuth();
@@ -47,6 +57,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (!token || !user) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
+
+  if (shouldRedirectFieldUserFromLegacyRoute(user, location.pathname, location.search)) {
+    return <Navigate to={getUserHomePath(user)} replace />;
+  }
+
   return <>{children}</>;
 };
 
@@ -64,12 +79,20 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     const redirectTo: string =
       typeof requestedPath === "string" && requestedPath !== "/login"
         ? requestedPath
-        : "/hub";
+        : getUserHomePath(user);
     return <Navigate to={redirectTo} replace />;
   }
 
   return <>{children}</>;
 };
+
+const WorkspaceModuleRedirect = ({
+  discipline,
+  moduleKey,
+}: {
+  discipline: Discipline;
+  moduleKey: string;
+}) => <Navigate to={getWorkspaceModuleHref(discipline, moduleKey)} replace />;
 
 const AppContent = () => {
   const { themeMode } = useTheme();
@@ -99,9 +122,27 @@ const AppContent = () => {
               <EnterpriseHub />
             </ProtectedRoute>
           } />
+          <Route path="/workspaces" element={<ProtectedRoute><FieldWorkspaceChooser /></ProtectedRoute>} />
+          <Route path="/mechanical" element={<ProtectedRoute><DisciplineWorkspacePage discipline="MECHANICAL" /></ProtectedRoute>} />
+          <Route path="/electrical" element={<ProtectedRoute><DisciplineWorkspacePage discipline="ELECTRICAL" /></ProtectedRoute>} />
+          <Route path="/instrumentation" element={<ProtectedRoute><DisciplineWorkspacePage discipline="INSTRUMENTATION" /></ProtectedRoute>} />
+          {Object.entries(FIELD_MODULES).flatMap(([discipline, modules]) =>
+            modules.map((moduleKey) => (
+              <Route
+                key={`${discipline}-${moduleKey}`}
+                path={`/${discipline.toLowerCase()}/${moduleKey}`}
+                element={
+                  <ProtectedRoute>
+                    <WorkspaceModuleRedirect discipline={discipline as Discipline} moduleKey={moduleKey} />
+                  </ProtectedRoute>
+                }
+              />
+            ))
+          )}
 
           {/* Core User Settings */}
           <Route path="/assets" element={<ProtectedRoute><AssetsHub /></ProtectedRoute>} />
+          <Route path="/operations" element={<ProtectedRoute><OperationsSummaryPage /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><ReportsHub /></ProtectedRoute>} />
           <Route path="/logbooks" element={<ProtectedRoute><LogbookHub /></ProtectedRoute>} />
           <Route path="/calibration" element={<ProtectedRoute><CalibrationHub /></ProtectedRoute>} />

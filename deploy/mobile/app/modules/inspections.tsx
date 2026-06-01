@@ -191,7 +191,6 @@ export default function InspectionsScreen() {
           <View style={styles.hero}>
             <MaterialCommunityIcons name="clipboard-check-outline" size={32} color="#5eead4" />
             <Text style={styles.heroTitle}>Inspection Rounds</Text>
-            <Text style={styles.heroSubtitle}>Tap a round to start field execution. Each round visits predefined functional locations in order.</Text>
           </View>
 
           {rounds.length === 0 ? (
@@ -417,9 +416,8 @@ const styles = StyleSheet.create({
   tabItemActive: { borderBottomWidth: 2, borderBottomColor: '#0f766e' },
   tabText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
   tabTextActive: { color: '#0f766e' },
-  hero: { borderRadius: 22, backgroundColor: '#0f172a', padding: 22, marginBottom: 18, gap: 10 },
-  heroTitle: { fontSize: 22, fontWeight: '800', color: '#ffffff' },
-  heroSubtitle: { fontSize: 13, lineHeight: 20, color: '#94a3b8' },
+  hero: { borderRadius: 18, backgroundColor: '#0f172a', padding: 16, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  heroTitle: { fontSize: 20, fontWeight: '800', color: '#ffffff' },
   roundCard: { borderRadius: 18, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 16, marginBottom: 12 },
   roundHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   roundLeft: { flex: 1 },

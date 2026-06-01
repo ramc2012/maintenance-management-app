@@ -1,113 +1,171 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, ActivityIndicator, View, Pressable, TextInput, Modal } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, ScrollView, ActivityIndicator, View, Pressable, Modal } from 'react-native';
 import { Text } from '@/components/Themed';
 import { Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/context/ThemeContext';
+
+type ManpowerHour = {
+  id: string;
+  employeeId: string;
+  name: string;
+  department?: string;
+  section?: string | null;
+  designation?: string | null;
+  totalHours: number;
+  jobCount: number;
+  jobs: Array<{
+    logId: string;
+    date: string;
+    hours: number;
+    department?: string;
+    section?: string;
+    installationId?: string;
+    description?: string;
+  }>;
+};
+
+type HoursResponse = {
+  from: string;
+  to: string;
+  totalEmployees: number;
+  totalHours: number;
+  employees: ManpowerHour[];
+};
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function shiftDate(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
 
 export default function ManpowerScreen() {
+  const { theme } = useTheme();
+  const { colors } = theme;
   const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState<any[]>([]);
+  const [summary, setSummary] = useState<HoursResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedReport, setSelectedReport] = useState<any>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ workDescription: '', totalPersonnel: '', hoursWorked: '', date: new Date().toISOString().split('T')[0] });
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(todayIsoDate());
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [selectedEmployee, setSelectedEmployee] = useState<ManpowerHour | null>(null);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [selectedDate]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await api.get<any[]>('/maintenance/manpower');
-      setReports(res || []);
-    } catch (e: any) { setError(e.message); } finally { setLoading(false); }
+      const res = await api.get<HoursResponse>(`/maintenance/manpower/hours?date=${encodeURIComponent(selectedDate)}&isActive=true`);
+      setSummary(res);
+      setError(null);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = async () => {
-    if (!formData.workDescription.trim()) return;
-    setSubmitting(true);
-    try {
-      await api.post('/maintenance/manpower', {
-        ...formData,
-        totalPersonnel: parseInt(formData.totalPersonnel) || 0,
-        hoursWorked: parseFloat(formData.hoursWorked) || 0,
-      });
-      setShowForm(false);
-      setFormData({ workDescription: '', totalPersonnel: '', hoursWorked: '', date: new Date().toISOString().split('T')[0] });
-      fetchData();
-    } catch (e: any) { alert('Failed to create report: ' + e.message); } finally { setSubmitting(false); }
-  };
+  const employees = summary?.employees ?? [];
+  const sectionOptions = useMemo(() => {
+    const sections = new Set(employees.map((employee) => employee.section || 'Unassigned'));
+    return ['all', ...Array.from(sections).sort()];
+  }, [employees]);
+  const filteredEmployees = employees.filter((employee) => sectionFilter === 'all' || (employee.section || 'Unassigned') === sectionFilter);
+  const loggedEmployees = filteredEmployees.filter((employee) => employee.totalHours > 0);
+  const visibleTotalHours = filteredEmployees.reduce((sum, employee) => sum + Number(employee.totalHours || 0), 0);
 
-  const totalPersonnel = reports.reduce((sum, r) => sum + (r.totalPersonnel || 0), 0);
-  const totalHours = reports.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#db2777" /></View>;
-  if (error) return <View style={styles.center}><Text style={styles.error}>Error: {error}</Text></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (error) return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><Text style={[styles.error, { color: colors.error }]}>Error: {error}</Text></View>;
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Manpower', headerRight: () => (
-        <Pressable onPress={() => setShowForm(true)} style={styles.addBtn}>
-          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-        </Pressable>
-      )}} />
+    <View style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
+      <Stack.Screen options={{ title: 'Manpower Hours' }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}><Text style={[styles.statValue, {color:'#db2777'}]}>{reports.length}</Text><Text style={styles.statLabel}>Reports</Text></View>
-          <View style={styles.statCard}><Text style={[styles.statValue, {color:'#3b82f6'}]}>{totalPersonnel}</Text><Text style={styles.statLabel}>Personnel</Text></View>
-          <View style={styles.statCard}><Text style={styles.statValue}>{totalHours.toFixed(0)}</Text><Text style={styles.statLabel}>Total Hours</Text></View>
+        <View style={[styles.dateCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <Pressable style={[styles.dateButton, { backgroundColor: colors.cardMuted }]} onPress={() => setSelectedDate(shiftDate(selectedDate, -1))}>
+            <MaterialCommunityIcons name="chevron-left" size={24} color={colors.text} />
+          </Pressable>
+          <View style={styles.dateCopy}>
+            <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>Work date</Text>
+            <Text style={[styles.dateValue, { color: colors.text }]}>{formatDate(selectedDate)}</Text>
+          </View>
+          <Pressable style={[styles.dateButton, { backgroundColor: colors.cardMuted }]} onPress={() => setSelectedDate(shiftDate(selectedDate, 1))}>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={colors.text} />
+          </Pressable>
         </View>
 
-        <Text style={styles.sectionTitle}>Daily Work Reports</Text>
-        {reports.slice(0, 20).map((report, i) => (
-          <Pressable key={report.id || i} style={styles.card} onPress={() => setSelectedReport(report)}>
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{loggedEmployees.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Logged</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.statValue, { color: '#3b82f6' }]}>{filteredEmployees.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Employees</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.statValue, { color: colors.text }]}>{visibleTotalHours.toFixed(1)}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Hours</Text>
+          </View>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          {sectionOptions.map((section) => {
+            const active = sectionFilter === section;
+            return (
+              <Pressable key={section} style={[styles.filterChip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.cardBorder }]} onPress={() => setSectionFilter(section)}>
+                <Text style={[styles.filterText, { color: active ? '#ffffff' : colors.textSecondary }]}>{section === 'all' ? 'All Sections' : section}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Day-wise Employee Hours</Text>
+        {filteredEmployees.map((employee) => (
+          <Pressable key={employee.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]} onPress={() => setSelectedEmployee(employee)}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{new Date(report.date).toLocaleDateString()}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={20} color="#94a3b8" />
-            </View>
-            <Text style={styles.cardSub}>{report.workDescription}</Text>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardMeta}><MaterialCommunityIcons name="account-group" size={12} color="#64748b" /> {report.totalPersonnel || 0} personnel</Text>
-              <Text style={styles.cardMeta}><MaterialCommunityIcons name="clock" size={12} color="#64748b" /> {report.hoursWorked || 0} hrs</Text>
+              <View style={styles.employeeCopy}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{employee.name}</Text>
+                <Text style={[styles.cardSub, { color: colors.textSecondary }]}>{employee.employeeId} · {employee.section || 'Unassigned'}</Text>
+              </View>
+              <View style={styles.hoursBadge}>
+                <Text style={[styles.hoursValue, { color: employee.totalHours > 0 ? colors.primary : colors.textTertiary }]}>{Number(employee.totalHours || 0).toFixed(1)}h</Text>
+                <Text style={[styles.hoursLabel, { color: colors.textSecondary }]}>{employee.jobCount} jobs</Text>
+              </View>
             </View>
           </Pressable>
         ))}
-        {reports.length === 0 && <Text style={styles.empty}>No work reports found</Text>}
+        {filteredEmployees.length === 0 ? <Text style={[styles.empty, { color: colors.textTertiary }]}>No manpower records found for this section.</Text> : null}
       </ScrollView>
 
-      {/* Add Report Modal */}
-      <Modal visible={showForm} animationType="slide" transparent>
+      <Modal visible={Boolean(selectedEmployee)} animationType="slide" transparent onRequestClose={() => setSelectedEmployee(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Work Report</Text>
-            <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)" value={formData.date} onChangeText={t => setFormData({...formData, date: t})} />
-            <TextInput style={[styles.input, {height: 80}]} placeholder="Work Description *" multiline value={formData.workDescription} onChangeText={t => setFormData({...formData, workDescription: t})} />
-            <TextInput style={styles.input} placeholder="Total Personnel" keyboardType="numeric" value={formData.totalPersonnel} onChangeText={t => setFormData({...formData, totalPersonnel: t})} />
-            <TextInput style={styles.input} placeholder="Hours Worked" keyboardType="numeric" value={formData.hoursWorked} onChangeText={t => setFormData({...formData, hoursWorked: t})} />
-            <View style={styles.modalActions}>
-              <Pressable onPress={() => setShowForm(false)}><Text style={styles.cancelText}>Cancel</Text></Pressable>
-              <Pressable style={[styles.submitBtn, submitting && {opacity: 0.5}]} onPress={handleSubmit} disabled={submitting}>
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Create</Text>}
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedEmployee?.name}</Text>
+              <Pressable style={[styles.closeIcon, { backgroundColor: colors.cardMuted }]} onPress={() => setSelectedEmployee(null)}>
+                <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Detail Modal */}
-      <Modal visible={!!selectedReport} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Work Report</Text>
-            <Text style={styles.detailLabel}>Date</Text>
-            <Text style={styles.detailValue}>{selectedReport?.date ? new Date(selectedReport.date).toLocaleDateString() : 'N/A'}</Text>
-            <Text style={styles.detailLabel}>Work Description</Text>
-            <Text style={styles.detailValue}>{selectedReport?.workDescription || 'N/A'}</Text>
-            <Text style={styles.detailLabel}>Total Personnel</Text>
-            <Text style={styles.detailValue}>{selectedReport?.totalPersonnel || 0}</Text>
-            <Text style={styles.detailLabel}>Hours Worked</Text>
-            <Text style={styles.detailValue}>{selectedReport?.hoursWorked || 0}</Text>
-            <Pressable style={styles.closeBtn} onPress={() => setSelectedReport(null)}><Text style={styles.closeText}>Close</Text></Pressable>
+            <Text style={[styles.detailMeta, { color: colors.textSecondary }]}>
+              {selectedEmployee?.employeeId} · {selectedEmployee?.section || 'Unassigned'} · {Number(selectedEmployee?.totalHours || 0).toFixed(1)}h
+            </Text>
+            <ScrollView style={styles.jobList}>
+              {selectedEmployee?.jobs.length ? selectedEmployee.jobs.map((job) => (
+                <View key={job.logId} style={[styles.jobCard, { backgroundColor: colors.backgroundSecondary, borderColor: colors.cardBorder }]}>
+                  <Text style={[styles.jobTitle, { color: colors.text }]} numberOfLines={2}>{job.description || 'Maintenance work'}</Text>
+                  <Text style={[styles.cardSub, { color: colors.textSecondary }]}>{job.installationId || '-'} · {job.section || '-'} · {Number(job.hours || 0).toFixed(1)}h</Text>
+                </View>
+              )) : <Text style={[styles.empty, { color: colors.textTertiary }]}>No reported work hours for this date.</Text>}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -116,33 +174,39 @@ export default function ManpowerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 16 },
+  container: { flex: 1 },
+  content: { padding: 16, paddingBottom: 42 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: '#ef4444' },
-  addBtn: { backgroundColor: '#db2777', padding: 8, borderRadius: 8, marginRight: 8 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 12, alignItems: 'center', marginHorizontal: 4 },
-  statValue: { fontSize: 24, fontWeight: '700', color: '#0f172a' },
-  statLabel: { fontSize: 11, color: '#64748b' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginBottom: 12 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: '#db2777' },
-  cardSub: { fontSize: 13, color: '#0f172a', marginTop: 6 },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  cardMeta: { fontSize: 11, color: '#64748b' },
-  empty: { textAlign: 'center', color: '#94a3b8', marginTop: 20 },
+  dateCard: { borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dateButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  dateCopy: { alignItems: 'center' },
+  dateLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  dateValue: { marginTop: 3, fontSize: 17, fontWeight: '800' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, gap: 8 },
+  statCard: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
+  statValue: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 11, marginTop: 2 },
+  filterScroll: { marginBottom: 14 },
+  filterChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 },
+  filterText: { fontSize: 12, fontWeight: '800' },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  card: { borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 10 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  employeeCopy: { flex: 1, minWidth: 0 },
+  cardTitle: { fontSize: 15, fontWeight: '800' },
+  cardSub: { fontSize: 12, marginTop: 4 },
+  hoursBadge: { alignItems: 'flex-end' },
+  hoursValue: { fontSize: 20, fontWeight: '900' },
+  hoursLabel: { fontSize: 11, marginTop: 2 },
+  empty: { textAlign: 'center', marginTop: 18, fontSize: 13 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
-  input: { backgroundColor: '#f1f5f9', borderRadius: 12, padding: 14, fontSize: 14, marginBottom: 12 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 },
-  cancelText: { color: '#64748b', padding: 12 },
-  submitBtn: { backgroundColor: '#db2777', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginLeft: 12 },
-  submitText: { color: '#fff', fontWeight: '600' },
-  detailLabel: { fontSize: 12, color: '#64748b', marginTop: 12 },
-  detailValue: { fontSize: 14, color: '#0f172a', marginTop: 2 },
-  closeBtn: { backgroundColor: '#f1f5f9', padding: 14, borderRadius: 12, marginTop: 20, alignItems: 'center' },
-  closeText: { fontSize: 14, color: '#475569', fontWeight: '600' },
+  modalContent: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, maxHeight: '78%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  modalTitle: { flex: 1, fontSize: 19, fontWeight: '900' },
+  closeIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  detailMeta: { marginTop: 6, fontSize: 12 },
+  jobList: { marginTop: 14 },
+  jobCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 10 },
+  jobTitle: { fontSize: 14, fontWeight: '800' },
 });

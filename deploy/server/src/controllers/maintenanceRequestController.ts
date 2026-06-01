@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import {
+  applyDisciplineScope,
+  canRaiseRequirementsForDiscipline,
+  resolvePrimaryDisciplineForEquipmentTag,
+  resolvePrimaryDisciplineForText,
+  resolveScopedDisciplines,
+} from '../services/disciplineAccess';
 
 const prisma = new PrismaClient();
 
@@ -12,11 +19,12 @@ const generateReqNumber = async (): Promise<string> => {
 
 export const getRequests = async (req: Request, res: Response) => {
   try {
-    const { status, priority, requestType } = req.query;
+    const { status, priority, requestType, discipline } = req.query;
     const where: any = {};
     if (status) where.status = String(status);
     if (priority) where.priority = String(priority);
     if (requestType) where.requestType = String(requestType);
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
 
     const requests = await prisma.maintenanceRequest.findMany({
       where,
@@ -53,6 +61,16 @@ export const createRequest = async (req: Request, res: Response) => {
     if (safetyPrecautions)   extraParts.push(`Safety: ${safetyPrecautions}`);
     const combinedRemarks = [remarks, ...extraParts].filter(Boolean).join(' | ');
 
+    const primaryDiscipline = await resolvePrimaryDisciplineForEquipmentTag(
+      prisma,
+      equipmentTag || equipmentId,
+      resolvePrimaryDisciplineForText(`${title} ${description} ${department || ''}`),
+    );
+
+    if (!canRaiseRequirementsForDiscipline(req.user, primaryDiscipline)) {
+      return res.status(403).json({ error: 'You do not have permission to raise requests for this discipline.' });
+    }
+
     const request = await prisma.maintenanceRequest.create({
       data: {
         title,
@@ -61,8 +79,9 @@ export const createRequest = async (req: Request, res: Response) => {
         requestType: requestType || woType || 'CORRECTIVE',
         equipmentTag: equipmentTag || equipmentId,
         flId: flId || null,
+        primaryDiscipline,
         reqNumber,
-        requestedBy: (req as any).user?.username || bodyRequestedBy || 'system',
+        requestedBy: req.user?.username || bodyRequestedBy || 'system',
         requestedAt: new Date(),
         ...(combinedRemarks ? { remarks: combinedRemarks } : {}),
       }
@@ -141,10 +160,11 @@ export const convertToWorkOrder = async (req: Request, res: Response) => {
         flId,
         woType: woTypeMap[mreq.requestType] || 'CORRECTIVE',
         priority: mreq.priority,
+        primaryDiscipline: mreq.primaryDiscipline,
         description: mreq.description,
         status: 'OPEN',
         maintenanceRequestId: id,
-        createdBy: (req as any).user?.username || 'system'
+        createdBy: req.user?.username || 'system'
       }
     });
 
@@ -163,9 +183,17 @@ export const convertToWorkOrder = async (req: Request, res: Response) => {
 
 export const updateRequest = async (req: Request, res: Response) => {
   try {
+    const resolvedDiscipline = req.body.primaryDiscipline
+      ? req.body.primaryDiscipline
+      : req.body.equipmentTag
+        ? await resolvePrimaryDisciplineForEquipmentTag(prisma, req.body.equipmentTag)
+        : undefined;
     const request = await prisma.maintenanceRequest.update({
       where: { id: req.params.id },
-      data: req.body
+      data: {
+        ...req.body,
+        ...(resolvedDiscipline ? { primaryDiscipline: resolvedDiscipline } : {}),
+      }
     });
     res.json(request);
   } catch (error) {

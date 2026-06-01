@@ -11,9 +11,14 @@ from typing import Any
 
 import openpyxl
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORKBOOK = Path('/Users/chinnadurairamachandran/Downloads/Equipment Status.xlsx')
-DEFAULT_OUTPUT = ROOT / 'output' / 'spreadsheet' / 'equipment_status_normalized.json'
+DEFAULT_OUTPUT = ROOT / 'prisma' / 'seed-data' / 'equipment_status_normalized.json'
+
+try:
+    from seed_excel_data import normalize_installation as normalize_installation_name
+except ImportError:
+    normalize_installation_name = None
 
 
 def slugify(value: str, fallback: str = 'ASSET', max_length: int = 32) -> str:
@@ -60,7 +65,7 @@ def normalize_status(value: Any) -> str:
 
 def infer_service_line(sheet_name: str) -> str:
     normalized = sheet_name.strip().lower()
-    return 'WORKOVER' if 'workover' in normalized or 'well service' in normalized else 'SURFACE'
+    return 'WS' if 'workover' in normalized or 'well service' in normalized else 'ST'
 
 
 def infer_installation_type(sheet_name: str) -> str:
@@ -241,28 +246,38 @@ def main() -> int:
     normalized_equipment: list[dict[str, Any]] = []
 
     for row in parsed_rows:
-        base_tag = build_tag_base(row['installationName'], row['equipmentName'])
+        if normalize_installation_name:
+            installation_id, installation_location, installation_type = normalize_installation_name(row['installationName'])
+        else:
+            installation_id = slugify(row['installationName'], fallback='UNKNOWN')
+            installation_location = row['installationName']
+            installation_type = row['installationType']
+
+        base_tag = build_tag_base(installation_id, row['equipmentName'])
         tag_counter[base_tag] += 1
         equipment_tag = base_tag if tag_counter[base_tag] == 1 else f'{base_tag}-{tag_counter[base_tag]}'
 
-        installations[row['installationName']] = {
-            'installationId': row['installationName'],
-            'location': row['sheetName'],
-            'type': row['installationType'],
+        installations[installation_id] = {
+            'installationId': installation_id,
+            'location': installation_location or row['sheetName'],
+            'type': installation_type or row['installationType'],
             'serviceLine': row['serviceLine'],
             'sourceSheet': row['sheetName'],
+            'rawInstallationName': row['installationName'],
         }
 
         normalized_equipment.append(
             {
                 'equipmentTag': equipment_tag,
-                'installationId': row['installationName'],
+                'installationId': installation_id,
+                'rawInstallationName': row['installationName'],
                 'description': row['equipmentName'],
                 'make': row['make'],
                 'model': row['model'],
                 'serialNumber': row['serialNumber'],
                 'assetCode': row['assetCode'],
-                'category': row['category'],
+                'category': 'RUNNING',
+                'primaryDiscipline': row['category'],
                 'equipmentTypeName': row['equipmentTypeName'],
                 'serviceLine': row['serviceLine'],
                 'operationalStatus': row['operationalStatus'],

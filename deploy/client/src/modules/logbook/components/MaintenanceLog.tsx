@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Input, Button, Select, DatePicker, message, Card, Statistic, Row, Col, Tabs, Empty } from 'antd';
+import { Table, Tag, Input, Button, Select, DatePicker, message, Card, Statistic, Row, Col, Tabs, Empty, Modal, Typography } from 'antd';
 import { Search, Wrench, Zap, Filter, History, Download } from 'lucide-react';
 import axios from 'axios';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
+const { Text } = Typography;
 
 interface MaintenanceLogProps {
   category?: 'mechanical' | 'electrical';
@@ -19,6 +20,7 @@ export const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ category = 'mech
   const [filterEquipment, setFilterEquipment] = useState<string>('');
   const [viewMode, setViewMode] = useState<'all' | 'equipment'>('all');
   const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<any | null>(null);
 
   useEffect(() => { 
     fetchInstallations();
@@ -45,10 +47,10 @@ export const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ category = 'mech
     setLoading(true);
     try {
       // Fetch from daily work reports (maintenance logs)
-      const params: any = { department: category === 'mechanical' ? 'Mechanical' : 'Electrical' };
+      const params: any = { discipline: category === 'mechanical' ? 'MECHANICAL' : 'ELECTRICAL' };
       if (filterInstallation) params.installationId = filterInstallation;
       
-      const res = await axios.get('/api/maintenance-logs', { params });
+      const res = await axios.get('/api/maintenance/logs', { params });
       const logs = res.data || [];
       
       // Map to display format
@@ -62,8 +64,13 @@ export const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ category = 'mech
         technician: l.createdBy,
         status: l.status || 'Completed',
         installation: l.installationId,
+        installationName: l.installation?.installationId,
         jobType: l.jobType,
-        duration: l.durationHours
+        duration: l.durationHours,
+        remarks: l.remarks,
+        notificationNo: l.notificationNo,
+        section: l.section,
+        service: l.department,
       }));
       
       setData(mappedLogs);
@@ -89,7 +96,17 @@ export const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ category = 'mech
   const columns = [
     { title: 'Date', dataIndex: 'date', render: (d: string) => d ? new Date(d).toLocaleDateString() : '-', width: 100 },
     { title: 'Equipment', dataIndex: 'equipment', render: (t: string, r: any) => (
-      <Button type="link" size="small" onClick={() => viewEquipmentHistory(t)} className="p-0 font-semibold">{t}</Button>
+      <Button
+        type="link"
+        size="small"
+        onClick={(event) => {
+          event.stopPropagation();
+          viewEquipmentHistory(t);
+        }}
+        className="p-0 font-semibold"
+      >
+        {t}
+      </Button>
     )},
     { title: 'Job Type', dataIndex: 'jobType', render: (j: string) => (
       <Tag color={j === 'PM' ? 'blue' : j === 'BD' ? 'red' : 'default'}>{j || '-'}</Tag>
@@ -175,9 +192,69 @@ export const MaintenanceLog: React.FC<MaintenanceLogProps> = ({ category = 'mech
           loading={loading}
           pagination={{ pageSize: 15, showSizeChanger: true }}
           className="dark-table" 
+          onRow={(record) => ({
+            onClick: () => setSelectedLog(record),
+            style: { cursor: 'pointer' },
+          })}
           footer={() => <div className="text-xs text-gray-500">Source: Daily Work Reports | Total: {data.length} Records</div>} 
         />
       )}
+      <Modal
+        title="Original Maintenance Report"
+        open={Boolean(selectedLog)}
+        onCancel={() => setSelectedLog(null)}
+        footer={null}
+        width={850}
+      >
+        {selectedLog ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+              <div>
+                <Text type="secondary">Date</Text>
+                <div className="font-semibold">{selectedLog.date ? new Date(selectedLog.date).toLocaleDateString() : '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Installation</Text>
+                <div className="font-semibold">{selectedLog.installationName || selectedLog.installation || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Service</Text>
+                <div className="font-semibold">{selectedLog.service || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Section</Text>
+                <div className="font-semibold">{selectedLog.section || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Type</Text>
+                <div><Tag color={selectedLog.jobType === 'PM' ? 'blue' : selectedLog.jobType === 'BD' ? 'red' : 'default'}>{selectedLog.jobType || '-'}</Tag></div>
+              </div>
+              <div>
+                <Text type="secondary">Status</Text>
+                <div className="font-semibold">{selectedLog.status || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Notification</Text>
+                <div className="font-semibold">{selectedLog.notificationNo || '-'}</div>
+              </div>
+              <div>
+                <Text type="secondary">Duration</Text>
+                <div className="font-semibold">{selectedLog.duration ?? 0} h</div>
+              </div>
+            </div>
+            <div>
+              <Text type="secondary">Description</Text>
+              <div className="mt-1 font-medium">{selectedLog.desc}</div>
+            </div>
+            <div>
+              <Text type="secondary">Original full report</Text>
+              <pre className="mt-2 max-h-[55vh] overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs leading-5 text-gray-800">
+                {selectedLog.remarks || 'No original report text stored for this log.'}
+              </pre>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 };

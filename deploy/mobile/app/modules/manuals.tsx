@@ -35,8 +35,6 @@ export default function ManualsScreen() {
     docs: cat.docs.filter(doc => doc.name.toLowerCase().includes(filter.toLowerCase()))
   }));
 
-  const totalDocs = DOCUMENT_CATEGORIES.reduce((sum, cat) => sum + cat.docs.length, 0);
-
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Manuals & Drawings' }} />
@@ -44,7 +42,6 @@ export default function ManualsScreen() {
         <View style={styles.header}>
           <MaterialCommunityIcons name="file-document-multiple" size={40} color="#14b8a6" />
           <Text style={styles.headerTitle}>Technical Documentation</Text>
-          <Text style={styles.headerSub}>{totalDocs} documents available</Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -103,9 +100,8 @@ function getDocIcon(type: string): keyof typeof MaterialCommunityIcons.glyphMap 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   content: { padding: 16 },
-  header: { alignItems: 'center', marginBottom: 20 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginTop: 12 },
-  headerSub: { fontSize: 13, color: '#64748b', marginTop: 4 },
+  header: { alignItems: 'center', marginBottom: 14 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginTop: 8 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 16 },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 14 },
   categoryContainer: { marginBottom: 12 },

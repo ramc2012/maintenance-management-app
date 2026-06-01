@@ -28,6 +28,7 @@ import { useAuth } from '../../../context/AuthContext';
 
 interface RunningHoursLogProps {
   category?: 'mechanical' | 'electrical';
+  discipline?: 'MECHANICAL' | 'ELECTRICAL';
 }
 
 const renderTrend = (points: number[], color: string) => {
@@ -55,7 +56,7 @@ const renderTrend = (points: number[], color: string) => {
   );
 };
 
-export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'mechanical' }) => {
+export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'mechanical', discipline }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const [logs, setLogs] = useState<any[]>([]);
@@ -90,7 +91,10 @@ export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'me
   const fetchOverview = async () => {
     try {
       const response = await axios.get('/api/operations/overview', {
-        params: selectedInstallation ? { installationId: selectedInstallation } : {},
+        params: {
+          ...(selectedInstallation ? { installationId: selectedInstallation } : {}),
+          ...(discipline ? { discipline } : {}),
+        },
       });
       setOverview(response.data);
     } catch (error) {
@@ -103,7 +107,10 @@ export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'me
     setLoading(true);
     try {
       const response = await axios.get('/api/operations/logs', {
-        params: selectedInstallation ? { installationId: selectedInstallation } : {},
+        params: {
+          ...(selectedInstallation ? { installationId: selectedInstallation } : {}),
+          ...(discipline ? { discipline } : {}),
+        },
       });
       setLogs(response.data || []);
     } catch (error) {
@@ -116,7 +123,9 @@ export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'me
 
   const fetchModalEquipment = async (installationId: string) => {
     try {
-      const response = await axios.get('/api/equipment/running-equip', { params: { installationId } });
+      const response = await axios.get('/api/equipment/running-equip', {
+        params: { installationId, ...(discipline ? { discipline } : {}) },
+      });
       setModalEquipment(response.data || []);
     } catch (error) {
       console.error(error);

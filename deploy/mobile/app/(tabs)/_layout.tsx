@@ -43,9 +43,17 @@ export default function TabLayout() {
           headerTitle: 'Maintenance Hub',
           tabBarIcon: ({ color }) => <TabIcon icon="view-dashboard-outline" color={color} />,
           headerRight: () => (
-            <Pressable onPress={() => router.push('/modules/settings')} style={styles.headerAction}>
-              <MaterialCommunityIcons name="cog-outline" size={22} color={colors.textSecondary} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable onPress={() => router.push('/(tabs)/two')} style={styles.headerAction}>
+                <MaterialCommunityIcons name="bell-outline" size={22} color={colors.textSecondary} />
+                <View style={styles.headerBadge}>
+                  <NotificationBadge count={unreadCount} />
+                </View>
+              </Pressable>
+              <Pressable onPress={() => router.push('/modules/settings')} style={styles.headerAction}>
+                <MaterialCommunityIcons name="cog-outline" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -70,11 +78,25 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   headerAction: {
-    marginRight: 16,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    marginRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
   },
   tabBar: {
     height: 72,

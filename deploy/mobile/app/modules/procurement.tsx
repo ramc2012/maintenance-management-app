@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, ActivityIndicator, View, Pressable, TextInput, Modal, Alert } from 'react-native';
 import { Text } from '@/components/Themed';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { disciplineToLabel, type Discipline } from '@/utils/workspace';
 
 // Constants from web app
 const CASE_TYPES = ['STORES', 'SPARES', 'CAPITAL', 'SERVICES', 'PETTY'];
@@ -16,6 +17,7 @@ const STAGES_STANDARD = ['Requirement Raised', 'Approval', 'PR Release', 'Tender
 const STAGES_PETTY = ['Requirement Raised', 'Approval', 'Enquiry', 'PO Released', 'Receipt', 'Payment', 'Closed'];
 
 const TYPE_COLORS: Record<string, string> = { STORES: '#3b82f6', SPARES: '#f97316', SERVICES: '#8b5cf6', CAPITAL: '#059669', PETTY: '#ec4899' };
+const DISCIPLINES: Discipline[] = ['MECHANICAL', 'ELECTRICAL', 'INSTRUMENTATION'];
 
 interface Case {
   id: string; title: string; type: string; currentStage: string;
@@ -25,8 +27,26 @@ interface Case {
   tag?: string; processedBy?: string; comments?: any[];
 }
 
+function normalizeParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseDiscipline(value: string | string[] | undefined): Discipline | null {
+  const raw = normalizeParam(value)?.toUpperCase();
+  return DISCIPLINES.includes(raw as Discipline) ? (raw as Discipline) : null;
+}
+
+function appendDiscipline(endpoint: string, discipline: Discipline | null) {
+  if (!discipline) return endpoint;
+  const separator = endpoint.includes('?') ? '&' : '?';
+  return `${endpoint}${separator}discipline=${encodeURIComponent(discipline)}`;
+}
+
 export default function ProcurementScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const discipline = parseDiscipline(params.discipline);
+  const disciplineLabel = discipline ? disciplineToLabel(discipline) : null;
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState<Case[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -49,13 +69,13 @@ export default function ProcurementScreen() {
   const [newComment, setNewComment] = useState('');
   const [commentDate, setCommentDate] = useState('');
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [discipline]);
 
   const fetchData = async () => {
     try {
       const [casesRes, analyticsRes] = await Promise.all([
-        api.get<Case[]>('/cases'),
-        api.get<any>('/cases/analytics')
+        api.get<Case[]>(appendDiscipline('/cases', discipline)),
+        api.get<any>(appendDiscipline('/cases/analytics', discipline))
       ]);
       setCases(casesRes || []);
       setAnalytics(analyticsRes);
@@ -144,13 +164,23 @@ export default function ProcurementScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Procurement', headerRight: () => (
+      <Stack.Screen options={{ title: disciplineLabel ? `${disciplineLabel} Procurement` : 'Procurement', headerRight: () => (
         <Pressable onPress={() => setShowForm(true)} style={styles.addBtn}>
           <MaterialCommunityIcons name="plus" size={24} color="#fff" />
         </Pressable>
       )}} />
       
       <ScrollView contentContainerStyle={styles.content}>
+        {disciplineLabel ? (
+          <View style={styles.scopeCard}>
+            <MaterialCommunityIcons name="briefcase-search-outline" size={20} color="#7c3aed" />
+            <View style={styles.scopeCopy}>
+              <Text style={styles.scopeTitle}>{disciplineLabel} Procurement</Text>
+              <Text style={styles.scopeText}>MRs, cases, PR/PO values, vendors, and approval stage status for this section.</Text>
+            </View>
+          </View>
+        ) : null}
+
         {/* Analytics */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}><Text style={[styles.statValue, {color:'#9333ea'}]}>{analytics?.activeCount || 0}</Text><Text style={styles.statLabel}>Active</Text></View>
@@ -380,6 +410,10 @@ const styles = StyleSheet.create({
   content: { padding: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   addBtn: { backgroundColor: '#9333ea', padding: 8, borderRadius: 8, marginRight: 8 },
+  scopeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0' },
+  scopeCopy: { flex: 1, minWidth: 0 },
+  scopeTitle: { fontSize: 14, fontWeight: '800', color: '#0f172a' },
+  scopeText: { marginTop: 3, fontSize: 12, lineHeight: 16, color: '#64748b' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 12, alignItems: 'center', marginHorizontal: 4 },
   statValue: { fontSize: 24, fontWeight: '700', color: '#0f172a' },

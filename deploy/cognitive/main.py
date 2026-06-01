@@ -45,6 +45,24 @@ class QueryResponse(BaseModel):
     tool_used: Optional[str] = None
     llm_enhanced: bool = False
 
+class SearchRequest(BaseModel):
+    query: str
+    module: Optional[str] = None
+    top_k: int = 8
+
+
+def source_from_hit(hit: Dict[str, Any]) -> Dict[str, Any]:
+    citation = hit.get("citation") or {}
+    metadata = hit.get("metadata") or {}
+    return {
+        "module": citation.get("module") or metadata.get("module", "unknown"),
+        "source": citation.get("source") or metadata.get("source", "unknown"),
+        "title": citation.get("title") or metadata.get("title", "untitled"),
+        "source_type": citation.get("source_type") or metadata.get("source_type", "unknown"),
+        "relevance": round(float(hit.get("similarity", hit.get("hybrid_score", 0)) or 0), 3),
+        "hop": hit.get("hop", 1),
+    }
+
 
 def build_rule_based_response(query: str, context: str, sources: List[Dict[str, Any]]) -> str:
     """Fast non-LLM fallback for the chat endpoint."""
@@ -155,13 +173,7 @@ async def chat_enhanced(request: QueryRequest):
                     use_multi_hop=True
                 )
                 results = rag_engine_advanced.multi_hop_search(request.query)
-                sources = [
-                    {
-                        "module": r['metadata'].get('module', 'unknown'),
-                        "relevance": round(r['similarity'], 2)
-                    }
-                    for r in results[:3]
-                ]
+                sources = [source_from_hit(r) for r in results[:5]]
             else:
                 context = rag_engine.build_context(request.query, request.module)
                 results = rag_engine.semantic_search(request.query, top_k=3, module=request.module)
@@ -212,14 +224,7 @@ async def query_with_rag(request: QueryRequest):
                     use_multi_hop=True
                 )
                 results = rag_engine_advanced.multi_hop_search(request.query)
-                sources = [
-                    {
-                        "module": r['metadata'].get('module', 'unknown'),
-                        "relevance": round(r['similarity'], 2),
-                        "hop": r.get('hop', 1)
-                    }
-                    for r in results[:5]
-                ]
+                sources = [source_from_hit(r) for r in results[:5]]
             else:
                 context = rag_engine.build_context(request.query, request.module)
                 results = rag_engine.semantic_search(request.query, top_k=5, module=request.module)
@@ -265,16 +270,64 @@ async def index_all_data():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/cognitive/index/status")
+async def index_status():
+    """Return RAG collection/module counts for diagnostics."""
+    try:
+        return rag_engine.index_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/cognitive/search")
+async def search_index(request: SearchRequest):
+    """Inspect raw RAG hits without invoking the LLM."""
+    try:
+        top_k = max(1, min(request.top_k, 20))
+        return rag_engine.search_diagnostics(
+            query=request.query,
+            top_k=top_k,
+            module=request.module,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/cognitive/index/{module}")
 async def index_module(module: str):
     """Index specific module data."""
     try:
+        module = module.strip().lower()
         if module == "procurement":
             result = rag_engine.index_procurement_cases()
         elif module == "workshop":
             result = rag_engine.index_workshop_jobs()
         elif module == "manuals":
             result = rag_engine.index_manual_documents()
+        elif module in {
+            "installation",
+            "equipment",
+            "instrument",
+            "asset_history",
+            "work_order",
+            "maintenance_request",
+            "maintenance_log",
+            "logbook",
+            "process_log",
+            "gas_compression",
+            "calibration",
+            "pm_schedule",
+            "moh",
+            "energy",
+            "electricity_bill",
+            "budget",
+            "contract",
+            "contractor_report",
+            "training",
+            "manpower",
+            "presentation",
+            "notification",
+            "inspection",
+        }:
+            result = rag_engine.index_app_database(module=module)
         elif HAS_ADVANCED:
             if module == "calibration":
                 result = rag_engine_advanced.index_calibration_data()

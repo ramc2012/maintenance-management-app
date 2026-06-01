@@ -3,6 +3,7 @@ import axios from "axios";
 import { useAuth } from "../../../context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
+import { getUserHomePath } from "../../../utils/workspace";
 
 export const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -26,7 +27,7 @@ export const LoginPage = () => {
       const redirectTo: string =
         typeof requestedPath === "string" && requestedPath !== "/login"
           ? requestedPath
-          : "/hub";
+          : getUserHomePath(response.data.user);
       navigate(redirectTo, { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || "Invalid credentials");

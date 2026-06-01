@@ -1,10 +1,12 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 
 import { notifyUnauthorized } from '@/services/apiEvents';
 import { getStoredToken, type AuthSession } from '@/services/authStorage';
 
 export const API_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_DEV_API_PORT = '13003';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -59,8 +61,11 @@ export function resolveApiBaseUrl() {
   if (__DEV__) {
     const expoHost = extractExpoHost();
     if (expoHost) {
-      return `http://${expoHost}:3003/api`;
+      return `http://${expoHost}:${DEFAULT_DEV_API_PORT}/api`;
     }
+
+    const localHost = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+    return `http://${localHost}:${DEFAULT_DEV_API_PORT}/api`;
   }
 
   throw new ApiConfigurationError(

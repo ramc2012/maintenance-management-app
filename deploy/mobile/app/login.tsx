@@ -14,6 +14,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import type { ColorScheme } from '@/constants/theme';
 import api from '@/services/api';
 
 export default function LoginScreen() {
@@ -22,7 +23,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login, token, loading: authLoading } = useAuth();
-  const { theme } = useTheme();
+  const { theme, colorScheme, setColorScheme } = useTheme();
   const { colors } = theme;
   const router = useRouter();
 
@@ -55,27 +56,30 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.isDark ? colors.background : '#e2e8f0' }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.hero, { backgroundColor: theme.isDark ? colors.surface : '#0f172a' }]}>
-        <View style={[styles.logoWrap, { backgroundColor: colors.primary }]}>
-          <MaterialCommunityIcons name="wrench-cog-outline" size={34} color="#ffffff" />
+      <View style={[styles.hero, { backgroundColor: colors.heroSurface, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}>
+        <View style={styles.heroHeader}>
+          <View style={[styles.logoWrap, { backgroundColor: colors.primary }]}>
+            <MaterialCommunityIcons name="wrench-cog-outline" size={28} color="#ffffff" />
+          </View>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>MAINTENANCE</Text>
+          <ThemeModeSwitch colorScheme={colorScheme} setColorScheme={setColorScheme} colors={colors} />
         </View>
-        <Text style={styles.eyebrow}>MAINTENANCE MANAGEMENT</Text>
-        <Text style={styles.title}>Field access for Ankleshwar operations.</Text>
-        <Text style={styles.subtitle}>
-          Sign in to access KPI monitoring, execution modules, notifications, and planning workflows from the mobile shell.
+        <Text style={[styles.title, { color: colors.heroText }]}>Ankleshwar field access</Text>
+        <Text style={[styles.subtitle, { color: colors.heroTextSecondary }]} numberOfLines={2}>
+          Sign in for KPIs, execution modules, alerts, and planning workflows.
         </Text>
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.isDark ? colors.surfaceElevated : '#ffffff' }]}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Sign in</Text>
         <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Use your maintenance system credentials.</Text>
 
         {error ? (
-          <View style={[styles.errorBox, { backgroundColor: colors.errorBg }]}>
+          <View style={[styles.errorBox, { backgroundColor: colors.errorBg, borderColor: colors.errorBorder }]}>
             <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
             <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
@@ -119,60 +123,125 @@ export default function LoginScreen() {
   );
 }
 
+function ThemeModeSwitch({
+  colorScheme,
+  setColorScheme,
+  colors,
+}: {
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
+  colors: Record<string, string>;
+}) {
+  const activeScheme = colorScheme === 'dark' ? 'dark' : 'light';
+
+  return (
+    <View style={[styles.themeSwitch, { backgroundColor: colors.cardMuted, borderColor: colors.cardBorder }]}>
+      {[
+        { value: 'light' as const, icon: 'white-balance-sunny' as const },
+        { value: 'dark' as const, icon: 'moon-waning-crescent' as const },
+      ].map((option) => {
+        const selected = activeScheme === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityLabel={option.value === 'light' ? 'Use day theme' : 'Use dark theme'}
+            style={[styles.themeButton, selected && { backgroundColor: colors.primary }]}
+            onPress={() => setColorScheme(option.value)}
+          >
+            <MaterialCommunityIcons
+              name={option.icon}
+              size={16}
+              color={selected ? '#ffffff' : colors.textSecondary}
+            />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-start',
+    padding: 16,
+    paddingTop: 72,
   },
   hero: {
-    borderRadius: 28,
-    padding: 24,
-    marginBottom: 18,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   logoWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
   },
   eyebrow: {
-    color: '#93c5fd',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   title: {
-    marginTop: 10,
-    fontSize: 28,
-    lineHeight: 34,
+    marginTop: 12,
+    fontSize: 22,
+    lineHeight: 27,
     fontWeight: '800',
-    color: '#ffffff',
   },
   subtitle: {
-    marginTop: 12,
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#cbd5e1',
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  themeSwitch: {
+    flexDirection: 'row',
+    borderRadius: 999,
+    borderWidth: 1,
+    padding: 2,
+  },
+  themeButton: {
+    width: 30,
+    height: 28,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   card: {
-    borderRadius: 28,
-    padding: 22,
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
   },
   cardTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
   },
   cardSubtitle: {
-    marginTop: 6,
-    fontSize: 14,
+    marginTop: 4,
+    fontSize: 13,
   },
   errorBox: {
-    marginTop: 18,
-    borderRadius: 14,
-    padding: 12,
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -181,11 +250,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   inputShell: {
-    height: 56,
-    marginTop: 14,
-    borderRadius: 18,
+    height: 52,
+    marginTop: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -195,9 +264,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    marginTop: 18,
-    height: 54,
-    borderRadius: 18,
+    marginTop: 14,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -210,7 +279,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   hint: {
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 12,
     lineHeight: 18,
   },

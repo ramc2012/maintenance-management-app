@@ -9,7 +9,7 @@ import { getStoredToken } from '@/services/authStorage';
 import { API_REQUEST_TIMEOUT_MS, ApiConfigurationError, ApiError } from '@/services/api';
 
 const explicitCognitiveUrl = process.env.EXPO_PUBLIC_COGNITIVE_API_URL?.trim();
-const defaultKelvinModel = process.env.EXPO_PUBLIC_COGNITIVE_MODEL?.trim() || 'gemma4:e2b';
+const defaultKelvinModel = process.env.EXPO_PUBLIC_COGNITIVE_MODEL?.trim() || 'gemma4:e4b';
 const expoHost =
   (Constants.expoConfig as { hostUri?: string } | null)?.hostUri?.split(':')[0]
   ?? ((Constants as unknown as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } }).manifest2?.extra?.expoGo?.debuggerHost?.split(':')[0]);
@@ -33,7 +33,15 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  sources?: any[];
+  sources?: SourceInfo[];
+}
+
+interface SourceInfo {
+  module?: string;
+  source?: string;
+  title?: string;
+  source_type?: string;
+  relevance?: number;
 }
 
 export default function KelvinScreen() {
@@ -68,7 +76,7 @@ export default function KelvinScreen() {
       let response: Response;
 
       try {
-        response = await fetch(`${resolveCognitiveApiUrl()}/chat`, {
+        response = await fetch(`${resolveCognitiveApiUrl()}/chat/enhanced`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -79,6 +87,7 @@ export default function KelvinScreen() {
             model: defaultKelvinModel,
             use_rag: true,
             use_multi_hop: true,
+            use_llm: true,
           }),
           signal: controller.signal,
         });
@@ -126,10 +135,18 @@ export default function KelvinScreen() {
 
   const quickQuestions = [
     "Show pending procurement cases",
-    "Equipment due for calibration",
-    "Active workshop jobs",
-    "Overdue maintenance items"
+    "Equipment installed in CPF",
+    "Compressor running hours this month",
+    "Find the air compressor maintenance guide"
   ];
+
+  const sourceLabel = (source: SourceInfo) => {
+    const moduleName = source.module?.replace(/_/g, ' ') || 'rag';
+    const title = source.title || source.source || source.module || 'source';
+    const clipped = title.length > 34 ? `${title.slice(0, 31)}...` : title;
+    const score = typeof source.relevance === 'number' ? ` ${Math.round(source.relevance * 100)}%` : '';
+    return `${moduleName}: ${clipped}${score}`;
+  };
 
   return (
     <KeyboardAvoidingView
@@ -169,8 +186,8 @@ export default function KelvinScreen() {
               {msg.sources && msg.sources.length > 0 && (
                 <View style={styles.sources}>
                   <Text style={styles.sourcesTitle}>Sources:</Text>
-                  {msg.sources.map((s, i) => (
-                    <Text key={i} style={styles.sourceItem}>{s.module} ({Math.round(s.relevance * 100)}%)</Text>
+                  {msg.sources.slice(0, 5).map((s, i) => (
+                    <Text key={`${s.source || s.title || s.module}-${i}`} style={styles.sourceItem}>{sourceLabel(s)}</Text>
                   ))}
                 </View>
               )}

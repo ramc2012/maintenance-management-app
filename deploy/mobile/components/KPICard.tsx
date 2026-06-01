@@ -24,42 +24,42 @@ export function KPICard({
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
       <View style={[styles.iconWrap, { backgroundColor: `${accent}18` }]}>
-        <MaterialCommunityIcons name={icon} size={20} color={accent} />
+        <MaterialCommunityIcons name={icon} size={16} color={accent} />
       </View>
-      <Text style={[styles.value, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      {hint ? <Text style={[styles.hint, { color: colors.textTertiary }]}>{hint}</Text> : null}
+      <Text style={[styles.value, { color: colors.text }]} allowFontScaling={false}>{value}</Text>
+      <Text style={[styles.label, { color: colors.textSecondary }]} allowFontScaling={false}>{label}</Text>
+      {hint ? <Text style={[styles.hint, { color: colors.textTertiary }]} numberOfLines={1} allowFontScaling={false}>{hint}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 170,
-    padding: 16,
-    borderRadius: 18,
-    marginRight: 12,
+    width: 112,
+    padding: 9,
+    borderRadius: 12,
+    marginRight: 8,
     borderWidth: 1,
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 6,
   },
   value: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '800',
   },
   label: {
-    marginTop: 6,
-    fontSize: 14,
+    marginTop: 3,
+    fontSize: 11,
     fontWeight: '600',
   },
   hint: {
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: 2,
+    fontSize: 10,
   },
 });

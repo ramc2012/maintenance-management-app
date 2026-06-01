@@ -50,14 +50,16 @@ export function useThemeColor(
 // ─── Text ───────────────────────────────────────────────────────────────────
 export function Text(props: TextProps) {
   const { style, lightColor, darkColor, ...otherProps } = props;
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const { theme } = useTheme();
+  const color = theme.isDark ? darkColor ?? theme.colors.text : lightColor ?? theme.colors.text;
   return <DefaultText style={[{ color }, style]} {...otherProps} />;
 }
 
 // ─── View ───────────────────────────────────────────────────────────────────
 export function View(props: ViewProps) {
   const { style, lightColor, darkColor, ...otherProps } = props;
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const { theme } = useTheme();
+  const backgroundColor = theme.isDark ? darkColor ?? theme.colors.background : lightColor ?? theme.colors.background;
   return <DefaultView style={[{ backgroundColor }, style]} {...otherProps} />;
 }
 

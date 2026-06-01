@@ -13,7 +13,14 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
-    user: { id: '1', username: 'admin', role: 'ADMIN' },
+    user: {
+      id: '1',
+      username: 'admin',
+      role: 'ADMIN',
+      persona: 'MANAGER',
+      defaultDiscipline: 'MECHANICAL',
+      disciplineAccess: [{ discipline: 'MECHANICAL', accessLevel: 'MANAGE', isDefault: true }],
+    },
     token: 'token',
     loading: false,
     logout: jest.fn(),
@@ -26,6 +33,41 @@ jest.mock('@/context/NotificationContext', () => ({
     isRefreshing: false,
   }),
 }));
+
+jest.mock('@/context/ThemeContext', () => {
+  const colors = {
+    backgroundSecondary: '#f8fafc',
+    backgroundTertiary: '#e2e8f0',
+    card: '#ffffff',
+    cardBorder: '#e2e8f0',
+    cardMuted: '#f8fafc',
+    heroSurface: '#ffffff',
+    heroText: '#0f172a',
+    heroTextSecondary: '#64748b',
+    primary: '#2563eb',
+    surface: '#ffffff',
+    text: '#0f172a',
+    textSecondary: '#64748b',
+    textTertiary: '#94a3b8',
+    warning: '#d97706',
+    warningBg: '#fff7ed',
+    warningBorder: '#fed7aa',
+    shadow: 'rgba(0, 0, 0, 0.08)',
+  };
+
+  return {
+    ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+    useTheme: () => ({
+      theme: { colors, isDark: false },
+      isDark: false,
+      colorScheme: 'light',
+      accentName: 'blue',
+      setColorScheme: jest.fn(),
+      setAccentColor: jest.fn(),
+    }),
+    useColors: () => colors,
+  };
+});
 
 jest.mock('@/hooks/useAPI', () => ({
   useKpiSummary: () => ({
@@ -54,14 +96,26 @@ jest.mock('@/hooks/useAPI', () => ({
   }),
 }));
 
+jest.mock('@/hooks/useModuleSubscriptions', () => ({
+  useModuleSubscriptions: () => ({
+    loading: false,
+    subscriptions: {},
+    subscribedIds: [],
+    isSubscribed: () => true,
+    setSubscribed: jest.fn(),
+    resetSubscriptions: jest.fn(),
+  }),
+}));
+
 describe('HomeScreen', () => {
-  it('renders the new operations shell', () => {
+  it('renders the manager overview shell', () => {
     render(<HomeScreen />);
 
-    expect(screen.getByText('Mobile maintenance control room')).toBeTruthy();
+    expect(screen.getByText('Executive summary')).toBeTruthy();
     expect(screen.getByText('Unread alerts')).toBeTruthy();
-    expect(screen.getByText('Operations')).toBeTruthy();
-    expect(screen.getByText('Equipment Master')).toBeTruthy();
+    expect(screen.getByText('Department Dashboards')).toBeTruthy();
+    expect(screen.getByText('Mech')).toBeTruthy();
+    expect(screen.getByText('Desk')).toBeTruthy();
     expect(screen.getByText('Health watch')).toBeTruthy();
   });
 });

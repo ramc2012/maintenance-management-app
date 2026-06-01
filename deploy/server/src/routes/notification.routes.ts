@@ -6,9 +6,11 @@ import {
   markNotificationRead,
   runNotificationSweep,
 } from '../controllers/notificationController';
-import { authorizeRole } from '../middleware/auth';
+import { authenticateToken, authorizeRole } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticateToken);
 
 router.get('/', getNotifications);
 router.get('/unread-count', getUnreadCount);

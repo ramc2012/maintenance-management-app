@@ -5,11 +5,12 @@ import axios from 'axios';
 
 interface OperationsOverviewProps {
   focus?: 'mechanical' | 'electrical' | 'process';
+  discipline?: 'MECHANICAL' | 'ELECTRICAL';
 }
 
 const formatNumber = (value: number) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
 
-export const OperationsOverview: React.FC<OperationsOverviewProps> = ({ focus = 'mechanical' }) => {
+export const OperationsOverview: React.FC<OperationsOverviewProps> = ({ focus = 'mechanical', discipline }) => {
   const [installations, setInstallations] = useState<any[]>([]);
   const [installationId, setInstallationId] = useState<string>('');
   const [overview, setOverview] = useState<any>(null);
@@ -38,7 +39,10 @@ export const OperationsOverview: React.FC<OperationsOverviewProps> = ({ focus = 
       setLoading(true);
       try {
         const response = await axios.get('/api/operations/overview', {
-          params: installationId ? { installationId } : {},
+          params: {
+            ...(installationId ? { installationId } : {}),
+            ...(discipline ? { discipline } : {}),
+          },
         });
         setOverview(response.data);
       } catch (error) {
@@ -50,7 +54,7 @@ export const OperationsOverview: React.FC<OperationsOverviewProps> = ({ focus = 
     };
 
     fetchOverview();
-  }, [installationId]);
+  }, [discipline, installationId]);
 
   const maxTrend = Math.max(
     1,

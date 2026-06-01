@@ -7,6 +7,7 @@ import {
   normalizeDateKey,
   toLogDate,
 } from '../services/operationsCatalog';
+import { applyDisciplineScope, resolveScopedDisciplines } from '../services/disciplineAccess';
 
 const prisma = new PrismaClient();
 
@@ -211,6 +212,7 @@ const createOrUpdateOperationalLog = async (input: any) => {
       assetClass: 'RUNNING_EQUIPMENT',
       profileCode,
       installationId,
+      primaryDiscipline: equipment.primaryDiscipline,
       runtimeHours: input.runtimeHours ?? 0,
       downtimeHours: input.downtimeHours ?? 0,
       standbyHours: input.standbyHours ?? 0,
@@ -233,6 +235,7 @@ const createOrUpdateOperationalLog = async (input: any) => {
       assetClass: 'RUNNING_EQUIPMENT',
       profileCode,
       installationId,
+      primaryDiscipline: equipment.primaryDiscipline,
       equipmentTag: equipment.equipmentTag,
       runtimeHours: input.runtimeHours ?? 0,
       downtimeHours: input.downtimeHours ?? 0,
@@ -289,6 +292,7 @@ export const getOperationalAssetProfile = async (req: Request, res: Response) =>
       include: { installation: true },
     });
     if (!equipment) return res.status(404).json({ error: 'Equipment not found' });
+    resolveScopedDisciplines(req.user, equipment.primaryDiscipline);
 
     const profileCode = detectProfileCode(equipment);
     const profile = await prisma.assetLogProfile.findUnique({
@@ -318,6 +322,7 @@ export const getOperationalLogs = async (req: Request, res: Response) => {
     if (req.query.equipmentTag) where.equipmentTag = String(req.query.equipmentTag);
     const range = buildRangeFilter(req.query.from as string | undefined, req.query.to as string | undefined);
     if (range) where.logDate = range;
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
 
     const logs = await prisma.operationalLog.findMany({
       where,
@@ -364,6 +369,7 @@ export const getOperationalOverview = async (req: Request, res: Response) => {
     const where: any = {};
     if (req.query.installationId) where.installationId = String(req.query.installationId);
     where.logDate = buildRangeFilter((req.query.from as string) || normalizeDateKey(defaultFrom), (req.query.to as string) || todayKey);
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
 
     const [logs, compressors, equipmentCount] = await Promise.all([
       prisma.operationalLog.findMany({
@@ -378,11 +384,15 @@ export const getOperationalOverview = async (req: Request, res: Response) => {
         where: {
           ...(req.query.installationId ? { installationId: String(req.query.installationId) } : {}),
           ...(where.logDate ? { date: where.logDate } : {}),
+          ...(where.primaryDiscipline ? { primaryDiscipline: where.primaryDiscipline } : {}),
         },
         orderBy: { date: 'asc' },
       }),
       prisma.runningEquipmentMaster.count({
-        where: req.query.installationId ? { installationId: String(req.query.installationId) } : undefined,
+        where: {
+          ...(req.query.installationId ? { installationId: String(req.query.installationId) } : {}),
+          ...(where.primaryDiscipline ? { primaryDiscipline: where.primaryDiscipline } : {}),
+        },
       }),
     ]);
 
@@ -530,6 +540,7 @@ export const getOperationalAssetTimeline = async (req: Request, res: Response) =
     ]);
 
     if (!equipment) return res.status(404).json({ error: 'Equipment not found' });
+    resolveScopedDisciplines(req.user, equipment.primaryDiscipline);
 
     const timeline = [
       ...operationalLogs.map((log) => {
@@ -581,6 +592,7 @@ export const getCompressorLogs = async (req: Request, res: Response) => {
     if (req.query.compressorId) where.compressorId = String(req.query.compressorId);
     const range = buildRangeFilter(req.query.from as string | undefined, req.query.to as string | undefined);
     if (range) where.date = range;
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
 
     const logs = await prisma.gasCompressionLog.findMany({
       where,
@@ -651,6 +663,7 @@ export const createCompressorLog = async (req: Request, res: Response) => {
       update: {
         sourceMode: req.body.sourceMode || 'HYBRID',
         installationId: req.body.installationId || equipment.installationId,
+        primaryDiscipline: equipment.primaryDiscipline,
         operationalLogId: operationalLog.id,
         inputGasVolume: req.body.inputGasVolume ?? 0,
         outputGasVolume: req.body.outputGasVolume ?? req.body.gasCompressed ?? 0,
@@ -681,6 +694,7 @@ export const createCompressorLog = async (req: Request, res: Response) => {
         sourceMode: req.body.sourceMode || 'HYBRID',
         compressorId: equipment.equipmentTag,
         installationId: req.body.installationId || equipment.installationId,
+        primaryDiscipline: equipment.primaryDiscipline,
         operationalLogId: operationalLog.id,
         inputGasVolume: req.body.inputGasVolume ?? 0,
         outputGasVolume: req.body.outputGasVolume ?? req.body.gasCompressed ?? 0,

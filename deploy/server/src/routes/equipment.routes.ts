@@ -50,8 +50,11 @@ import {
   getEquipmentQR,
   getInstrumentQR,
 } from '../controllers/equipment.controller';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticateToken);
 
 // Installations
 router.get('/installations', getInstallations);

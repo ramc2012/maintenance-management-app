@@ -24,6 +24,7 @@ import { useAuth } from '../../../context/AuthContext';
 
 interface CompressionLogProps {
   showParameters?: boolean;
+  discipline?: 'MECHANICAL';
 }
 
 const renderMiniTrend = (values: number[], color: string) => {
@@ -38,7 +39,7 @@ const renderMiniTrend = (values: number[], color: string) => {
   );
 };
 
-export const CompressionLog: React.FC<CompressionLogProps> = ({ showParameters = false }) => {
+export const CompressionLog: React.FC<CompressionLogProps> = ({ showParameters = false, discipline }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const [logs, setLogs] = useState<any[]>([]);
@@ -63,7 +64,7 @@ export const CompressionLog: React.FC<CompressionLogProps> = ({ showParameters =
 
   useEffect(() => {
     fetchCompressionLogs();
-  }, [selectedInstallation]);
+  }, [discipline, selectedInstallation]);
 
   const filterGasCompressors = (equipment: any[]) =>
     (equipment || []).filter((item) => {
@@ -95,7 +96,10 @@ export const CompressionLog: React.FC<CompressionLogProps> = ({ showParameters =
     setLoading(true);
     try {
       const response = await axios.get('/api/operations/compressors/logs', {
-        params: selectedInstallation ? { installationId: selectedInstallation } : {},
+        params: {
+          ...(selectedInstallation ? { installationId: selectedInstallation } : {}),
+          ...(discipline ? { discipline } : {}),
+        },
       });
       setLogs(response.data || []);
     } catch (error) {

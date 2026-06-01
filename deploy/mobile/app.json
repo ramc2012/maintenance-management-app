@@ -15,9 +15,15 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.maintenance-management"
+      "bundleIdentifier": "com.ongc.maintenancemanagement",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Maintenance Management to scan equipment QR codes.",
+        "NSMicrophoneUsageDescription": "Allow Maintenance Management to attach audio notes when required.",
+        "NSPhotoLibraryUsageDescription": "Allow Maintenance Management to attach job and equipment photos."
+      }
     },
     "android": {
+      "package": "com.ongc.maintenancemanagement",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

@@ -18,8 +18,8 @@ import * as Haptics from 'expo-haptics';
 import { ExportButton } from '@/components/ExportButton';
 import { QRScannerModal } from '@/components/QRScannerModal';
 import { Text } from '@/components/Themed';
+import { useTheme } from '@/context/ThemeContext';
 import api, { resolveApiBaseUrl } from '@/services/api';
-import { getStoredToken } from '@/services/authStorage';
 import { disciplineToLabel, type Discipline } from '@/utils/workspace';
 
 interface WorkOrderItem {
@@ -58,6 +58,8 @@ interface MaintenanceRequestItem {
 export default function WorkOrdersScreen() {
   const params = useLocalSearchParams<{ discipline?: string }>();
   const router = useRouter();
+  const { theme } = useTheme();
+  const { colors } = theme;
   const discipline = (params.discipline?.toUpperCase() as Discipline | undefined) || undefined;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -195,11 +197,11 @@ export default function WorkOrdersScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
+    return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   if (error) {
-    return <View style={styles.center}><Text style={styles.error}>{error}</Text></View>;
+    return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><Text style={[styles.error, { color: colors.error }]}>{error}</Text></View>;
   }
 
   const counts = stats?.counts ?? {};
@@ -207,53 +209,52 @@ export default function WorkOrdersScreen() {
   const visibleRequests = requests.filter((item) => item.status === 'PENDING' || item.status === 'APPROVED').slice(0, 10);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
       <Stack.Screen options={{ title: discipline ? `${disciplineToLabel(discipline)} Work Orders` : 'My Work Orders' }} />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>{discipline ? `${disciplineToLabel(discipline)} execution board` : 'Execution board'}</Text>
-          <Text style={styles.subtitle}>Open work, pending requests, and quick links for field closure and reporting.</Text>
-        </View>
-
         {/* Stats */}
         <View style={styles.statsRow}>
-          <MetricCard label="Open" value={counts.open ?? 0} accent="#2563eb" />
-          <MetricCard label="In Progress" value={counts.inProgress ?? 0} accent="#d97706" />
-          <MetricCard label="Overdue" value={counts.overdue ?? 0} accent="#dc2626" />
-          <MetricCard label="Closed" value={counts.closed ?? 0} accent="#059669" />
+          <MetricCard label="Open" value={counts.open ?? 0} icon="clipboard-list-outline" accent="#2563eb" colors={colors} />
+          <MetricCard label="Progress" value={counts.inProgress ?? 0} icon="progress-clock" accent="#d97706" colors={colors} />
+          <MetricCard label="Overdue" value={counts.overdue ?? 0} icon="alert-circle-outline" accent="#dc2626" colors={colors} />
+          <MetricCard label="Closed" value={counts.closed ?? 0} icon="check-circle-outline" accent="#059669" colors={colors} />
         </View>
 
         {/* Quick Actions */}
         <View style={styles.actionsRow}>
-          <Pressable style={styles.quickAction} onPress={() => setQrVisible(true)}>
-            <MaterialCommunityIcons name="qrcode-scan" size={20} color="#2563eb" />
-            <Text style={styles.quickActionText}>Scan QR</Text>
+          <Pressable style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.cardBorder }]} onPress={() => setQrVisible(true)}>
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>Scan QR</Text>
           </Pressable>
           <ExportButton endpoint={`/workorders/export${query}`} fileName="WorkOrders.xlsx" label="Export" />
         </View>
 
         {/* Work Orders */}
-        <Text style={styles.sectionTitle}>Active work orders</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Active work orders</Text>
         {visibleWorkOrders.length === 0 ? (
-          <EmptyState message="No open work orders in this scope." />
+          <EmptyState message="No open work orders in this scope." colors={colors} />
         ) : (
           visibleWorkOrders.map((wo) => (
-            <Pressable key={wo.id} style={styles.card} onPress={() => openDetail(wo)}>
+            <Pressable key={wo.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]} onPress={() => openDetail(wo)}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{wo.woNumber}</Text>
+                <View style={styles.cardTitleRow}>
+                  <View style={[styles.cardIcon, { backgroundColor: `${colors.primary}18` }]}>
+                    <MaterialCommunityIcons name="clipboard-list-outline" size={16} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>{wo.woNumber}</Text>
+                </View>
                 <StatusPill value={wo.status} />
               </View>
-              <Text style={styles.cardCopy}>{wo.description}</Text>
+              <Text style={[styles.cardCopy, { color: colors.textSecondary }]}>{wo.description}</Text>
               <View style={styles.cardMetaRow}>
                 <View style={styles.metaChips}>
                   <PriorityChip value={wo.priority} />
-                  {wo.woType && <Text style={styles.cardMeta}>{wo.woType}</Text>}
+                  {wo.woType && <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>{wo.woType}</Text>}
                 </View>
-                <Text style={styles.cardMeta}>
+                <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>
                   {wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString() : 'No date'}
                 </Text>
               </View>
@@ -262,17 +263,17 @@ export default function WorkOrdersScreen() {
         )}
 
         {/* Pending Requests */}
-        <Text style={styles.sectionTitle}>Pending maintenance requests</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pending maintenance requests</Text>
         {visibleRequests.length === 0 ? (
-          <EmptyState message="No pending or approved requests." />
+          <EmptyState message="No pending or approved requests." colors={colors} />
         ) : (
           visibleRequests.map((request) => (
-            <View key={request.id} style={styles.card}>
+            <View key={request.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{request.reqNumber}</Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{request.reqNumber}</Text>
                 <StatusPill value={request.status} />
               </View>
-              <Text style={styles.cardCopy}>{request.title}</Text>
+              <Text style={[styles.cardCopy, { color: colors.textSecondary }]}>{request.title}</Text>
               <PriorityChip value={request.priority} />
             </View>
           ))
@@ -281,14 +282,14 @@ export default function WorkOrdersScreen() {
 
       {/* WO Detail Modal */}
       <Modal visible={detailVisible} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.cardBorder }]}>
             <View>
-              <Text style={styles.modalTitle}>{selectedWO?.woNumber}</Text>
-              <Text style={styles.modalSubtitle}>{selectedWO?.woType} | {selectedWO?.priority}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedWO?.woNumber}</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{selectedWO?.woType} | {selectedWO?.priority}</Text>
             </View>
             <Pressable onPress={() => setDetailVisible(false)} hitSlop={12}>
-              <MaterialCommunityIcons name="close" size={24} color="#0f172a" />
+              <MaterialCommunityIcons name="close" size={24} color={colors.text} />
             </Pressable>
           </View>
 
@@ -296,7 +297,7 @@ export default function WorkOrdersScreen() {
             {/* Status & Description */}
             <View style={styles.detailSection}>
               <StatusPill value={selectedWO?.status || ''} />
-              <Text style={styles.detailDesc}>{selectedWO?.description}</Text>
+              <Text style={[styles.detailDesc, { color: colors.textSecondary }]}>{selectedWO?.description}</Text>
             </View>
 
             {/* Dates */}
@@ -403,11 +404,22 @@ export default function WorkOrdersScreen() {
   );
 }
 
-function MetricCard({ label, value, accent }: { label: string; value: number; accent: string }) {
+function MetricCard({ label, value, icon, accent, colors }: {
+  label: string;
+  value: number;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  accent: string;
+  colors: any;
+}) {
   return (
-    <View style={styles.metricCard}>
-      <Text style={[styles.metricValue, { color: accent }]}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+    <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+      <View style={styles.metricTop}>
+        <View style={[styles.metricIcon, { backgroundColor: `${accent}18` }]}>
+          <MaterialCommunityIcons name={icon} size={14} color={accent} />
+        </View>
+        <Text style={[styles.metricValue, { color: accent }]}>{value}</Text>
+      </View>
+      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -455,43 +467,44 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({ message, colors }: { message: string; colors: any }) {
   return (
-    <View style={styles.emptyCard}>
-      <MaterialCommunityIcons name="clipboard-text-outline" size={22} color="#94a3b8" />
-      <Text style={styles.emptyText}>{message}</Text>
+    <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+      <MaterialCommunityIcons name="clipboard-text-outline" size={22} color={colors.textTertiary} />
+      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{message}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 16, paddingBottom: 28 },
+  container: { flex: 1 },
+  content: { padding: 14, paddingBottom: 28 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  error: { color: '#dc2626' },
-  header: { marginBottom: 18 },
-  title: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
-  subtitle: { marginTop: 6, fontSize: 13, lineHeight: 19, color: '#64748b' },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 12 },
-  metricCard: { width: '48%', borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 12 },
-  metricValue: { fontSize: 24, fontWeight: '800' },
-  metricLabel: { marginTop: 6, fontSize: 12, color: '#64748b' },
-  actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  quickAction: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#fff' },
-  quickActionText: { fontSize: 14, fontWeight: '600', color: '#0f172a' },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', marginBottom: 10, marginTop: 4 },
-  card: { borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 10 },
+  error: {},
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 8 },
+  metricCard: { width: '23.5%', borderRadius: 14, borderWidth: 1, padding: 9, marginBottom: 10, minHeight: 66, justifyContent: 'space-between' },
+  metricTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metricIcon: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  metricValue: { fontSize: 18, fontWeight: '900' },
+  metricLabel: { fontSize: 10, fontWeight: '700' },
+  actionsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  quickAction: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  quickActionText: { fontSize: 14, fontWeight: '600' },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 10, marginTop: 2 },
+  card: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 10 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  cardTitle: { flex: 1, fontSize: 14, fontWeight: '800', color: '#0f172a' },
-  cardCopy: { marginTop: 8, fontSize: 13, lineHeight: 19, color: '#334155' },
+  cardTitleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { flex: 1, fontSize: 14, fontWeight: '800' },
+  cardCopy: { marginTop: 8, fontSize: 13, lineHeight: 19 },
   cardMetaRow: { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metaChips: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardMeta: { fontSize: 12, color: '#64748b' },
+  cardMeta: { fontSize: 12 },
   priorityChip: { fontSize: 11, fontWeight: '700' },
   statusPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   statusText: { fontSize: 11, fontWeight: '700' },
-  emptyCard: { borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', padding: 18, alignItems: 'center', gap: 10, marginBottom: 12 },
-  emptyText: { fontSize: 13, color: '#64748b', textAlign: 'center' },
+  emptyCard: { borderRadius: 16, borderWidth: 1, padding: 18, alignItems: 'center', gap: 10, marginBottom: 12 },
+  emptyText: { fontSize: 13, textAlign: 'center' },
   // Modal styles
   modalContainer: { flex: 1, backgroundColor: '#f8fafc' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },

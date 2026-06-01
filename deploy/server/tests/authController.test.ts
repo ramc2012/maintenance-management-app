@@ -9,6 +9,9 @@ const { prismaMock, bcryptMock, jwtMock } = vi.hoisted(() => ({
       create: vi.fn(),
       delete: vi.fn(),
     },
+    department: {
+      findUnique: vi.fn(),
+    },
   },
   bcryptMock: {
     compare: vi.fn(),
@@ -31,7 +34,7 @@ vi.mock('jsonwebtoken', () => ({
   default: jwtMock,
 }));
 
-import { getUsers, login, updateUserPermissions } from '../src/controllers/authController';
+import { getUsers, login, register, updateUserPermissions } from '../src/controllers/authController';
 
 const createResponse = () => {
   const res: any = {};
@@ -51,6 +54,13 @@ describe('authController', () => {
       username: 'alex',
       password: 'hashed-password',
       role: 'USER',
+      phone: null,
+      jobTitle: null,
+      departmentId: null,
+      department: null,
+      managerId: null,
+      manager: null,
+      disciplineAccesses: [],
       canCreateWorkOrder: true,
       canCloseWorkOrder: false,
     });
@@ -65,13 +75,15 @@ describe('authController', () => {
 
     expect(res.json).toHaveBeenCalledWith({
       token: 'jwt-token',
-      user: {
+      user: expect.objectContaining({
         id: 'user-1',
         username: 'alex',
         role: 'USER',
+        persona: 'FIELD',
+        defaultDiscipline: 'MECHANICAL',
         canCreateWorkOrder: true,
         canCloseWorkOrder: false,
-      },
+      }),
     });
   });
 
@@ -81,6 +93,13 @@ describe('authController', () => {
         id: 'user-1',
         username: 'alex',
         role: 'USER',
+        phone: null,
+        jobTitle: null,
+        departmentId: null,
+        department: null,
+        managerId: null,
+        manager: null,
+        disciplineAccesses: [],
         createdAt: '2026-04-20T00:00:00.000Z',
         lastLogin: null,
         canCreateWorkOrder: true,
@@ -94,15 +113,38 @@ describe('authController', () => {
     await getUsers(req, res);
 
     expect(prismaMock.user.findMany).toHaveBeenCalledWith({
-      select: {
+      select: expect.objectContaining({
         id: true,
         username: true,
         role: true,
+        phone: true,
+        jobTitle: true,
+        departmentId: true,
+        department: { select: { id: true, name: true } },
+        managerId: true,
+        manager: {
+          select: expect.objectContaining({
+            id: true,
+            username: true,
+            role: true,
+            jobTitle: true,
+          }),
+        },
+        disciplineAccesses: expect.objectContaining({
+          select: expect.objectContaining({
+            discipline: true,
+            accessLevel: true,
+            isDefault: true,
+            canViewProcurement: true,
+            canUpdateProcurement: true,
+            canRaiseRequirements: true,
+          }),
+        }),
         lastLogin: true,
         createdAt: true,
         canCreateWorkOrder: true,
         canCloseWorkOrder: true,
-      },
+      }),
     });
     expect(res.json).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -114,11 +156,122 @@ describe('authController', () => {
     );
   });
 
+  it('creates users with department and manager assignments', async () => {
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'manager-1',
+        username: 'maintenance.hod',
+        role: 'HOD',
+        departmentId: 'dept-1',
+        disciplineAccesses: [
+          {
+            discipline: 'MECHANICAL',
+            accessLevel: 'MANAGE',
+            isDefault: true,
+            canViewProcurement: true,
+            canUpdateProcurement: true,
+            canRaiseRequirements: true,
+          },
+        ],
+      });
+    prismaMock.department.findUnique.mockResolvedValue({
+      id: 'dept-1',
+      name: 'Mechanical',
+    });
+    bcryptMock.hash.mockResolvedValue('hashed-password');
+    prismaMock.user.create.mockResolvedValue({
+      id: 'user-2',
+      username: 'tech.01',
+      role: 'TECHNICIAN',
+      phone: '9999999999',
+      jobTitle: 'Field Technician',
+      departmentId: 'dept-1',
+      department: { id: 'dept-1', name: 'Mechanical' },
+      managerId: 'manager-1',
+      manager: { id: 'manager-1', username: 'maintenance.hod', role: 'HOD', jobTitle: 'Maintenance Head' },
+      disciplineAccesses: [
+        {
+          discipline: 'MECHANICAL',
+          accessLevel: 'EXECUTE',
+          isDefault: true,
+          canViewProcurement: true,
+          canUpdateProcurement: false,
+          canRaiseRequirements: true,
+        },
+      ],
+      canCreateWorkOrder: true,
+      canCloseWorkOrder: false,
+      createdAt: '2026-04-22T00:00:00.000Z',
+      lastLogin: null,
+    });
+
+    const req: any = {
+      user: { role: 'ADMIN' },
+      body: {
+        username: 'tech.01',
+        password: 'secret',
+        role: 'TECHNICIAN',
+        departmentId: 'dept-1',
+        managerId: 'manager-1',
+        phone: '9999999999',
+        jobTitle: 'Field Technician',
+        canCreateWorkOrder: true,
+      },
+    };
+    const res = createResponse();
+
+    await register(req, res);
+
+    expect(prismaMock.user.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        username: 'tech.01',
+        role: 'TECHNICIAN',
+        departmentId: 'dept-1',
+        managerId: 'manager-1',
+        phone: '9999999999',
+        jobTitle: 'Field Technician',
+        canCreateWorkOrder: true,
+        canCloseWorkOrder: false,
+        disciplineAccesses: {
+          create: [
+            expect.objectContaining({
+              discipline: 'MECHANICAL',
+              accessLevel: 'EXECUTE',
+              isDefault: true,
+            }),
+          ],
+        },
+      }),
+      select: expect.objectContaining({
+        departmentId: true,
+        managerId: true,
+        manager: expect.any(Object),
+        department: expect.any(Object),
+      }),
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        departmentId: 'dept-1',
+        managerId: 'manager-1',
+        manager: expect.objectContaining({ username: 'maintenance.hod' }),
+      }),
+    );
+  });
+
   it('updates user permissions instead of returning a stub response', async () => {
     prismaMock.user.update.mockResolvedValue({
       id: 'user-1',
       username: 'alex',
       role: 'USER',
+      phone: null,
+      jobTitle: null,
+      departmentId: null,
+      department: null,
+      managerId: null,
+      manager: null,
+      disciplineAccesses: [],
       canCreateWorkOrder: false,
       canCloseWorkOrder: true,
     });
@@ -137,13 +290,20 @@ describe('authController', () => {
         canCreateWorkOrder: false,
         canCloseWorkOrder: true,
       },
-      select: {
+      select: expect.objectContaining({
         id: true,
         username: true,
         role: true,
+        phone: true,
+        jobTitle: true,
+        departmentId: true,
+        department: { select: { id: true, name: true } },
+        managerId: true,
+        manager: expect.any(Object),
+        disciplineAccesses: expect.any(Object),
         canCreateWorkOrder: true,
         canCloseWorkOrder: true,
-      },
+      }),
     });
     expect(res.status).not.toHaveBeenCalledWith(501);
     expect(res.json).toHaveBeenCalledWith(

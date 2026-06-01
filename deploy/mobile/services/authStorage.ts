@@ -11,6 +11,29 @@ export interface AuthUser {
   id: string;
   username: string;
   role: string;
+  persona?: 'MANAGER' | 'FIELD' | 'HYBRID';
+  defaultDiscipline?: 'MECHANICAL' | 'ELECTRICAL' | 'INSTRUMENTATION' | null;
+  disciplineAccess?: Array<{
+    discipline: 'MECHANICAL' | 'ELECTRICAL' | 'INSTRUMENTATION';
+    accessLevel: 'VIEW' | 'EXECUTE' | 'MANAGE';
+    isDefault: boolean;
+    canViewProcurement: boolean;
+    canUpdateProcurement: boolean;
+    canRaiseRequirements: boolean;
+  }>;
+  capabilities?: {
+    managerOverview: boolean;
+    fieldWorkspace: boolean;
+    workspaces: Array<'MECHANICAL' | 'ELECTRICAL' | 'INSTRUMENTATION'>;
+    canViewProcurement: boolean;
+    canUpdateProcurement: boolean;
+    canRaiseRequirements: boolean;
+    canUseLogbook: boolean;
+    canUseCalibration: boolean;
+    canManageUsers: boolean;
+  };
+  canCreateWorkOrder?: boolean;
+  canCloseWorkOrder?: boolean;
 }
 
 export interface AuthSession {

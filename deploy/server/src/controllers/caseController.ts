@@ -1,15 +1,24 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import {
+  applyDisciplineScope,
+  canRaiseRequirementsForDiscipline,
+  canUpdateProcurementForDiscipline,
+  resolvePrimaryDisciplineForEquipmentTag,
+  resolvePrimaryDisciplineForText,
+  resolveScopedDisciplines,
+} from "../services/disciplineAccess";
 
 const prisma = new PrismaClient();
 
 export const getCases = async (req: Request, res: Response) => {
   try {
-    const { type, departmentId } = req.query;
+    const { type, departmentId, discipline } = req.query;
     
     const where: any = {};
     if (type) where.type = type;
     if (departmentId) where.departmentId = departmentId;
+    applyDisciplineScope(where, "primaryDiscipline", resolveScopedDisciplines(req.user, discipline));
     
     const cases = await prisma.case.findMany({
       where,
@@ -35,8 +44,12 @@ export const getCases = async (req: Request, res: Response) => {
 export const getCaseById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const caseItem = await prisma.case.findUnique({
-      where: { id },
+    const scopedDisciplines = resolveScopedDisciplines(req.user, req.query.discipline);
+    const caseItem = await prisma.case.findFirst({
+      where: {
+        id,
+        ...(scopedDisciplines.length === 1 ? { primaryDiscipline: scopedDisciplines[0] } : { primaryDiscipline: { in: scopedDisciplines } }),
+      },
       include: {
         department: true,
         comments: {
@@ -60,13 +73,23 @@ export const createCase = async (req: Request, res: Response) => {
   const { title, type, vendor, prValue, poValue, currency, prNumber, poNumber, sanctionFileNumber, tenderingFileNumber, procurementMethod, category, value, createdAt, departmentId, vendorCode, tag, processedBy, equipmentTag, maintenanceRelated } = req.body;
 
   // Strict Auth Check
-  if (!(req as any).user || !(req as any).user.username) {
+  if (!req.user || !req.user.username) {
       return res.status(401).json({ error: "User not authenticated" });
   }
 
-  const createdBy = (req as any).user.username;
+  const createdBy = req.user.username;
 
   try {
+    const inferredDiscipline = await resolvePrimaryDisciplineForEquipmentTag(
+      prisma,
+      equipmentTag,
+      resolvePrimaryDisciplineForText(`${title} ${category} ${tag}`),
+    );
+
+    if (!canRaiseRequirementsForDiscipline(req.user, inferredDiscipline)) {
+      return res.status(403).json({ error: "You do not have permission to raise requirements for this discipline." });
+    }
+
     const newCase = await prisma.case.create({
       data: {
         title,
@@ -88,6 +111,7 @@ export const createCase = async (req: Request, res: Response) => {
         tag,
         processedBy,
         departmentId: departmentId || null,
+        primaryDiscipline: inferredDiscipline,
         equipmentTag: equipmentTag || null,
         maintenanceRelated: maintenanceRelated === true || maintenanceRelated === 'true',
         createdAt: createdAt ? new Date(createdAt) : new Date(),
@@ -140,9 +164,18 @@ export const addComment = async (req: Request, res: Response) => {
 export const updateStage = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { stage, effectiveDate } = req.body;
-  const userId = (req as any).user.id;
+  const userId = req.user?.id;
 
   try {
+    const existingCase = await prisma.case.findUnique({
+      where: { id },
+      select: { id: true, primaryDiscipline: true },
+    });
+    if (!existingCase) return res.status(404).json({ error: "Case not found" });
+    if (!canUpdateProcurementForDiscipline(req.user, existingCase.primaryDiscipline)) {
+      return res.status(403).json({ error: "You do not have permission to update procurement stages for this discipline." });
+    }
+
     const updatedCase = await prisma.case.update({
       where: { id },
       data: { currentStage: stage },
@@ -191,6 +224,17 @@ export const updateCase = async (req: Request, res: Response) => {
     const { vendor, prValue, poValue, currency, prNumber, poNumber, sanctionFileNumber, tenderingFileNumber, procurementMethod, category, value, equipmentTag, maintenanceRelated } = req.body;
 
     try {
+        const existingCase = await prisma.case.findUnique({
+            where: { id },
+            select: { primaryDiscipline: true },
+        });
+        if (!existingCase) {
+            return res.status(404).json({ error: "Case not found" });
+        }
+        if (!canUpdateProcurementForDiscipline(req.user, existingCase.primaryDiscipline)) {
+            return res.status(403).json({ error: "You do not have permission to update procurement data for this discipline." });
+        }
+
         const updatedCase = await prisma.case.update({
             where: { id },
             data: {
@@ -218,7 +262,7 @@ export const updateCase = async (req: Request, res: Response) => {
 
 export const getDashboardAnalytics = async (req: Request, res: Response) => {
     try {
-        const { departmentId } = req.query;
+        const { departmentId, discipline } = req.query;
         const today = new Date();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth(); // 0-11
@@ -242,6 +286,7 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
         if (departmentId) {
             where.departmentId = String(departmentId);
         }
+        applyDisciplineScope(where, "primaryDiscipline", resolveScopedDisciplines(req.user, discipline));
 
         // Fetch all cases created in this FY
         const cases = await prisma.case.findMany({

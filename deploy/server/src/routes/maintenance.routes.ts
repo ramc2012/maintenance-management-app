@@ -4,14 +4,18 @@ import {
   createMaintenanceLog,
   updateMaintenanceLog,
   getManpower,
+  getManpowerHours,
   createManpower,
   updateManpower,
   getMonthlyReportLogs,
   getAnnualReportLogs,
   exportMaintenanceLogs,
 } from '../controllers/maintenance.controller';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authenticateToken);
 
 // Maintenance Logs
 router.get('/logs', getMaintenanceLogs);
@@ -21,6 +25,7 @@ router.put('/logs/:id', updateMaintenanceLog);
 
 // Manpower
 router.get('/manpower', getManpower);
+router.get('/manpower/hours', getManpowerHours);
 router.post('/manpower', createManpower);
 router.put('/manpower/:id', updateManpower);
 

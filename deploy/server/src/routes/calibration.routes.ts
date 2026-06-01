@@ -5,8 +5,22 @@ import {
   approveEvent, getDueInstruments, getOverdueInstruments,
   getCertificate, generate5PointTemplate, exportCalibrationEvents, getInstrumentHistory
 } from '../controllers/calibration.controller';
+import { authenticateToken } from '../middleware/auth';
+import { resolveScopedDisciplines } from '../services/disciplineAccess';
 
 const router = Router();
+
+const requireInstrumentationAccess = (req: any, res: any, next: any) => {
+  try {
+    resolveScopedDisciplines(req.user, 'INSTRUMENTATION');
+    next();
+  } catch (error: any) {
+    res.status(error?.status || 403).json({ error: error?.message || 'Instrumentation access is required.' });
+  }
+};
+
+router.use(authenticateToken);
+router.use(requireInstrumentationAccess);
 
 // Calibration Events
 router.get('/events', getCalibrationEvents);
