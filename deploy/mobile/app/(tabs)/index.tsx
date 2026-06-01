@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -217,7 +217,11 @@ export default function HomeScreen() {
         </View>
       </Pressable>
 
-      {user?.persona === 'FIELD' ? (
+      {moduleSubscriptions.loading ? (
+        <View style={styles.subscriptionLoading}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : user?.persona === 'FIELD' ? (
         <FieldWorkspaceSection
           assignedDisciplines={assignedDisciplines}
           selectedDiscipline={selectedDiscipline}
@@ -467,7 +471,7 @@ const styles = StyleSheet.create({
   emptyPanel: { borderRadius: 16, padding: 16 },
   emptyTitle: { fontSize: 14, fontWeight: '700' },
   emptyText: { marginTop: 6, fontSize: 12, lineHeight: 18 },
-  workspaceGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  workspaceGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: '2.75%' },
   workspaceCard: { width: '47%', borderRadius: 16, padding: 14, marginBottom: 12, minHeight: 148, borderWidth: 1 },
   workspaceName: { marginTop: 10, fontSize: 15, fontWeight: '800' },
   workspaceCopy: { marginTop: 6, fontSize: 11, lineHeight: 16 },
@@ -480,7 +484,8 @@ const styles = StyleSheet.create({
   assignmentCard: { borderRadius: 22, borderWidth: 1, padding: 20, marginTop: 8 },
   assignmentTitle: { fontSize: 18, fontWeight: '800' },
   assignmentText: { marginTop: 8, fontSize: 13, lineHeight: 20 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 0 },
+  subscriptionLoading: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: '2.75%' },
   kelvinFab: {
     position: 'absolute',
     right: 18,

@@ -23,7 +23,7 @@ export function KPICard({
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-      <View style={[styles.iconWrap, { backgroundColor: `${accent}18` }]}>
+      <View style={[styles.iconWrap, { backgroundColor: `${accent}${theme.isDark ? '30' : '18'}` }]}>
         <MaterialCommunityIcons name={icon} size={16} color={accent} />
       </View>
       <Text style={[styles.value, { color: colors.text }]} allowFontScaling={false}>{value}</Text>
