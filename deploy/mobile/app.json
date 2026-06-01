@@ -53,7 +53,7 @@
           },
           "android": {
             "minSdkVersion": 31,
-            "compileSdkVersion": 34,
+            "compileSdkVersion": 35,
             "targetSdkVersion": 34
           }
         }
