@@ -4,10 +4,14 @@ import { Text } from '@/components/Themed';
 import { Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/context/ThemeContext';
 
 const STATUS_COLORS: Record<string, string> = { PLANNED: '#3b82f6', IN_PROGRESS: '#eab308', COMPLETED: '#22c55e', ON_HOLD: '#f97316' };
 
 export default function MOHScreen() {
+  const { theme } = useTheme();
+  const { colors } = theme;
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,23 +46,23 @@ export default function MOHScreen() {
     moh.equipmentTag?.toLowerCase().includes(filter.toLowerCase())
   ) || [];
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#ea580c" /></View>;
-  if (error) return <View style={styles.center}><Text style={styles.error}>Error: {error}</Text></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><ActivityIndicator size="large" color="#ea580c" /></View>;
+  if (error) return <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}><Text style={styles.error}>Error: {error}</Text></View>;
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Major Overhaul', headerRight: () => (
+    <View style={[styles.container, { backgroundColor: colors.backgroundSecondary }]}>
+      <Stack.Screen options={{ title: 'Major Overhaul', headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text, headerRight: () => (
         <Pressable onPress={() => setShowForm(true)} style={styles.addBtn}>
           <MaterialCommunityIcons name="plus" size={24} color="#fff" />
         </Pressable>
       )}} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.statsRow}>
-          <View style={styles.statCard}><Text style={[styles.statValue, {color:'#3b82f6'}]}>{data?.stats?.planned || 0}</Text><Text style={styles.statLabel}>Planned</Text></View>
-          <View style={styles.statCard}><Text style={[styles.statValue, {color:'#eab308'}]}>{data?.stats?.inProgress || 0}</Text><Text style={styles.statLabel}>In Progress</Text></View>
-          <View style={styles.statCard}><Text style={[styles.statValue, {color:'#22c55e'}]}>{data?.stats?.completed || 0}</Text><Text style={styles.statLabel}>Completed</Text></View>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}><Text style={[styles.statValue, {color:'#3b82f6'}]}>{data?.stats?.planned || 0}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>Planned</Text></View>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}><Text style={[styles.statValue, {color:'#eab308'}]}>{data?.stats?.inProgress || 0}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>In Progress</Text></View>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}><Text style={[styles.statValue, {color:'#22c55e'}]}>{data?.stats?.completed || 0}</Text><Text style={[styles.statLabel, { color: colors.textTertiary }]}>Completed</Text></View>
         </View>
-        
+
         {data?.overdue?.length > 0 && (
           <View style={styles.alert}>
             <MaterialCommunityIcons name="alert-circle" size={20} color="#dc2626" />
@@ -66,36 +70,36 @@ export default function MOHScreen() {
           </View>
         )}
 
-        <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#94a3b8" />
-          <TextInput style={styles.searchInput} placeholder="Search MOH..." value={filter} onChangeText={setFilter} />
+        <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
+          <MaterialCommunityIcons name="magnify" size={20} color={colors.textTertiary} />
+          <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search MOH..." placeholderTextColor={colors.inputPlaceholder} value={filter} onChangeText={setFilter} />
         </View>
 
-        <Text style={styles.sectionTitle}>MOH Records ({filteredMOH.length})</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>MOH Records ({filteredMOH.length})</Text>
         {filteredMOH.map((moh: any) => (
-          <Pressable key={moh.id} style={styles.card} onPress={() => setSelectedMoh(moh)}>
+          <Pressable key={moh.id} style={[styles.card, { backgroundColor: colors.card }]} onPress={() => setSelectedMoh(moh)}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{moh.mohNumber}</Text>
               <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[moh.status] || '#94a3b8' }]}>
                 <Text style={styles.statusText}>{moh.status}</Text>
               </View>
             </View>
-            <Text style={styles.cardSub}>{moh.equipmentTag}</Text>
-            {moh.description && <Text style={styles.cardMeta}>{moh.description}</Text>}
+            <Text style={[styles.cardSub, { color: colors.textTertiary }]}>{moh.equipmentTag}</Text>
+            {moh.description && <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>{moh.description}</Text>}
           </Pressable>
         ))}
       </ScrollView>
 
       {/* Create MOH Modal */}
       <Modal visible={showForm} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New MOH Record</Text>
-            <TextInput style={styles.input} placeholder="Equipment Tag *" value={formData.equipmentTag} onChangeText={t => setFormData({...formData, equipmentTag: t})} />
-            <TextInput style={[styles.input, {height: 80}]} placeholder="Description" multiline value={formData.description} onChangeText={t => setFormData({...formData, description: t})} />
-            <TextInput style={styles.input} placeholder="Planned Date (YYYY-MM-DD)" value={formData.plannedDate} onChangeText={t => setFormData({...formData, plannedDate: t})} />
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>New MOH Record</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]} placeholder="Equipment Tag *" placeholderTextColor={colors.inputPlaceholder} value={formData.equipmentTag} onChangeText={t => setFormData({...formData, equipmentTag: t})} />
+            <TextInput style={[styles.input, { height: 80, backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]} placeholder="Description" placeholderTextColor={colors.inputPlaceholder} multiline value={formData.description} onChangeText={t => setFormData({...formData, description: t})} />
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]} placeholder="Planned Date (YYYY-MM-DD)" placeholderTextColor={colors.inputPlaceholder} value={formData.plannedDate} onChangeText={t => setFormData({...formData, plannedDate: t})} />
             <View style={styles.modalActions}>
-              <Pressable onPress={() => setShowForm(false)}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+              <Pressable onPress={() => setShowForm(false)}><Text style={[styles.cancelText, { color: colors.textTertiary }]}>Cancel</Text></Pressable>
               <Pressable style={[styles.submitBtn, submitting && {opacity: 0.5}]} onPress={handleSubmit} disabled={submitting}>
                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Create</Text>}
               </Pressable>
@@ -106,21 +110,21 @@ export default function MOHScreen() {
 
       {/* Detail Modal */}
       <Modal visible={!!selectedMoh} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedMoh?.mohNumber}</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedMoh?.mohNumber}</Text>
             <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[selectedMoh?.status] || '#94a3b8', alignSelf: 'flex-start', marginBottom: 16 }]}>
               <Text style={styles.statusText}>{selectedMoh?.status}</Text>
             </View>
-            <Text style={styles.detailLabel}>Equipment Tag</Text>
-            <Text style={styles.detailValue}>{selectedMoh?.equipmentTag}</Text>
-            <Text style={styles.detailLabel}>Description</Text>
-            <Text style={styles.detailValue}>{selectedMoh?.description || 'N/A'}</Text>
-            <Text style={styles.detailLabel}>Planned Date</Text>
-            <Text style={styles.detailValue}>{selectedMoh?.plannedDate ? new Date(selectedMoh.plannedDate).toLocaleDateString() : 'N/A'}</Text>
-            <Text style={styles.detailLabel}>Actual Date</Text>
-            <Text style={styles.detailValue}>{selectedMoh?.actualDate ? new Date(selectedMoh.actualDate).toLocaleDateString() : 'Not completed'}</Text>
-            <Pressable style={styles.closeBtn} onPress={() => setSelectedMoh(null)}><Text style={styles.closeText}>Close</Text></Pressable>
+            <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Equipment Tag</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{selectedMoh?.equipmentTag}</Text>
+            <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Description</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{selectedMoh?.description || 'N/A'}</Text>
+            <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Planned Date</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{selectedMoh?.plannedDate ? new Date(selectedMoh.plannedDate).toLocaleDateString() : 'N/A'}</Text>
+            <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>Actual Date</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{selectedMoh?.actualDate ? new Date(selectedMoh.actualDate).toLocaleDateString() : 'Not completed'}</Text>
+            <Pressable style={[styles.closeBtn, { backgroundColor: colors.backgroundTertiary }]} onPress={() => setSelectedMoh(null)}><Text style={[styles.closeText, { color: colors.textSecondary }]}>Close</Text></Pressable>
           </View>
         </View>
       </Modal>
@@ -129,37 +133,37 @@ export default function MOHScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1 },
   content: { padding: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: '#ef4444' },
   addBtn: { backgroundColor: '#ea580c', padding: 8, borderRadius: 8, marginRight: 8 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 12, alignItems: 'center', marginHorizontal: 4 },
+  statCard: { flex: 1, borderRadius: 12, padding: 12, alignItems: 'center', marginHorizontal: 4 },
   statValue: { fontSize: 24, fontWeight: '700' },
-  statLabel: { fontSize: 11, color: '#64748b' },
+  statLabel: { fontSize: 11 },
   alert: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef2f2', padding: 12, borderRadius: 12, marginBottom: 16 },
   alertText: { color: '#dc2626', fontSize: 13, fontWeight: '500', marginLeft: 8 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 16 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 12, marginBottom: 16 },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 14 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginBottom: 12 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  card: { borderRadius: 12, padding: 14, marginBottom: 10 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontSize: 14, fontWeight: '600', color: '#ea580c' },
-  cardSub: { fontSize: 12, color: '#64748b', marginTop: 4 },
-  cardMeta: { fontSize: 12, color: '#94a3b8', marginTop: 4, fontStyle: 'italic' },
+  cardSub: { fontSize: 12, marginTop: 4 },
+  cardMeta: { fontSize: 12, marginTop: 4, fontStyle: 'italic' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
   statusText: { fontSize: 10, color: '#fff', fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
-  input: { backgroundColor: '#f1f5f9', borderRadius: 12, padding: 14, fontSize: 14, marginBottom: 12 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
+  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
+  input: { borderRadius: 12, padding: 14, fontSize: 14, marginBottom: 12 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 },
-  cancelText: { color: '#64748b', padding: 12 },
+  cancelText: { padding: 12 },
   submitBtn: { backgroundColor: '#ea580c', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginLeft: 12 },
   submitText: { color: '#fff', fontWeight: '600' },
-  detailLabel: { fontSize: 12, color: '#64748b', marginTop: 12 },
-  detailValue: { fontSize: 14, color: '#0f172a', marginTop: 2 },
-  closeBtn: { backgroundColor: '#f1f5f9', padding: 14, borderRadius: 12, marginTop: 20, alignItems: 'center' },
-  closeText: { fontSize: 14, color: '#475569', fontWeight: '600' },
+  detailLabel: { fontSize: 12, marginTop: 12 },
+  detailValue: { fontSize: 14, marginTop: 2 },
+  closeBtn: { padding: 14, borderRadius: 12, marginTop: 20, alignItems: 'center' },
+  closeText: { fontSize: 14, fontWeight: '600' },
 });

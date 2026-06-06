@@ -3,6 +3,11 @@ import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import {
+  applyDisciplineScope,
+  resolvePrimaryDisciplineForText,
+  resolveScopedDisciplines,
+} from '../services/disciplineAccess';
 
 const prisma = new PrismaClient();
 
@@ -40,11 +45,12 @@ export const woUpload = multer({
 
 export const getWorkOrders = async (req: Request, res: Response) => {
   try {
-    const { flId, status, woType } = req.query;
+    const { flId, status, woType, discipline } = req.query;
     const where: any = {};
     if (flId) where.flId = String(flId);
     if (status) where.status = String(status);
     if (woType) where.woType = String(woType);
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
     
     const workOrders = await prisma.workOrder.findMany({
       where,
@@ -63,8 +69,12 @@ export const getWorkOrders = async (req: Request, res: Response) => {
 export const getWorkOrderById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const wo = await prisma.workOrder.findUnique({
-      where: { id },
+    const disciplines = resolveScopedDisciplines(req.user, req.query.discipline);
+    const wo = await prisma.workOrder.findFirst({
+      where: {
+        id,
+        ...(disciplines.length === 1 ? { primaryDiscipline: disciplines[0] } : { primaryDiscipline: { in: disciplines } }),
+      },
       include: {
         functionalLocation: {
           include: {
@@ -91,11 +101,41 @@ const generateWONumber = async (): Promise<string> => {
   return `${prefix}-${String(count + 1).padStart(4, '0')}`;
 };
 
+const resolveDisciplineLabels = (discipline: string | null | undefined) => {
+  switch (discipline) {
+    case 'ELECTRICAL':
+      return { department: 'ELECTRICAL', section: 'Electrical' };
+    case 'INSTRUMENTATION':
+      return { department: 'INSTRUMENTATION', section: 'Instrumentation' };
+    default:
+      return { department: 'MECHANICAL', section: 'Mechanical' };
+  }
+};
+
+const getScopedWorkOrder = async (id: string, user: Request['user'], discipline?: unknown) => {
+  const scopedDisciplines = resolveScopedDisciplines(user, discipline);
+  return prisma.workOrder.findFirst({
+    where: {
+      id,
+      ...(scopedDisciplines.length === 1
+        ? { primaryDiscipline: scopedDisciplines[0] }
+        : { primaryDiscipline: { in: scopedDisciplines } }),
+    },
+    select: {
+      id: true,
+      primaryDiscipline: true,
+    },
+  });
+};
+
 export const createWorkOrder = async (req: Request, res: Response) => {
   try {
     const woNumber = await generateWONumber();
+    const primaryDiscipline =
+      req.body.primaryDiscipline ||
+      (req.body.woType === 'PREDICTIVE' ? 'ELECTRICAL' : resolvePrimaryDisciplineForText(req.body.description));
     const wo = await prisma.workOrder.create({
-      data: { ...req.body, woNumber }
+      data: { ...req.body, woNumber, primaryDiscipline }
     });
     res.json(wo);
   } catch (error) {
@@ -107,7 +147,13 @@ export const createWorkOrder = async (req: Request, res: Response) => {
 export const updateWorkOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const wo = await prisma.workOrder.update({ where: { id }, data: req.body });
+    const wo = await prisma.workOrder.update({
+      where: { id },
+      data: {
+        ...req.body,
+        ...(req.body.primaryDiscipline ? { primaryDiscipline: req.body.primaryDiscipline } : {}),
+      },
+    });
     res.json(wo);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update work order' });
@@ -213,13 +259,15 @@ export const closeWorkOrder = async (req: Request, res: Response) => {
         const teamNames = Array.isArray(teamMembers) && teamMembers.length > 0
           ? teamMembers.map((m: any) => m.employeeName).join(', ')
           : closedBy || 'System';
+        const labels = resolveDisciplineLabels(wo.primaryDiscipline);
 
         await prisma.maintenanceLog.create({
           data: {
             date: now,
             installationId,
-            department: 'MAINTENANCE',
-            section: 'GENERAL',
+            primaryDiscipline: wo.primaryDiscipline,
+            department: labels.department,
+            section: labels.section,
             jobType: wo.woType === 'PREVENTIVE' ? 'PM' : 'BD',
             reportCriticality: wo.priority === 'EMERGENCY' ? 3 : wo.priority === 'HIGH' ? 2 : 1,
             equipmentTag: equipmentTag || wo.woNumber,
@@ -281,12 +329,16 @@ export const closeWorkOrder = async (req: Request, res: Response) => {
 
 export const getStats = async (req: Request, res: Response) => {
   try {
+    const whereBase: any = {};
+    applyDisciplineScope(whereBase, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
+
     const [open, inProgress, closed, overdue] = await Promise.all([
-      prisma.workOrder.count({ where: { status: 'OPEN' } }),
-      prisma.workOrder.count({ where: { status: 'IN_PROGRESS' } }),
-      prisma.workOrder.count({ where: { status: 'CLOSED' } }),
+      prisma.workOrder.count({ where: { ...whereBase, status: 'OPEN' } }),
+      prisma.workOrder.count({ where: { ...whereBase, status: 'IN_PROGRESS' } }),
+      prisma.workOrder.count({ where: { ...whereBase, status: 'CLOSED' } }),
       prisma.workOrder.count({
         where: {
+          ...whereBase,
           status: { in: ['OPEN', 'IN_PROGRESS'] },
           scheduledDate: { lt: new Date() }
         }
@@ -295,13 +347,14 @@ export const getStats = async (req: Request, res: Response) => {
     
     // By type
     const byType = await prisma.workOrder.groupBy({
+      where: whereBase,
       by: ['woType'],
       _count: true
     });
     
     // Recent closures with failure modes
     const recentFailures = await prisma.workOrder.findMany({
-      where: { status: 'CLOSED', failureMode: { not: null } },
+      where: { ...whereBase, status: 'CLOSED', failureMode: { not: null } },
       select: { failureMode: true, causeCode: true, woType: true },
       take: 100,
       orderBy: { completionDate: 'desc' }
@@ -426,8 +479,12 @@ export const seedIsoCodes = async (req: Request, res: Response) => {
 export const getWorkOrderWithTeam = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const wo = await prisma.workOrder.findUnique({
-      where: { id },
+    const disciplines = resolveScopedDisciplines(req.user, req.query.discipline);
+    const wo = await prisma.workOrder.findFirst({
+      where: {
+        id,
+        ...(disciplines.length === 1 ? { primaryDiscipline: disciplines[0] } : { primaryDiscipline: { in: disciplines } }),
+      },
       include: {
         functionalLocation: {
           include: {
@@ -490,6 +547,8 @@ export const updateChecklistItem = async (req: Request, res: Response) => {
 export const uploadAttachments = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const workOrder = await getScopedWorkOrder(id, req.user, req.query.discipline);
+    if (!workOrder) return res.status(404).json({ error: 'Work order not found' });
     const files = (req as any).files as Express.Multer.File[];
     if (!files || files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
 
@@ -522,6 +581,8 @@ export const uploadAttachments = async (req: Request, res: Response) => {
 
 export const getAttachments = async (req: Request, res: Response) => {
   try {
+    const workOrder = await getScopedWorkOrder(req.params.id, req.user, req.query.discipline);
+    if (!workOrder) return res.status(404).json({ error: 'Work order not found' });
     const attachments = await prisma.wOAttachment.findMany({
       where: { workOrderId: req.params.id },
       orderBy: { uploadedAt: 'desc' }
@@ -535,8 +596,13 @@ export const getAttachments = async (req: Request, res: Response) => {
 export const deleteAttachment = async (req: Request, res: Response) => {
   try {
     const { attachId } = req.params;
-    const attachment = await prisma.wOAttachment.findUnique({ where: { id: attachId } });
+    const attachment = await prisma.wOAttachment.findUnique({
+      where: { id: attachId },
+      include: { workOrder: { select: { id: true, primaryDiscipline: true } } },
+    });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
+    const workOrder = await getScopedWorkOrder(attachment.workOrderId, req.user, req.query.discipline);
+    if (!workOrder) return res.status(404).json({ error: 'Work order not found' });
 
     // Delete file from disk
     const filePath = path.join(WO_STORAGE_PATH, attachment.fileUrl.replace('wo-attachments/', ''));
@@ -552,8 +618,13 @@ export const deleteAttachment = async (req: Request, res: Response) => {
 export const serveAttachment = async (req: Request, res: Response) => {
   try {
     const { attachId } = req.params;
-    const attachment = await prisma.wOAttachment.findUnique({ where: { id: attachId } });
+    const attachment = await prisma.wOAttachment.findUnique({
+      where: { id: attachId },
+      include: { workOrder: { select: { id: true, primaryDiscipline: true } } },
+    });
     if (!attachment) return res.status(404).json({ error: 'Not found' });
+    const workOrder = await getScopedWorkOrder(attachment.workOrderId, req.user, req.query.discipline);
+    if (!workOrder) return res.status(404).json({ error: 'Work order not found' });
 
     const filePath = path.join(WO_STORAGE_PATH, attachment.fileUrl.replace('wo-attachments/', ''));
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found on disk' });
@@ -573,7 +644,7 @@ export const serveAttachment = async (req: Request, res: Response) => {
 export const exportWorkOrders = async (req: Request, res: Response) => {
   try {
     const ExcelJS = require('exceljs');
-    const { from, to, status, woType } = req.query;
+    const { from, to, status, woType, discipline } = req.query;
 
     const where: any = {};
     if (status) where.status = String(status);
@@ -583,6 +654,7 @@ export const exportWorkOrders = async (req: Request, res: Response) => {
       if (from) where.createdAt.gte = new Date(String(from));
       if (to) where.createdAt.lte = new Date(String(to));
     }
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, discipline));
 
     const workOrders = await prisma.workOrder.findMany({
       where,

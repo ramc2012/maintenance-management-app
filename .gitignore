@@ -57,3 +57,11 @@ maint_man_Xcode/
 
 # Maintenance_Management (legacy)
 Maintenance_Management/
+
+# Backups and build artifacts
+deploy/backups/
+**/__pycache__/
+*.pyc
+
+# Verification screenshots
+kelvin-gemma-verification.png

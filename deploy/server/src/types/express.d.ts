@@ -1,12 +1,10 @@
+import type { AuthUserPayload } from '../services/disciplineAccess';
+
 declare global {
   namespace Express {
     interface Request {
       requestId?: string;
-      user?: {
-        id: string;
-        username: string;
-        role: string;
-      };
+      user?: AuthUserPayload;
     }
   }
 }

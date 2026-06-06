@@ -9,6 +9,7 @@ import orgRoutes from './routes/orgRoutes';
 import equipmentRoutes from "./routes/equipment.routes";
 import maintenanceRoutes from "./routes/maintenance.routes";
 import logbookRoutes from "./routes/logbook.routes";
+import operationsRoutes from './routes/operations.routes';
 
 // ISO 14224 Asset Hierarchy Routes
 import flRoutes from "./routes/fl.routes";
@@ -33,12 +34,14 @@ import staticEquipmentRoutes from "./routes/staticEquipment.routes";
 import contractRoutes from './routes/contracts.routes';
 import presentationRoutes from './routes/presentations.routes';
 import maintenanceRequestRoutes from './routes/maintenanceRequest.routes';
+import manualsRoutes from './routes/manuals.routes';
 
 // New Gap-Closure Routes
 import notificationRoutes from './routes/notification.routes';
 import auditRoutes from './routes/audit.routes';
 import kpiRoutes from './routes/kpi.routes';
 import inspectionRoutes from './routes/inspection.routes';
+import checklistRoutes from './routes/checklist.routes';
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -64,6 +67,8 @@ app.use('/api/org', orgRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/equipment-logs', logbookRoutes);
+app.use('/api/logbook', logbookRoutes);
+app.use('/api/operations', operationsRoutes);
 
 // ISO 14224 Asset Hierarchy Routes
 app.use('/api/fl', flRoutes);
@@ -88,12 +93,14 @@ app.use('/api/static-equipment', staticEquipmentRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/presentations', presentationRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestRoutes);
+app.use('/api/manuals', manualsRoutes);
 
 // Gap-Closure Routes
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/kpi', kpiRoutes);
 app.use('/api/inspections', inspectionRoutes);
+app.use('/api/checklists', checklistRoutes);
 
 // Static file serving for WO attachments
 app.use('/storage/wo-attachments', express.static(

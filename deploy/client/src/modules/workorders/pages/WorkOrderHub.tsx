@@ -5,7 +5,7 @@ import {
   Clock, Users, Wrench, ChevronRight, Home, BarChart,
   FileText, Calendar, ChevronDown, ChevronUp, X, Download
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button, Table, Modal, Form, Input, Select, DatePicker,
   Tag, Card, Statistic, Row, Col, Tabs, Tooltip, Popconfirm,
@@ -13,6 +13,7 @@ import {
   Checkbox, Space, Timeline, Empty, InputNumber, Switch
 } from 'antd';
 import dayjs from 'dayjs';
+import { disciplineToLabel, parseDiscipline } from '../../../utils/workspace';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -32,6 +33,8 @@ const WORK_ROLES = ['SUPERVISOR', 'TECHNICIAN', 'HELPER', 'CONTRACTOR', 'SAFETY_
 
 export const WorkOrderHub = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const discipline = parseDiscipline(searchParams.get('discipline'));
   const [activeTab, setActiveTab] = useState('requests');
   const [requests, setRequests] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
@@ -54,10 +57,18 @@ export const WorkOrderHub = () => {
   const [attachments, setAttachments] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  const buildScopedParams = () => {
+    const params = new URLSearchParams();
+    if (discipline) {
+      params.append('discipline', discipline);
+    }
+    return params;
+  };
+
   // Fetch data
   const fetchRequests = async () => {
     try {
-      const res = await fetch(MR_API, { headers: jsonHeaders() });
+      const res = await fetch(`${MR_API}?${buildScopedParams().toString()}`, { headers: jsonHeaders() });
       const data = await res.json();
       setRequests(Array.isArray(data) ? data : []);
     } catch { message.error('Failed to load requests'); }
@@ -66,7 +77,7 @@ export const WorkOrderHub = () => {
   const fetchWorkOrders = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      const params = buildScopedParams();
       if (statusFilter) params.append('status', statusFilter);
       const res = await fetch(`${WO_API}?${params}`, { headers: jsonHeaders() });
       const data = await res.json();
@@ -77,29 +88,29 @@ export const WorkOrderHub = () => {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${WO_API}/stats`, { headers: jsonHeaders() });
+      const res = await fetch(`${WO_API}/stats?${buildScopedParams().toString()}`, { headers: jsonHeaders() });
       setWoStats(await res.json());
     } catch {}
   };
 
   const fetchWoDetail = async (id: string) => {
     try {
-      const res = await fetch(`${WO_API}/${id}/detail`, { headers: jsonHeaders() });
+      const res = await fetch(`${WO_API}/${id}/detail?${buildScopedParams().toString()}`, { headers: jsonHeaders() });
       const data = await res.json();
       setSelectedWO(data);
       setTeamMembers(data?.teamMembers || []);
       setChecklist(data?.checklist || []);
     } catch {
-      const res = await fetch(`${WO_API}/${id}`, { headers: jsonHeaders() });
+      const res = await fetch(`${WO_API}/${id}?${buildScopedParams().toString()}`, { headers: jsonHeaders() });
       setSelectedWO(await res.json());
     }
   };
 
-  useEffect(() => { fetchRequests(); fetchWorkOrders(); fetchStats(); }, [statusFilter]);
+  useEffect(() => { fetchRequests(); fetchWorkOrders(); fetchStats(); }, [discipline, statusFilter]);
 
   const fetchAttachments = async (woId: string) => {
     try {
-      const res = await fetch(`${WO_API}/${woId}/attachments`, { headers: jsonHeaders() });
+      const res = await fetch(`${WO_API}/${woId}/attachments?${buildScopedParams().toString()}`, { headers: jsonHeaders() });
       if (res.ok) setAttachments(await res.json());
     } catch {}
   };
@@ -123,7 +134,7 @@ export const WorkOrderHub = () => {
 
   const handleDeleteAttachment = async (woId: string, attachId: string) => {
     try {
-      await fetch(`${WO_API}/${woId}/attachments/${attachId}`, { method: 'DELETE', headers: jsonHeaders() });
+      await fetch(`${WO_API}/${woId}/attachments/${attachId}?${buildScopedParams().toString()}`, { method: 'DELETE', headers: jsonHeaders() });
       message.success('Attachment deleted');
       fetchAttachments(woId);
     } catch { message.error('Delete failed'); }
@@ -132,7 +143,7 @@ export const WorkOrderHub = () => {
   const handleExportWOs = async () => {
     setExporting(true);
     try {
-      const params = new URLSearchParams();
+      const params = buildScopedParams();
       if (statusFilter) params.append('status', statusFilter);
       const res = await fetch(`${WO_API}/export?${params}`, { headers: jsonHeaders() });
       if (!res.ok) throw new Error();
@@ -151,7 +162,11 @@ export const WorkOrderHub = () => {
       const res = await fetch(MR_API, {
         method: 'POST',
         headers: jsonHeaders(),
-        body: JSON.stringify({ ...values, requestedAt: new Date().toISOString() })
+        body: JSON.stringify({
+          ...values,
+          requestedAt: new Date().toISOString(),
+          ...(discipline ? { primaryDiscipline: discipline } : {}),
+        })
       });
       if (!res.ok) throw new Error();
       message.success('Maintenance request submitted!');
@@ -399,6 +414,11 @@ export const WorkOrderHub = () => {
   return (
     <Layout sidebarContent={SidebarContent}>
       <div className="space-y-4">
+        {discipline ? (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            Discipline scope: <strong>{disciplineToLabel(discipline)}</strong>. Requests, work orders, attachments, and exports are filtered to this workspace.
+          </div>
+        ) : null}
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -709,7 +729,7 @@ export const WorkOrderHub = () => {
         open={closeWoOpen} onCancel={() => { setCloseWoOpen(false); closeForm.resetFields(); setTeamMembers([]); }}
         footer={null} width={750}>
         <Form form={closeForm} layout="vertical" onFinish={handleCloseWO}>
-          <Divider orientation="left">Closure Details (ISO 14224)</Divider>
+          <Divider>Closure Details (ISO 14224)</Divider>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item name="failureMode" label="Failure Mode">
@@ -757,7 +777,7 @@ export const WorkOrderHub = () => {
             <TextArea rows={3} placeholder="Describe the work performed, findings, and results..." />
           </Form.Item>
 
-          <Divider orientation="left">
+          <Divider>
             <span className="flex items-center gap-2"><Users className="w-4 h-4" />Team Members Involved</span>
           </Divider>
           <div className="space-y-2 mb-3">

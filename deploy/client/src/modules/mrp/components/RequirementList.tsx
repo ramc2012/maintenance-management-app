@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Select, Input, Card, Statistic, Row, Col, Popconfirm, message, Modal } from 'antd';
 import { Search, Edit, Trash2, Download, Eye, FileText } from 'lucide-react';
+import { DEMO_REQUIREMENTS } from '../demoData';
 
 const { Option } = Select;
 
@@ -29,7 +30,8 @@ export const RequirementList: React.FC<RequirementListProps> = ({ onEdit }) => {
     setLoading(true);
     // Load from localStorage
     const requirements = JSON.parse(localStorage.getItem('mrpRequirements') || '[]');
-    setData(requirements);
+    const resolvedRequirements = requirements.length > 0 ? requirements : DEMO_REQUIREMENTS;
+    setData(resolvedRequirements);
     setLoading(false);
   };
 

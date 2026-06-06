@@ -54,3 +54,33 @@ DATABASE_URL=postgresql://user:password@localhost:5433/procurement_db npm run eq
 cd server
 npx prisma migrate deploy
 ```
+
+## Local Docker
+
+```bash
+cd deploy
+docker compose up -d --build
+```
+
+If you want the cognitive service to use a host-installed Ollama on macOS, start the local bridge first:
+
+```bash
+cd deploy
+python3 scripts/ollama_host_bridge.py
+```
+
+Default local URLs:
+
+- web client: `http://localhost:8080`
+- mobile web shell: `http://localhost:8084`
+- API: `http://localhost:5000`
+- cognitive service: `http://localhost:8001`
+- Ollama Web UI: `http://localhost:3001`
+
+The compose stack assigns explicit container names with the `maintenance-*-local` prefix and supports overriding host ports through `.env`.
+
+Optional local LLM sidecars:
+
+```bash
+docker compose --profile ai up -d
+```

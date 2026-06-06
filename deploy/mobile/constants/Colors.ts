@@ -1,19 +1,31 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+/**
+ * Colors.ts — Legacy compatibility layer
+ *
+ * New code should use `useTheme()` from '@/context/ThemeContext' instead.
+ * This file is kept for backward compatibility with existing components
+ * that import Colors directly.
+ */
+
+import { LightColors, DarkColors } from './theme';
+
+const tintColorLight = '#2563eb';
+const tintColorDark = '#93c5fd';
 
 export default {
   light: {
-    text: '#000',
-    background: '#fff',
+    ...LightColors,
+    text: LightColors.text,
+    background: LightColors.background,
     tint: tintColorLight,
-    tabIconDefault: '#ccc',
+    tabIconDefault: LightColors.tabInactive,
     tabIconSelected: tintColorLight,
   },
   dark: {
-    text: '#fff',
-    background: '#000',
+    ...DarkColors,
+    text: DarkColors.text,
+    background: DarkColors.background,
     tint: tintColorDark,
-    tabIconDefault: '#ccc',
+    tabIconDefault: DarkColors.tabInactive,
     tabIconSelected: tintColorDark,
   },
 };

@@ -9,8 +9,12 @@ interface User {
   id: string;
   username: string;
   role: string;
+  phone?: string;
+  jobTitle?: string;
   departmentId?: string;
   department?: { name: string };
+  managerId?: string;
+  manager?: { id: string; username: string; role: string };
   lastLogin?: string;
 }
 
@@ -19,6 +23,23 @@ interface OrgData {
 }
 
 const ITEMS_PER_PAGE = 20;
+const ROLE_OPTIONS = [
+  "ADMIN",
+  "HOD",
+  "ENGINEER",
+  "SUPERVISOR",
+  "TECHNICIAN",
+  "USER",
+  "VIEWER",
+  "PROCUREMENT_OFFICER",
+  "L1",
+  "L2",
+  "L3",
+  "L4",
+  "CONTRACTOR_COORDINATOR",
+  "CONTRACTOR_TECHNICIAN",
+];
+const MANAGER_ELIGIBLE_ROLES = new Set(["ADMIN", "HOD", "ENGINEER", "SUPERVISOR", "CONTRACTOR_COORDINATOR"]);
 
 export const AdminPage = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -34,10 +55,26 @@ export const AdminPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // New user form
-  const [formData, setFormData] = useState({ username: "", password: "", role: "VIEWER", departmentId: "" });
+  const [formData, setFormData] = useState({
+    username: "",
+    password: "",
+    role: "TECHNICIAN",
+    departmentId: "",
+    managerId: "",
+    jobTitle: "",
+    phone: "",
+    canCreateWorkOrder: false,
+    canCloseWorkOrder: false,
+  });
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { accentColor } = useTheme();
+
+  const visibleRoleOptions = ROLE_OPTIONS.filter((role) => user?.role === "ADMIN" || !["ADMIN", "HOD"].includes(role));
+  const managerOptions = users.filter((candidate) => MANAGER_ELIGIBLE_ROLES.has(candidate.role));
+  const scopedManagerOptions = managerOptions.filter(
+    (candidate) => !formData.departmentId || candidate.departmentId === formData.departmentId || !candidate.departmentId,
+  );
 
   useEffect(() => { if (token) { fetchUsers(); fetchOrg(); } }, [token]);
 
@@ -56,7 +93,17 @@ export const AdminPage = () => {
     e.preventDefault();
     try {
       await axios.post("/api/auth/register", formData);
-      setFormData({ username: "", password: "", role: "VIEWER", departmentId: "" });
+      setFormData({
+        username: "",
+        password: "",
+        role: "TECHNICIAN",
+        departmentId: "",
+        managerId: "",
+        jobTitle: "",
+        phone: "",
+        canCreateWorkOrder: false,
+        canCloseWorkOrder: false,
+      });
       setShowModal(false);
       alert("User created successfully!");
       fetchUsers();
@@ -69,7 +116,7 @@ export const AdminPage = () => {
   const handleResetPassword = async () => {
     if (!resetPasswordId || !newPassword) return;
     try {
-      await axios.put(`/api/auth/users/${resetPasswordId}/reset-password`, { password: newPassword });
+      await axios.post(`/api/auth/users/${resetPasswordId}/reset-password`, { newPassword });
       setResetPasswordId(null);
       setNewPassword("");
       alert("Password reset successfully");
@@ -143,7 +190,10 @@ export const AdminPage = () => {
               <tr key={u.id} className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{u.username}</td>
                 <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${u.role === 'ADMIN' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>{u.role}</span></td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{u.department?.name || '-'}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                  <div>{u.department?.name || '-'}</div>
+                  <div className="text-[11px] text-gray-400">{u.manager?.username || 'No manager'}</div>
+                </td>
                 <td className="px-4 py-3 text-center"><Circle className={`w-2.5 h-2.5 inline ${isOnline(u.lastLogin) ? 'fill-green-500 text-green-500' : 'fill-gray-300 text-gray-300'}`} /></td>
                 <td className="px-4 py-3 text-right space-x-2">
                   <button onClick={() => { setResetPasswordId(u.id); setNewPassword(""); }} className="text-gray-400 hover:text-blue-500" title="Reset Password"><Key className="w-4 h-4 inline" /></button>
@@ -175,7 +225,7 @@ export const AdminPage = () => {
             <form onSubmit={handleCreateUser} className="space-y-3">
               <div><label className="text-xs text-gray-500 mb-1 block">Username</label><input type="text" required value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className={`w-full ${inputClass}`} /></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Password</label><input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className={`w-full ${inputClass}`} /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Role</label><select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className={`w-full ${inputClass}`}><option value="USER">USER</option><option value="VIEWER">VIEWER</option><option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option><option value="L4">L4</option><option value="PROCUREMENT_OFFICER">Procurement Officer</option><option value="ADMIN">ADMIN</option></select></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Role</label><select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className={`w-full ${inputClass}`}>{visibleRoleOptions.map(role => <option key={role} value={role}>{role}</option>)}</select></div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Department</label>
                 <select value={formData.departmentId} onChange={e => setFormData({ ...formData, departmentId: e.target.value })} className={`w-full ${inputClass}`}>
@@ -183,6 +233,23 @@ export const AdminPage = () => {
                   {orgData?.departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Reporting Manager</label>
+                <select value={formData.managerId} onChange={e => setFormData({ ...formData, managerId: e.target.value })} className={`w-full ${inputClass}`}>
+                  <option value="">--</option>
+                  {scopedManagerOptions.map(u => <option key={u.id} value={u.id}>{u.username} ({u.role})</option>)}
+                </select>
+              </div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Job Title</label><input type="text" value={formData.jobTitle} onChange={e => setFormData({ ...formData, jobTitle: e.target.value })} className={`w-full ${inputClass}`} /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Phone</label><input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={`w-full ${inputClass}`} /></div>
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <input type="checkbox" checked={formData.canCreateWorkOrder} onChange={e => setFormData({ ...formData, canCreateWorkOrder: e.target.checked })} />
+                Allow work-order creation
+              </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <input type="checkbox" checked={formData.canCloseWorkOrder} onChange={e => setFormData({ ...formData, canCloseWorkOrder: e.target.checked })} />
+                Allow work-order closure
+              </label>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">Cancel</button>
                 <button type="submit" className={`flex-1 ${getColorClass(accentColor)} text-white px-4 py-2 rounded-lg text-sm`}>Create</button>

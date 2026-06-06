@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Badge, Dropdown, List, Tag, Button, Spin, Empty } from 'antd';
+import { Badge, Dropdown, Tag, Button, Spin, Empty } from 'antd';
 import { Bell, CheckCheck, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 
 const API = '/api/notifications';
@@ -12,20 +12,36 @@ const SEVERITY_CONFIG: Record<string, { color: string; icon: React.ReactNode }> 
   INFO: { color: 'blue', icon: <Info className="w-3.5 h-3.5 text-blue-500" /> },
 };
 
+type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  module?: string | null;
+  severity?: string | null;
+  createdAt: string;
+};
+
+type NotificationResponse = {
+  data?: NotificationItem[];
+  pagination?: {
+    total?: number;
+  };
+};
+
 export const NotificationBell: React.FC = () => {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch(`${API}?status=UNREAD&limit=20`, { headers: jsonHeaders() });
+      const res = await fetch(`${API}?status=UNREAD&pageSize=20`, { headers: jsonHeaders() });
       if (!res.ok) return;
-      const data = await res.json();
-      const items = Array.isArray(data.notifications) ? data.notifications : Array.isArray(data) ? data : [];
+      const data: NotificationResponse = await res.json();
+      const items = Array.isArray(data.data) ? data.data : [];
       setNotifications(items);
-      setUnreadCount(items.length);
+      setUnreadCount(data.pagination?.total ?? items.length);
     } catch {}
   }, []);
 
@@ -37,7 +53,8 @@ export const NotificationBell: React.FC = () => {
 
   const markRead = async (id: string) => {
     try {
-      await fetch(`${API}/${id}/read`, { method: 'PATCH', headers: jsonHeaders() });
+      const res = await fetch(`${API}/${id}/read`, { method: 'POST', headers: jsonHeaders() });
+      if (!res.ok) return;
       setNotifications(prev => prev.filter(n => n.id !== id));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch {}
@@ -46,11 +63,14 @@ export const NotificationBell: React.FC = () => {
   const markAllRead = async () => {
     setLoading(true);
     try {
-      await fetch(`${API}/read-all`, { method: 'PATCH', headers: jsonHeaders() });
+      const res = await fetch(`${API}/read-all`, { method: 'POST', headers: jsonHeaders() });
+      if (!res.ok) return;
       setNotifications([]);
       setUnreadCount(0);
-    } catch {}
-    setLoading(false);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   };
 
   const timeAgo = (dateStr: string) => {
@@ -80,7 +100,8 @@ export const NotificationBell: React.FC = () => {
       ) : (
         <div className="max-h-80 overflow-y-auto">
           {notifications.map(n => {
-            const sev = SEVERITY_CONFIG[n.severity] || SEVERITY_CONFIG.INFO;
+            const severityKey = n.severity || 'INFO';
+            const sev = SEVERITY_CONFIG[severityKey] || SEVERITY_CONFIG.INFO;
             return (
               <div
                 key={n.id}

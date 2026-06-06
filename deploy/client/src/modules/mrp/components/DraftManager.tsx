@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Empty, Popconfirm, message, Tag } from 'antd';
 import { FileText, Trash2, Upload, Clock } from 'lucide-react';
+import { DEMO_DRAFTS } from '../demoData';
 
 interface DraftManagerProps {
   onLoadDraft: (draft: any) => void;
@@ -13,7 +14,7 @@ export const DraftManager: React.FC<DraftManagerProps> = ({ onLoadDraft }) => {
 
   const loadDrafts = () => {
     const saved = JSON.parse(localStorage.getItem('mrpDrafts') || '[]');
-    setDrafts(saved);
+    setDrafts(saved.length > 0 ? saved : DEMO_DRAFTS);
   };
 
   const deleteDraft = (id: string) => {

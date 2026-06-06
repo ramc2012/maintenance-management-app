@@ -1,9 +1,20 @@
-import React, { useState } from 'react';
-import { StyleSheet, TextInput, Pressable, ActivityIndicator, View, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text } from '@/components/Themed';
-import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
+
+import { Text } from '@/components/Themed';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
+import type { ColorScheme } from '@/constants/theme';
 import api from '@/services/api';
 
 export default function LoginScreen() {
@@ -11,72 +22,265 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { login } = useAuth();
+  const { login, token, loading: authLoading } = useAuth();
+  const { theme, colorScheme, setColorScheme } = useTheme();
+  const { colors } = theme;
   const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && token) {
+      router.replace('/');
+    }
+  }, [authLoading, router, token]);
 
   const handleLogin = async () => {
     if (!username || !password) {
-      setError('Please enter username and password');
+      setError('Enter your username and password.');
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await api.login(username, password);
       await login(res.token, res.user);
       router.replace('/');
-    } catch (e: any) {
-      setError(e.message || 'Login failed');
+    } catch (loginError) {
+      const message = loginError instanceof Error ? loginError.message : 'Login failed';
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.content}>
-        <View style={styles.logo}>
-          <MaterialCommunityIcons name="cog" size={64} color="#2563eb" />
-          <Text style={styles.title}>Maintenance Hub</Text>
-          <Text style={styles.subtitle}>ONGC Ankleshwar Asset</Text>
+      <View style={[styles.hero, { backgroundColor: colors.heroSurface, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}>
+        <View style={styles.heroHeader}>
+          <View style={[styles.logoWrap, { backgroundColor: colors.primary }]}>
+            <MaterialCommunityIcons name="wrench-cog-outline" size={28} color="#ffffff" />
+          </View>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>MAINTENANCE</Text>
+          <ThemeModeSwitch colorScheme={colorScheme} setColorScheme={setColorScheme} colors={colors} />
         </View>
-        
-        {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
-        
-        <View style={styles.inputContainer}>
-          <MaterialCommunityIcons name="account" size={20} color="#64748b" style={styles.inputIcon} />
-          <TextInput style={styles.input} placeholder="Username" value={username} onChangeText={setUsername} autoCapitalize="none" />
+        <Text style={[styles.title, { color: colors.heroText }]}>Ankleshwar field access</Text>
+        <Text style={[styles.subtitle, { color: colors.heroTextSecondary }]} numberOfLines={2}>
+          Sign in for KPIs, execution modules, alerts, and planning workflows.
+        </Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Sign in</Text>
+        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Use your maintenance system credentials.</Text>
+
+        {error ? (
+          <View style={[styles.errorBox, { backgroundColor: colors.errorBg, borderColor: colors.errorBorder }]}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+          </View>
+        ) : null}
+
+        <View style={[styles.inputShell, { borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}>
+          <MaterialCommunityIcons name="account-outline" size={18} color={colors.textTertiary} />
+          <TextInput
+            style={[styles.input, { color: colors.text }]}
+            placeholder="Username"
+            placeholderTextColor={colors.inputPlaceholder}
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
         </View>
-        
-        <View style={styles.inputContainer}>
-          <MaterialCommunityIcons name="lock" size={20} color="#64748b" style={styles.inputIcon} />
-          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+
+        <View style={[styles.inputShell, { borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}>
+          <MaterialCommunityIcons name="lock-outline" size={18} color={colors.textTertiary} />
+          <TextInput
+            style={[styles.input, { color: colors.text }]}
+            placeholder="Password"
+            placeholderTextColor={colors.inputPlaceholder}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
         </View>
-        
-        <Pressable style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
+
+        <Pressable
+          style={[styles.button, { backgroundColor: colors.primary }, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Continue</Text>}
         </Pressable>
-        
-        <Text style={styles.hint}>Use your ONGC credentials</Text>
+
+        <Text style={[styles.hint, { color: colors.textTertiary }]}>Backend default during local setup: `admin` / `admin123`.</Text>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
+function ThemeModeSwitch({
+  colorScheme,
+  setColorScheme,
+  colors,
+}: {
+  colorScheme: ColorScheme;
+  setColorScheme: (scheme: ColorScheme) => void;
+  colors: Record<string, string>;
+}) {
+  const activeScheme = colorScheme === 'dark' ? 'dark' : 'light';
+
+  return (
+    <View style={[styles.themeSwitch, { backgroundColor: colors.cardMuted, borderColor: colors.cardBorder }]}>
+      {[
+        { value: 'light' as const, icon: 'white-balance-sunny' as const },
+        { value: 'dark' as const, icon: 'moon-waning-crescent' as const },
+      ].map((option) => {
+        const selected = activeScheme === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityLabel={option.value === 'light' ? 'Use day theme' : 'Use dark theme'}
+            style={[styles.themeButton, selected && { backgroundColor: colors.primary }]}
+            onPress={() => setColorScheme(option.value)}
+          >
+            <MaterialCommunityIcons
+              name={option.icon}
+              size={16}
+              color={selected ? '#ffffff' : colors.textSecondary}
+            />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f1f5f9' },
-  content: { flex: 1, justifyContent: 'center', padding: 24 },
-  logo: { alignItems: 'center', marginBottom: 40 },
-  title: { fontSize: 24, fontWeight: '700', color: '#0f172a', marginTop: 16 },
-  subtitle: { fontSize: 14, color: '#dc2626', fontWeight: '600', marginTop: 4 },
-  errorBox: { backgroundColor: '#fef2f2', padding: 12, borderRadius: 8, marginBottom: 16 },
-  errorText: { color: '#dc2626', textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, marginBottom: 16, paddingHorizontal: 16, borderWidth: 1, borderColor: '#e2e8f0' },
-  inputIcon: { marginRight: 12 },
-  input: { flex: 1, height: 50, fontSize: 16 },
-  button: { backgroundColor: '#2563eb', borderRadius: 12, height: 50, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  hint: { textAlign: 'center', color: '#94a3b8', marginTop: 24, fontSize: 12 },
+  container: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    padding: 16,
+    paddingTop: 72,
+  },
+  hero: {
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  title: {
+    marginTop: 12,
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: '800',
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  themeSwitch: {
+    flexDirection: 'row',
+    borderRadius: 999,
+    borderWidth: 1,
+    padding: 2,
+  },
+  themeButton: {
+    width: 30,
+    height: 28,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  cardSubtitle: {
+    marginTop: 4,
+    fontSize: 13,
+  },
+  errorBox: {
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    marginLeft: 8,
+    fontSize: 13,
+  },
+  inputShell: {
+    height: 52,
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  button: {
+    marginTop: 14,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  hint: {
+    marginTop: 12,
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });

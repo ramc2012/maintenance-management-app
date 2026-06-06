@@ -6,6 +6,10 @@
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
+    "test": "vitest run",
+    "seed:dpr": "ts-node scripts/seed_dpr_reports.ts",
+    "seed:checklists": "ts-node scripts/seed_checklist_templates.ts",
+    "seed:equipment-status": "ts-node scripts/seed_equipment_status.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -22,7 +26,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
@@ -31,9 +36,12 @@
     "@types/jsonwebtoken": "^9.0.1",
     "@types/morgan": "^1.9.4",
     "@types/node": "^18.15.11",
+    "@types/supertest": "^6.0.3",
     "nodemon": "^2.0.22",
     "prisma": "^5.0.0",
+    "supertest": "^7.1.4",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "vitest": "^1.6.1"
   }
 }

@@ -6,11 +6,13 @@ import { useTheme } from '../../../context/ThemeContext';
 import { CalibrationDashboard } from '../components/CalibrationDashboard';
 import { CalibrationRecords } from '../components/CalibrationRecords';
 import { CalibrationEntry } from '../components/CalibrationEntry';
+import { InstrumentHistory } from '../components/InstrumentHistory';
 import { StandardsRegistry } from '../components/StandardsRegistry';
 
 const NAV_ITEMS = [
   { key: 'dashboard', icon: BarChart3,      label: 'Dashboard' },
   { key: 'records',   icon: FileText,       label: 'Calibration Records' },
+  { key: 'history',   icon: Activity,       label: 'Instrument History' },
   { key: 'new-entry', icon: ClipboardCheck, label: 'New Calibration' },
   { key: 'standards', icon: Target,         label: 'Standards Registry' },
   { key: 'schedule',  icon: Calendar,       label: 'Due Schedule' },
@@ -67,6 +69,7 @@ export const CalibrationHub: React.FC = () => {
     switch (activeKey) {
       case 'dashboard': return <CalibrationDashboard />;
       case 'records':   return <CalibrationRecords />;
+      case 'history':   return <InstrumentHistory />;
       case 'new-entry': return <CalibrationEntry />;
       case 'standards': return <StandardsRegistry />;
       case 'schedule':  return <CalibrationDashboard showScheduleOnly />;

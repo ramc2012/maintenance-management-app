@@ -12,6 +12,7 @@
 		3CA221B0AED3FF3F4318053C /* NativeSupportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB02A4FFD59E880CED2AFE3 /* NativeSupportViews.swift */; };
 		4C78C31A48E7643C25699035 /* ManualsFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9588B733E865C6FDF278FB35 /* ManualsFeatureTests.swift */; };
 		4CEA28E346191F2F3D5FEC2D /* ManualsHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0482E9B2600A28E308D23E2 /* ManualsHubView.swift */; };
+		5398B2BB54C017E2BE315E0C /* NativeAppExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9EFE10C020B239A4379EF66 /* NativeAppExperience.swift */; };
 		67DFCE873326150B702928CA /* MaintenanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2CEC74DD1A33FC96E387B0 /* MaintenanceApp.swift */; };
 		83F7BE64674318D68739E241 /* NativeFeatureModules.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94CAB86D79F1478324FCAE7 /* NativeFeatureModules.swift */; };
 		96670C0BA98825E1BF577B2B /* TrainingHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FA3401490F412278CCB9B23 /* TrainingHubView.swift */; };
@@ -40,6 +41,7 @@
 		9588B733E865C6FDF278FB35 /* ManualsFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualsFeatureTests.swift; sourceTree = "<group>"; };
 		BCDEDA61962FD2C092EE2537 /* CollaborationHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationHubView.swift; sourceTree = "<group>"; };
 		C0482E9B2600A28E308D23E2 /* ManualsHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualsHubView.swift; sourceTree = "<group>"; };
+		D9EFE10C020B239A4379EF66 /* NativeAppExperience.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppExperience.swift; sourceTree = "<group>"; };
 		EC2CEC74DD1A33FC96E387B0 /* MaintenanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintenanceApp.swift; sourceTree = "<group>"; };
 		F94CAB86D79F1478324FCAE7 /* NativeFeatureModules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFeatureModules.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -77,6 +79,7 @@
 			isa = PBXGroup;
 			children = (
 				EC2CEC74DD1A33FC96E387B0 /* MaintenanceApp.swift */,
+				D9EFE10C020B239A4379EF66 /* NativeAppExperience.swift */,
 				F94CAB86D79F1478324FCAE7 /* NativeFeatureModules.swift */,
 				63C0002C38A94D6C6F34B1A7 /* NativeShellView.swift */,
 				8AB02A4FFD59E880CED2AFE3 /* NativeSupportViews.swift */,
@@ -235,6 +238,7 @@
 				2FC1B4F39961277A3A754D19 /* CollaborationHubView.swift in Sources */,
 				67DFCE873326150B702928CA /* MaintenanceApp.swift in Sources */,
 				4CEA28E346191F2F3D5FEC2D /* ManualsHubView.swift in Sources */,
+				5398B2BB54C017E2BE315E0C /* NativeAppExperience.swift in Sources */,
 				83F7BE64674318D68739E241 /* NativeFeatureModules.swift in Sources */,
 				1EACB082950C56D8E10B64C8 /* NativeShellView.swift in Sources */,
 				3CA221B0AED3FF3F4318053C /* NativeSupportViews.swift in Sources */,

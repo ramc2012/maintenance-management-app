@@ -2,11 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Button, Modal, Form, Input, Select, message, Tag, Card, Statistic, Row, Col, Tabs, Tooltip, Empty } from 'antd';
 import { Plus, Edit, Trash2, Search, Database, CheckCircle, XCircle, AlertTriangle, Zap, Cog, Thermometer } from 'lucide-react';
 import axios from 'axios';
+import { useSearchParams } from 'react-router-dom';
+import { parseDiscipline } from '../../../utils/workspace';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
 
 export const CategoryRegistry: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const discipline = parseDiscipline(searchParams.get('discipline'));
   const [items, setItems] = useState<any[]>([]);
   const [installations, setInstallations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,16 +22,30 @@ export const CategoryRegistry: React.FC = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [form] = Form.useForm();
 
+  const disciplineTab = discipline === 'INSTRUMENTATION' ? 'INSTRUMENT' : discipline;
+  const availableTabs = disciplineTab ? [disciplineTab] : ['MECHANICAL', 'ELECTRICAL', 'INSTRUMENT'];
+
+  useEffect(() => {
+    if (disciplineTab) {
+      setActiveTab(disciplineTab);
+      setSearchText('');
+      setInstallationFilter(null);
+      setStatusFilter(null);
+    }
+  }, [disciplineTab]);
+
   const fetchItems = async () => {
     setLoading(true);
     try {
       let url: string;
+      const params: Record<string, string> = {};
+      if (discipline) params.discipline = discipline;
       if (activeTab === 'INSTRUMENT') {
-        url = '/api/instruments';
+        url = '/api/equipment/instruments';
       } else {
         url = `/api/equipment/category/${activeTab}`;
       }
-      const res = await axios.get(url);
+      const res = await axios.get(url, { params });
       setItems(res.data || []);
     } catch { setItems([]); }
     finally { setLoading(false); }
@@ -40,7 +58,7 @@ export const CategoryRegistry: React.FC = () => {
     } catch {}
   };
 
-  useEffect(() => { fetchItems(); }, [activeTab]);
+  useEffect(() => { fetchItems(); }, [activeTab, discipline]);
   useEffect(() => { fetchInstallations(); }, []);
 
   const installationMap = useMemo(() => {
@@ -115,7 +133,10 @@ export const CategoryRegistry: React.FC = () => {
         if (editingItem) {
           await axios.put(`/api/instruments/${editingItem.id || editingItem.tagId}`, values);
         } else {
-          await axios.post('/api/instruments', values);
+          await axios.post('/api/instruments', {
+            ...values,
+            ...(discipline ? { primaryDiscipline: discipline } : { primaryDiscipline: 'INSTRUMENTATION' }),
+          });
         }
       } else {
         const payload = {
@@ -124,6 +145,7 @@ export const CategoryRegistry: React.FC = () => {
           make: values.make,
           model: values.model,
           category: activeTab,
+          ...(discipline ? { primaryDiscipline: discipline } : {}),
           installationId: values.installationId,
           specifications: {
             serialNo: values.serialNo || '',
@@ -267,9 +289,9 @@ export const CategoryRegistry: React.FC = () => {
 
       {/* Tabs */}
       <Tabs activeKey={activeTab} onChange={(k) => { setActiveTab(k); setSearchText(''); setInstallationFilter(null); setStatusFilter(null); }} type="card">
-        <TabPane tab={<span><Cog className="w-3 h-3 inline mr-1" /> Mechanical ({activeTab === 'MECHANICAL' ? items.length : ''})</span>} key="MECHANICAL" />
-        <TabPane tab={<span><Zap className="w-3 h-3 inline mr-1" /> Electrical ({activeTab === 'ELECTRICAL' ? items.length : ''})</span>} key="ELECTRICAL" />
-        <TabPane tab={<span><Thermometer className="w-3 h-3 inline mr-1" /> Instruments ({activeTab === 'INSTRUMENT' ? items.length : ''})</span>} key="INSTRUMENT" />
+        {availableTabs.includes('MECHANICAL') ? <TabPane tab={<span><Cog className="w-3 h-3 inline mr-1" /> Mechanical ({activeTab === 'MECHANICAL' ? items.length : ''})</span>} key="MECHANICAL" /> : null}
+        {availableTabs.includes('ELECTRICAL') ? <TabPane tab={<span><Zap className="w-3 h-3 inline mr-1" /> Electrical ({activeTab === 'ELECTRICAL' ? items.length : ''})</span>} key="ELECTRICAL" /> : null}
+        {availableTabs.includes('INSTRUMENT') ? <TabPane tab={<span><Thermometer className="w-3 h-3 inline mr-1" /> Instruments ({activeTab === 'INSTRUMENT' ? items.length : ''})</span>} key="INSTRUMENT" /> : null}
       </Tabs>
 
       {/* Stats */}

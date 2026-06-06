@@ -29,6 +29,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('themeMode', themeMode);
     
     document.documentElement.classList.remove('dark', 'light', 'sepia', 'theme-neutral');
+    document.documentElement.dataset.theme = themeMode;
+    document.documentElement.style.colorScheme = themeMode === 'dark' ? 'dark' : 'light';
     if (themeMode === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (themeMode === 'sepia') {

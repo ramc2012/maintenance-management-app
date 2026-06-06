@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"/Users/chinnadurairamachandran/Downloads/CMS CONTRACT/fms-track-app/server\"/**/*.js)"
+    ]
+  }
+}

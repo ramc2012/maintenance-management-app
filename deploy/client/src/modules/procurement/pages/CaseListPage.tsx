@@ -5,13 +5,14 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Plus, DollarSign, Briefcase, FileText, Trash2, MessageSquare, Building, Filter } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme, getColorClass } from "../../../context/ThemeContext";
+import { parseDiscipline } from "../../../utils/workspace";
 
 interface Comment {
   effectiveDate?: string;
   timestamp: string;
   stageSnapshot: string;
   content: string;
-  user: { username: string; };
+  user?: { username?: string; };
 }
 
 interface Department { id: string; name: string; }
@@ -49,11 +50,12 @@ export const CaseListPage = () => {
   
   const typeFilter = searchParams.get("type") || "";
   const departmentId = searchParams.get("departmentId") || "";
+  const discipline = parseDiscipline(searchParams.get("discipline"));
 
   const { user, token } = useAuth();
   const { accentColor } = useTheme();
 
-  useEffect(() => { if (token) { fetchOrg(); fetchCases(); } }, [token, typeFilter, departmentId]);
+  useEffect(() => { if (token) { fetchOrg(); fetchCases(); } }, [discipline, token, typeFilter, departmentId]);
 
   const fetchOrg = async () => {
     try { const res = await axios.get("/api/org/hierarchy"); setOrgData(res.data); } 
@@ -65,6 +67,7 @@ export const CaseListPage = () => {
       const params: any = {};
       if (typeFilter) params.type = typeFilter;
       if (departmentId) params.departmentId = departmentId;
+      if (discipline) params.discipline = discipline;
       const response = await axios.get("/api/cases", { params });
       setCases(response.data);
     } catch (error) { console.error("Error fetching cases", error); }
@@ -73,6 +76,7 @@ export const CaseListPage = () => {
   const handleFilterChange = (key: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);
     if (value) newParams.set(key, value); else newParams.delete(key);
+    if (discipline) newParams.set('discipline', discipline);
     setSearchParams(newParams);
   };
 
@@ -95,7 +99,7 @@ export const CaseListPage = () => {
     }
   };
   const formatDate = (d: string) => { const dt = new Date(d); return `${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear().toString().slice(-2)}`; };
-  const getLastComment = (comments: Comment[]) => (!comments || comments.length === 0) ? null : [...comments].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+  const getLastComment = (comments?: Comment[]) => (!comments || comments.length === 0) ? null : [...comments].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
 
   let pageTitle = "All Procurements";
   if (typeFilter && departmentId) { const dept = orgData?.departments?.find(d => d.id === departmentId); pageTitle = `${typeFilter} - ${dept?.name || 'Department'}`; }
@@ -106,7 +110,7 @@ export const CaseListPage = () => {
     <ProcurementLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{pageTitle}</h1>
-        <Link to={`/procurement/create?${departmentId ? `departmentId=${departmentId}&` : ""}${typeFilter ? `type=${typeFilter}` : ""}`} className={`${getColorClass(accentColor)} text-white px-4 py-2 rounded-lg font-medium flex items-center hover:opacity-90`}><Plus className="w-5 h-5 mr-2" />New Case</Link>
+        <Link to={`/procurement/create?${departmentId ? `departmentId=${departmentId}&` : ""}${typeFilter ? `type=${typeFilter}&` : ""}${discipline ? `discipline=${discipline}` : ""}`} className={`${getColorClass(accentColor)} text-white px-4 py-2 rounded-lg font-medium flex items-center hover:opacity-90`}><Plus className="w-5 h-5 mr-2" />New Case</Link>
       </div>
 
       {/* Filter Row */}
@@ -127,7 +131,7 @@ export const CaseListPage = () => {
               {CASE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-          {(departmentId || typeFilter) && <button onClick={() => setSearchParams(new URLSearchParams())} className="text-xs text-red-500 hover:text-red-700 underline">Clear Filters</button>}
+          {(departmentId || typeFilter) && <button onClick={() => setSearchParams(new URLSearchParams(discipline ? { discipline } : undefined))} className="text-xs text-red-500 hover:text-red-700 underline">Clear Filters</button>}
         </div>
       </div>
 
@@ -139,7 +143,7 @@ export const CaseListPage = () => {
           const currentStageIndex = stages.indexOf(c.currentStage);
           const lastComment = getLastComment(c.comments);
           return (
-            <Link key={c.id} to={`/procurement/cases/${c.id}`} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-500 transition-all hover:shadow-lg block group relative shadow-sm">
+            <Link key={c.id} to={`/procurement/cases/${c.id}${discipline ? `?discipline=${discipline}` : ''}`} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-500 transition-all hover:shadow-lg block group relative shadow-sm">
               <button onClick={(e) => handleDelete(e, c.id)} className="absolute top-3 right-3 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 p-1.5 rounded-lg z-20" title="Delete Case"><Trash2 className="w-3.5 h-3.5" /></button>
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col md:flex-row justify-between items-start gap-2 pr-20">
@@ -164,7 +168,7 @@ export const CaseListPage = () => {
                   <div className="w-full text-sm font-medium text-gray-600 dark:text-gray-200 flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 p-2 rounded border border-gray-200 dark:border-gray-700/50 mt-1">
                     <MessageSquare className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
                     <span className="text-blue-600 dark:text-blue-300 font-bold shrink-0">{formatDate(lastComment.timestamp)}</span>
-                    <div className="flex items-center gap-1 truncate flex-1"><span className="font-bold text-gray-900 dark:text-white shrink-0">{lastComment.user.username}:</span><span className="truncate text-gray-600 dark:text-gray-300">{lastComment.content}</span></div>
+                    <div className="flex items-center gap-1 truncate flex-1"><span className="font-bold text-gray-900 dark:text-white shrink-0">{lastComment.user?.username || "System"}:</span><span className="truncate text-gray-600 dark:text-gray-300">{lastComment.content}</span></div>
                   </div>
                 ) : <div className="w-full text-xs text-gray-400 dark:text-gray-500 italic pl-1 mt-1">No activity logged.</div>}
               </div>

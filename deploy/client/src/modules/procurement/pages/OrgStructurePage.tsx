@@ -3,6 +3,7 @@ import axios from "axios";
 import { ProcurementLayout } from "../components/ProcurementLayout";
 import { Shield, Plus, Trash2, Folder, Check, X, Edit2 } from "lucide-react";
 import { useTheme, getColorClass } from "../../../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 
 interface Department { id: string; name: string; companyId: string; }
 interface Company { id: string; name: string; departments: Department[]; }
@@ -11,6 +12,7 @@ export const OrgStructurePage = () => {
   const [orgData, setOrgData] = useState<Company | null>(null);
   const [loading, setLoading] = useState(false);
   const { accentColor } = useTheme();
+  const { token } = useAuth();
   
   // Add states
   const [newDeptName, setNewDeptName] = useState("");
@@ -22,7 +24,11 @@ export const OrgStructurePage = () => {
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState("");
 
-  useEffect(() => { fetchOrg(); }, []);
+  useEffect(() => {
+    if (token) {
+      void fetchOrg();
+    }
+  }, [token]);
 
   const fetchOrg = async () => {
     setLoading(true);

@@ -1,59 +1,121 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { NotificationBadge } from '@/components/NotificationBadge';
+import { useNotificationsBadge } from '@/context/NotificationContext';
+import { useTheme } from '@/context/ThemeContext';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+function TabIcon({
+  icon,
+  color,
+}: {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <MaterialCommunityIcons name={icon} size={22} color={color} />;
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const { unreadCount } = useNotificationsBadge();
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShadowVisible: false,
+        headerTitleStyle: [styles.headerTitle, { color: colors.text }],
+        headerStyle: { backgroundColor: colors.surface },
+        tabBarStyle: [styles.tabBar, { backgroundColor: colors.tabBar, borderTopColor: colors.tabBarBorder }],
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.tabInactive,
+        sceneStyle: { backgroundColor: colors.backgroundSecondary },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Home',
+          headerTitle: 'Maintenance Hub',
+          tabBarIcon: ({ color }) => <TabIcon icon="view-dashboard-outline" color={color} />,
           headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
+            <View style={styles.headerActions}>
+              <Pressable onPress={() => router.push('/(tabs)/two')} style={styles.headerAction}>
+                <MaterialCommunityIcons name="bell-outline" size={22} color={colors.textSecondary} />
+                <View style={styles.headerBadge}>
+                  <NotificationBadge count={unreadCount} />
+                </View>
               </Pressable>
-            </Link>
+              <Pressable onPress={() => router.push('/modules/settings')} style={styles.headerAction}>
+                <MaterialCommunityIcons name="cog-outline" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
           ),
         }}
       />
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Inbox',
+          headerTitle: 'Notifications',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.tabIconWrap}>
+              <TabIcon icon="bell-outline" color={color} />
+              <View style={styles.tabBadge}>
+                <NotificationBadge count={unreadCount} />
+              </View>
+            </View>
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  headerAction: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    marginRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+  },
+  tabBar: {
+    height: 72,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderTopWidth: 1,
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tabIconWrap: {
+    minWidth: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -14,
+  },
+});

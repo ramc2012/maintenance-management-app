@@ -1,242 +1,562 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, DatePicker, message, Card, Statistic, Row, Col, Tag, Popconfirm, Empty, Divider, Space, Tooltip } from 'antd';
-import { Plus, Save, History, Settings, Trash2, Copy, TrendingUp, LineChart } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Divider,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Progress,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Tooltip,
+  message,
+} from 'antd';
+import { Plus, Trash2, TrendingUp, History, ActivitySquare, GaugeCircle, AlertTriangle, Cpu } from 'lucide-react';
 import axios from 'axios';
 import dayjs from 'dayjs';
-
-const { Option } = Select;
+import { useAuth } from '../../../context/AuthContext';
 
 interface RunningHoursLogProps {
   category?: 'mechanical' | 'electrical';
+  discipline?: 'MECHANICAL' | 'ELECTRICAL';
 }
 
-const defaultParameters: Record<string, string[]> = {
-  'Motor': ['Voltage (V)', 'Current (A)', 'Bearing Temp (°C)', 'Winding Temp (°C)', 'Vibration (mm/s)'],
-  'Pump': ['Suction Pressure (bar)', 'Discharge Pressure (bar)', 'Flow Rate (m³/hr)', 'Bearing Temp (°C)'],
-  'Compressor': ['Suction Pressure (bar)', 'Discharge Pressure (bar)', 'Suction Temp (°C)', 'Discharge Temp (°C)', 'Oil Pressure (bar)'],
-  'Generator': ['Voltage (V)', 'Current (A)', 'Frequency (Hz)', 'Power (kW)', 'Bearing Temp (°C)'],
-  'Default': ['Temp (°C)', 'Pressure (bar)', 'Vibration (mm/s)']
+const renderTrend = (points: number[], color: string) => {
+  if (!points.length) return <Empty description="No trend data" />;
+  const width = 360;
+  const height = 120;
+  const padding = 18;
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = max - min || 1;
+  const coords = points.map((value, index) => ({
+    x: padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2),
+    y: height - padding - ((value - min) / range) * (height - padding * 2),
+  }));
+  const path = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  return (
+    <svg width={width} height={height} className="rounded-xl bg-slate-50">
+      <line x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} stroke="#cbd5e1" />
+      <line x1={padding} x2={padding} y1={padding} y2={height - padding} stroke="#cbd5e1" />
+      <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      {coords.map((point, index) => (
+        <circle key={index} cx={point.x} cy={point.y} r="3.5" fill={color} />
+      ))}
+    </svg>
+  );
 };
 
-export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'mechanical' }) => {
+export const RunningHoursLog: React.FC<RunningHoursLogProps> = ({ category = 'mechanical', discipline }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const [data, setData] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [overview, setOverview] = useState<any>(null);
   const [installations, setInstallations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [modalEquipment, setModalEquipment] = useState<any[]>([]);
+  const [selectedInstallation, setSelectedInstallation] = useState<string>('');
+  const [selectedProfile, setSelectedProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [historyModal, setHistoryModal] = useState<any>(null);
   const [trendModal, setTrendModal] = useState<any>(null);
-  const [templates, setTemplates] = useState<any[]>([]);
   const [form] = Form.useForm();
-  const [filterInstallation, setFilterInstallation] = useState<string>('');
-  const [customColumns, setCustomColumns] = useState<string[]>(['Temp (°C)', 'Pressure (bar)']);
-  const [newColumnName, setNewColumnName] = useState('');
-  const [showColumnConfig, setShowColumnConfig] = useState(false);
-  const [selectedEquipType, setSelectedEquipType] = useState<string>('');
-  const [equipment, setEquipment] = useState<any[]>([]);
-  const [modalEquipment, setModalEquipment] = useState<any[]>([]);
 
-  useEffect(() => { fetchInstallations(); loadTemplates(); }, []);
-  useEffect(() => { fetchData(); }, [category, filterInstallation]);
+  useEffect(() => {
+    const fetchInstallations = async () => {
+      try {
+        const response = await axios.get('/api/equipment/installations');
+        setInstallations(response.data || []);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchInstallations();
+  }, []);
 
-  const fetchEquipment = async (instId?: string) => {
+  useEffect(() => {
+    fetchOperationalLogs();
+    fetchOverview();
+  }, [selectedInstallation]);
+
+  const fetchOverview = async () => {
     try {
-      const params: any = {};
-      if (instId) params.installationId = instId;
-      const res = await axios.get('/api/equipment/running-equip', { params });
-      setEquipment(res.data || []);
-    } catch (e) { console.error(e); }
+      const response = await axios.get('/api/operations/overview', {
+        params: {
+          ...(selectedInstallation ? { installationId: selectedInstallation } : {}),
+          ...(discipline ? { discipline } : {}),
+        },
+      });
+      setOverview(response.data);
+    } catch (error) {
+      console.error(error);
+      setOverview(null);
+    }
   };
 
-  const fetchModalEquipment = async (instId: string) => {
-    try {
-      const params: any = { installationId: instId };
-      const res = await axios.get('/api/equipment/running-equip', { params });
-      setModalEquipment(res.data || []);
-    } catch (e) { console.error(e); setModalEquipment([]); }
-  };
-
-  const fetchInstallations = async () => {
-    try { const res = await axios.get('/api/equipment/installations'); setInstallations(res.data); } catch (e) { console.error(e); }
-  };
-
-  const fetchData = async () => {
+  const fetchOperationalLogs = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/logbook/running-hours', { params: { category, installationId: filterInstallation || undefined } });
-      setData(res.data || []);
+      const response = await axios.get('/api/operations/logs', {
+        params: {
+          ...(selectedInstallation ? { installationId: selectedInstallation } : {}),
+          ...(discipline ? { discipline } : {}),
+        },
+      });
+      setLogs(response.data || []);
     } catch (error) {
-      setData([
-        { id: '1', date: new Date().toISOString(), equipmentTag: 'CPF--EQ-001', shift: 'Day', runHours: 8, cumulativeHours: 5000, parameters: { 'Temp (°C)': 45, 'Pressure (bar)': 5.2 }, status: 'Running' },
-        { id: '2', date: dayjs().subtract(1, 'day').toISOString(), equipmentTag: 'CPF--EQ-001', shift: 'Night', runHours: 6, cumulativeHours: 4994, parameters: { 'Temp (°C)': 44 }, status: 'Running' },
-        { id: '3', date: dayjs().subtract(2, 'day').toISOString(), equipmentTag: 'CPF--EQ-001', shift: 'Day', runHours: 8, cumulativeHours: 4988, parameters: { 'Temp (°C)': 46 }, status: 'Running' },
-        { id: '4', date: new Date().toISOString(), equipmentTag: 'CPF--EQ-002', shift: 'Night', runHours: 6, cumulativeHours: 4200, parameters: { 'Temp (°C)': 42 }, status: 'Running' },
-      ]);
-    } finally { setLoading(false); }
+      console.error(error);
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loadTemplates = () => { const saved = localStorage.getItem('runningHoursTemplates'); if (saved) setTemplates(JSON.parse(saved)); };
-
-  const saveTemplate = () => {
-    const templateName = prompt('Enter template name:'); if (!templateName) return;
-    const template = { id: Date.now().toString(), name: templateName, columns: customColumns, equipmentType: selectedEquipType };
-    const newTemplates = [...templates, template]; setTemplates(newTemplates); localStorage.setItem('runningHoursTemplates', JSON.stringify(newTemplates)); message.success('Template saved!');
-  };
-
-  const loadTemplate = (t: any) => { setCustomColumns(t.columns); setSelectedEquipType(t.equipmentType); message.success('Template loaded!'); };
-  const deleteTemplate = (id: string) => { const newT = templates.filter(t => t.id !== id); setTemplates(newT); localStorage.setItem('runningHoursTemplates', JSON.stringify(newT)); message.success('Deleted'); };
-  const addCustomColumn = () => { if (!newColumnName.trim()) return; if (customColumns.includes(newColumnName)) { message.warning('Exists'); return; } setCustomColumns([...customColumns, newColumnName.trim()]); setNewColumnName(''); };
-  const removeCustomColumn = (c: string) => { setCustomColumns(customColumns.filter(x => x !== c)); };
-  const loadDefaultParams = (et: string) => { setCustomColumns(defaultParameters[et] || defaultParameters['Default']); setSelectedEquipType(et); };
-
-  const handleSubmit = async (values: any) => {
+  const fetchModalEquipment = async (installationId: string) => {
     try {
-      const parameters: Record<string, number> = {}; customColumns.forEach(c => { if (values[`param_${c}`] !== undefined) parameters[c] = values[`param_${c}`]; });
-      const payload = { ...values, date: values.date?.toISOString(), parameters, category };
-      await axios.post('/api/logbook/running-hours', payload); message.success('Entry added!'); setModalOpen(false); form.resetFields(); fetchData();
-    } catch (error) { message.error('Failed'); }
+      const response = await axios.get('/api/equipment/running-equip', {
+        params: { installationId, ...(discipline ? { discipline } : {}) },
+      });
+      setModalEquipment(response.data || []);
+    } catch (error) {
+      console.error(error);
+      setModalEquipment([]);
+    }
   };
 
-  const viewHistory = (tag: string) => { const history = data.filter(d => d.equipmentTag === tag).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); setHistoryModal({ equipmentTag: tag, logs: history }); };
-  
-  const viewTrend = (tag: string) => {
-    const history = data.filter(d => d.equipmentTag === tag).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    setTrendModal({ equipmentTag: tag, logs: history });
+  const loadAssetProfile = async (equipmentTag: string) => {
+    try {
+      const response = await axios.get(`/api/operations/assets/${encodeURIComponent(equipmentTag)}/profile`);
+      setSelectedProfile(response.data.profile);
+    } catch (error) {
+      console.error(error);
+      setSelectedProfile(null);
+    }
   };
 
-  const handleDeleteLog = async (id: string) => {
-    try { await axios.delete(`/api/logbook/running-hours/${id}`); message.success('Entry deleted'); fetchData(); } catch { message.error('Failed to delete'); }
-  };
-
-  const totalHours = data.reduce((sum, d) => sum + (d.runHours || 0), 0);
-  const equipmentCount = new Set(data.map(d => d.equipmentTag)).size;
-  const parameterColumns = customColumns.length > 0 ? customColumns : [...new Set(data.flatMap(d => Object.keys(d.parameters || {})))].slice(0, 5);
+  const parameterColumns = useMemo(() => {
+    const metricMap = new Map<string, any>();
+    logs.forEach((log) => {
+      (log.metrics || []).forEach((metric: any) => {
+        if (!metricMap.has(metric.code)) {
+          metricMap.set(metric.code, metric);
+        }
+      });
+    });
+    return [...metricMap.values()].slice(0, 6);
+  }, [logs]);
 
   const columns = [
-    { title: 'Date', dataIndex: 'date', render: (d: string) => d ? dayjs(d).format('DD/MM/YYYY') : '-', width: 100 },
-    { title: 'Equipment', dataIndex: 'equipmentTag', render: (t: string) => (
-      <Space>
-        <Button type="link" size="small" onClick={() => viewHistory(t)} className="p-0 font-semibold">{t}</Button>
-        <Tooltip title="View Trend"><Button type="text" size="small" icon={<TrendingUp className="w-3 h-3 text-blue-500" />} onClick={() => viewTrend(t)} /></Tooltip>
-      </Space>
-    ), width: 150 },
-    { title: 'Shift', dataIndex: 'shift', width: 70 },
-    { title: 'Run Hrs', dataIndex: 'runHours', render: (h: number) => <span className="font-mono">{h || 0}</span>, width: 80 },
-    { title: 'Cumulative', dataIndex: 'cumulativeHours', render: (h: number) => <span className="font-mono text-blue-600">{(h || 0).toLocaleString()}</span>, width: 100 },
-    ...parameterColumns.map(p => ({ title: <Tooltip title={p}><span className="truncate max-w-16 inline-block">{p.split(' ')[0]}</span></Tooltip>, dataIndex: ['parameters', p], render: (_: any, r: any) => <span className="font-mono">{r.parameters?.[p] ?? '-'}</span>, width: 80 })),
-    { title: 'Status', dataIndex: 'status', width: 80, render: (s: string) => <Tag color={s === 'Running' ? 'green' : s === 'Stopped' ? 'red' : 'default'}>{s || '-'}</Tag> },
-    ...(isAdmin ? [{ title: '', width: 50, render: (_: any, r: any) => <Popconfirm title="Delete?" onConfirm={() => handleDeleteLog(r.id)}><Button type="text" size="small" danger icon={<Trash2 className="w-3.5 h-3.5" />} /></Popconfirm> }] : []),
+    {
+      title: 'Date',
+      dataIndex: 'logDate',
+      width: 110,
+      render: (value: string) => dayjs(value).format('DD/MM/YYYY'),
+    },
+    {
+      title: 'Equipment',
+      dataIndex: 'equipmentTag',
+      width: 170,
+      render: (value: string, record: any) => (
+        <Space>
+          <Button type="link" size="small" className="p-0 font-semibold" onClick={() => setHistoryModal({ equipmentTag: value, logs: logs.filter((log) => log.equipmentTag === value) })}>
+            {value}
+          </Button>
+          <Tooltip title="Trend">
+            <Button type="text" size="small" icon={<TrendingUp className="w-3 h-3 text-blue-600" />} onClick={() => setTrendModal({ equipmentTag: value, logs: logs.filter((log) => log.equipmentTag === value).sort((a, b) => a.logDate.localeCompare(b.logDate)) })} />
+          </Tooltip>
+          {record.sourceMode !== 'MANUAL' && <Tag color="green">{record.sourceMode}</Tag>}
+        </Space>
+      ),
+    },
+    { title: 'Shift', dataIndex: 'shift', width: 90 },
+    { title: 'Runtime', dataIndex: 'runtimeHours', width: 90, render: (value: number) => <span className="font-mono font-semibold text-blue-700">{value || 0}</span> },
+    { title: 'Downtime', dataIndex: 'downtimeHours', width: 95, render: (value: number) => <span className="font-mono text-amber-700">{value || 0}</span> },
+    { title: 'Standby', dataIndex: 'standbyHours', width: 90, render: (value: number) => <span className="font-mono">{value || 0}</span> },
+    { title: 'Cumulative', dataIndex: 'cumulativeHours', width: 110, render: (value: number) => <span className="font-mono text-slate-700">{Number(value || 0).toLocaleString()}</span> },
+    {
+      title: 'State',
+      dataIndex: 'operatingState',
+      width: 110,
+      render: (value: string) => <Tag color={value === 'RUNNING' ? 'green' : value === 'STOPPED' ? 'red' : 'blue'}>{value || '-'}</Tag>,
+    },
+    ...parameterColumns.map((metric) => ({
+      title: metric.label,
+      width: 110,
+      render: (_: any, record: any) => {
+        const value = record.parameters?.[metric.code];
+        return <span className="font-mono">{value ?? '-'}</span>;
+      },
+    })),
+    ...(isAdmin
+      ? [
+          {
+            title: '',
+            width: 50,
+            render: (_: any, record: any) => (
+              <Popconfirm title="Delete operational log?" onConfirm={async () => {
+                try {
+                  await axios.delete(`/api/operations/logs/${record.id}`);
+                  message.success('Operational log deleted');
+                  fetchOperationalLogs();
+                  fetchOverview();
+                } catch {
+                  message.error('Delete failed');
+                }
+              }}>
+                <Button type="text" danger size="small" icon={<Trash2 className="w-3.5 h-3.5" />} />
+              </Popconfirm>
+            ),
+          },
+        ]
+      : []),
   ];
 
-  // Simple SVG trend chart
-  const renderTrendChart = (logs: any[], paramName: string) => {
-    if (logs.length < 2) return <Empty description="Not enough data" />;
-    const values = logs.map(l => l.parameters?.[paramName] || 0);
-    const max = Math.max(...values) || 1;
-    const min = Math.min(...values);
-    const range = max - min || 1;
-    const width = 400;
-    const height = 150;
-    const padding = 30;
-    const points = values.map((v, i) => ({ x: padding + (i / (values.length - 1)) * (width - 2 * padding), y: height - padding - ((v - min) / range) * (height - 2 * padding) }));
-    const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
-    return (
-      <svg width={width} height={height} className="bg-gray-50 dark:bg-gray-800 rounded">
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#ccc" />
-        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#ccc" />
-        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" />
-        {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="4" fill="#3b82f6" />)}
-        <text x={padding} y={height - 5} fontSize="10" fill="#888">{logs[0]?.date ? dayjs(logs[0].date).format('DD/MM') : ''}</text>
-        <text x={width - padding - 30} y={height - 5} fontSize="10" fill="#888">{logs[logs.length - 1]?.date ? dayjs(logs[logs.length - 1].date).format('DD/MM') : ''}</text>
-        <text x={5} y={padding + 5} fontSize="10" fill="#888">{max.toFixed(1)}</text>
-        <text x={5} y={height - padding} fontSize="10" fill="#888">{min.toFixed(1)}</text>
-      </svg>
-    );
+  const handleSubmit = async (values: any) => {
+    const runtimeHours = Number(values.runtimeHours || 0);
+    const downtimeHours = Number(values.downtimeHours || 0);
+    const standbyHours = Number(values.standbyHours || 0);
+
+    if (runtimeHours + downtimeHours + standbyHours > 24) {
+      message.error('Runtime + downtime + standby cannot exceed 24 hours for a daily log');
+      return;
+    }
+
+    const parameters = (selectedProfile?.metrics || []).reduce((acc: Record<string, number>, metric: any) => {
+      const value = values[`metric_${metric.code}`];
+      if (value !== undefined && value !== null && value !== '') acc[metric.code] = value;
+      return acc;
+    }, {});
+
+    try {
+      await axios.post('/api/operations/logs', {
+        logDate: values.logDate.format('YYYY-MM-DD'),
+        shift: values.shift,
+        installationId: values.installationId,
+        equipmentTag: values.equipmentTag,
+        runtimeHours,
+        downtimeHours,
+        standbyHours,
+        cumulativeHours: values.cumulativeHours || 0,
+        operatingState: values.operatingState,
+        availabilityStatus: values.availabilityStatus,
+        sourceMode: values.sourceMode,
+        sourceStatus: values.sourceMode === 'AUTO' ? 'AUTO_CAPTURED' : 'REVIEWED',
+        enteredBy: user?.username || 'system',
+        remarks: values.remarks,
+        parameters,
+      });
+
+      message.success('Operational log saved');
+      setModalOpen(false);
+      form.resetFields();
+      setSelectedProfile(null);
+      fetchOperationalLogs();
+      fetchOverview();
+    } catch (error) {
+      console.error(error);
+      message.error('Failed to save operational log');
+    }
   };
+
+  const trendRuntime = (trendModal?.logs || []).map((log: any) => Number(log.runtimeHours || 0));
+  const trendDowntime = (trendModal?.logs || []).map((log: any) => Number(log.downtimeHours || 0));
 
   return (
     <div className="space-y-4">
-      <Row gutter={16}>
-        <Col span={6}><Card size="small"><Statistic title="Total Run Hours Today" value={totalHours} suffix="hrs" valueStyle={{ color: '#3b82f6' }} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="Equipment Logged" value={equipmentCount} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="Log Entries" value={data.length} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="Parameters Tracked" value={parameterColumns.length} /></Card></Col>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} xl={6}>
+          <Card size="small">
+            <Statistic title="Operational Logs" value={overview?.stats?.submittedLogs || logs.length} prefix={<ActivitySquare className="w-4 h-4 text-blue-600" />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <Card size="small">
+            <Statistic title="Runtime" value={overview?.stats?.totalRuntime || 0} suffix="hrs" prefix={<GaugeCircle className="w-4 h-4 text-emerald-600" />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <Card size="small">
+            <Statistic title="Downtime" value={overview?.stats?.totalDowntime || 0} suffix="hrs" prefix={<AlertTriangle className="w-4 h-4 text-amber-600" />} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <Card size="small">
+            <Statistic title="Auto / Hybrid" value={overview?.stats?.autoCapturedCount || 0} prefix={<Cpu className="w-4 h-4 text-violet-600" />} />
+          </Card>
+        </Col>
       </Row>
 
-      <div className="flex justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-lg shadow border dark:border-gray-700">
-        <h2 className="text-lg font-bold dark:text-white">Running Hours Log</h2>
-        <div className="flex gap-2">
-          <Select placeholder="Installation" allowClear style={{ width: 140 }} onChange={v => setFilterInstallation(v || '')} value={filterInstallation || undefined}>
-            {installations.map(i => <Option key={i.id} value={i.id}>{i.installationId}</Option>)}
-          </Select>
-          <Button icon={<Settings className="w-4 h-4" />} onClick={() => setShowColumnConfig(true)}>Columns</Button>
-          <Button type="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setModalOpen(true)}>Add Entry</Button>
-        </div>
-      </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={16}>
+          <Card
+            title="Operations Logbook"
+            extra={(
+              <Space>
+                <Select
+                  allowClear
+                  placeholder="Installation"
+                  style={{ width: 180 }}
+                  value={selectedInstallation || undefined}
+                  onChange={(value) => setSelectedInstallation(value || '')}
+                >
+                  {installations.map((installation) => (
+                    <Select.Option key={installation.id} value={installation.id}>
+                      {installation.installationId}
+                    </Select.Option>
+                  ))}
+                </Select>
+                <Button type="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setModalOpen(true)}>
+                  Daily Entry
+                </Button>
+              </Space>
+            )}
+          >
+            <Table
+              dataSource={logs}
+              columns={columns as any}
+              rowKey="id"
+              size="small"
+              loading={loading}
+              pagination={{ pageSize: 12 }}
+              scroll={{ x: 1200 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} xl={8}>
+          <Card title="Operations Pattern" size="small">
+            {overview?.trend?.length ? (
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Runtime Trend</div>
+                  {renderTrend((overview.trend || []).map((item: any) => Number(item.runtime || 0)), '#2563eb')}
+                </div>
+                <div>
+                  <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Downtime Trend</div>
+                  {renderTrend((overview.trend || []).map((item: any) => Number(item.downtime || 0)), '#d97706')}
+                </div>
+                {(overview.topExceptionAssets || []).length > 0 && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                    <div className="text-sm font-semibold text-red-700">Exception Assets</div>
+                    <div className="mt-2 space-y-2">
+                      {overview.topExceptionAssets.slice(0, 4).map((asset: any) => (
+                        <div key={asset.equipmentTag}>
+                          <div className="flex items-center justify-between text-xs">
+                            <span>{asset.equipmentTag}</span>
+                            <span>{asset.exceptions} issues</span>
+                          </div>
+                          <Progress percent={Math.min(100, asset.exceptions * 10)} strokeColor="#dc2626" showInfo={false} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Empty description="No operating trend yet" />
+            )}
+          </Card>
+        </Col>
+      </Row>
 
-      <Table dataSource={data} columns={columns} rowKey="id" size="small" loading={loading} scroll={{ x: 1000 }} pagination={{ pageSize: 15 }} />
+      <Modal
+        title="Capture Daily Operations Log"
+        open={modalOpen}
+        onCancel={() => {
+          setModalOpen(false);
+          setSelectedProfile(null);
+        }}
+        footer={null}
+        width={780}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{
+            logDate: dayjs(),
+            shift: 'GENERAL',
+            operatingState: 'RUNNING',
+            availabilityStatus: 'AVAILABLE',
+            sourceMode: 'MANUAL',
+          }}
+        >
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="logDate" label="Log Date" rules={[{ required: true }]}>
+                <DatePicker className="w-full" format="DD-MM-YYYY" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="shift" label="Shift" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="GENERAL">General / Daily</Select.Option>
+                  <Select.Option value="DAY">Day</Select.Option>
+                  <Select.Option value="NIGHT">Night</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="sourceMode" label="Source Mode" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="MANUAL">Manual</Select.Option>
+                  <Select.Option value="HYBRID">Hybrid</Select.Option>
+                  <Select.Option value="AUTO">Auto Captured</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
-      {/* Add Modal */}
-      <Modal title="Add Running Hours Entry" open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} width={600}>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Row gutter={16}><Col span={12}><Form.Item name="date" label="Date" rules={[{ required: true }]}><DatePicker className="w-full" /></Form.Item></Col><Col span={12}><Form.Item name="shift" label="Shift" initialValue="Day"><Select><Option value="Day">Day</Option><Option value="Night">Night</Option></Select></Form.Item></Col></Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="installationId" label="Installation" rules={[{ required: true, message: 'Select installation' }]}>
-                <Select placeholder="Select Installation" onChange={(v: string) => { fetchModalEquipment(v); form.setFieldValue('equipmentTag', undefined); }} allowClear onClear={() => setModalEquipment([])}>
-                  {installations.map(i => <Option key={i.id} value={i.id}>{i.installationId}</Option>)}
+              <Form.Item name="installationId" label="Installation" rules={[{ required: true }]}>
+                <Select
+                  showSearch
+                  optionFilterProp="children"
+                  onChange={(value: string) => {
+                    fetchModalEquipment(value);
+                    form.setFieldValue('equipmentTag', undefined);
+                    setSelectedProfile(null);
+                  }}
+                >
+                  {installations.map((installation) => (
+                    <Select.Option key={installation.id} value={installation.id}>
+                      {installation.installationId}
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="equipmentTag" label="Equipment" rules={[{ required: true }]}>
-                <Select showSearch placeholder={modalEquipment.length ? "Select Equipment" : "Select installation first"} optionFilterProp="children" disabled={!modalEquipment.length}>{modalEquipment.map((eq: any) => <Option key={eq.equipmentTag} value={eq.equipmentTag}>{eq.equipmentTag} - {eq.description}</Option>)}</Select>
+              <Form.Item name="equipmentTag" label="Running Equipment" rules={[{ required: true }]}>
+                <Select
+                  showSearch
+                  optionFilterProp="children"
+                  placeholder={modalEquipment.length ? 'Select running equipment' : 'Select installation first'}
+                  onChange={(value: string) => loadAssetProfile(value)}
+                  disabled={!modalEquipment.length}
+                >
+                  {modalEquipment.map((equipment) => (
+                    <Select.Option key={equipment.equipmentTag} value={equipment.equipmentTag}>
+                      {equipment.equipmentTag} - {equipment.description}
+                    </Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>
-          <Row gutter={16}><Col span={8}><Form.Item name="runHours" label="Run Hours"><InputNumber min={0} max={24} className="w-full" /></Form.Item></Col><Col span={8}><Form.Item name="cumulativeHours" label="Cumulative Hours"><InputNumber min={0} className="w-full" /></Form.Item></Col><Col span={8}><Form.Item name="status" label="Status" initialValue="Running"><Select><Option value="Running">Running</Option><Option value="Stopped">Stopped</Option><Option value="Standby">Standby</Option></Select></Form.Item></Col></Row>
-          <Divider>Operating Parameters</Divider>
-          <Row gutter={16}>{customColumns.map(c => <Col span={12} key={c}><Form.Item name={`param_${c}`} label={c}><InputNumber className="w-full" /></Form.Item></Col>)}</Row>
-          <div className="flex justify-end gap-2 mt-4"><Button onClick={() => setModalOpen(false)}>Cancel</Button><Button type="primary" htmlType="submit">Save</Button></div>
+
+          <Row gutter={16}>
+            <Col span={6}><Form.Item name="runtimeHours" label="Runtime (hrs)"><InputNumber min={0} max={24} className="w-full" /></Form.Item></Col>
+            <Col span={6}><Form.Item name="downtimeHours" label="Downtime (hrs)"><InputNumber min={0} max={24} className="w-full" /></Form.Item></Col>
+            <Col span={6}><Form.Item name="standbyHours" label="Standby (hrs)"><InputNumber min={0} max={24} className="w-full" /></Form.Item></Col>
+            <Col span={6}><Form.Item name="cumulativeHours" label="Cumulative Hours"><InputNumber min={0} className="w-full" /></Form.Item></Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="operatingState" label="Operating State">
+                <Select>
+                  <Select.Option value="RUNNING">Running</Select.Option>
+                  <Select.Option value="STOPPED">Stopped</Select.Option>
+                  <Select.Option value="STANDBY">Standby</Select.Option>
+                  <Select.Option value="TRIPPED">Tripped</Select.Option>
+                  <Select.Option value="MAINTENANCE">Maintenance</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="availabilityStatus" label="Availability">
+                <Select>
+                  <Select.Option value="AVAILABLE">Available</Select.Option>
+                  <Select.Option value="DEGRADED">Degraded</Select.Option>
+                  <Select.Option value="UNAVAILABLE">Unavailable</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider>Profile Metrics</Divider>
+          {!selectedProfile ? (
+            <Empty description="Select a running equipment tag to load its operating profile" />
+          ) : (
+            <>
+              <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm">
+                <div className="font-semibold text-blue-700">{selectedProfile.name}</div>
+                <div className="text-blue-600">{selectedProfile.description}</div>
+              </div>
+              <Row gutter={16}>
+                {selectedProfile.metrics.map((metric: any) => (
+                  <Col span={12} key={metric.code}>
+                    <Form.Item
+                      name={`metric_${metric.code}`}
+                      label={`${metric.label}${metric.unit ? ` (${metric.unit})` : ''}`}
+                      rules={metric.required ? [{ required: true, message: `Enter ${metric.label}` }] : []}
+                    >
+                      <InputNumber className="w-full" />
+                    </Form.Item>
+                  </Col>
+                ))}
+              </Row>
+            </>
+          )}
+
+          <Form.Item name="remarks" label="Supervisor Remarks">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="primary" htmlType="submit">Save Operational Log</Button>
+          </div>
         </Form>
       </Modal>
 
-      {/* Column Config Modal */}
-      <Modal title="Configure Parameters" open={showColumnConfig} onCancel={() => setShowColumnConfig(false)} footer={null} width={500}>
-        <div className="space-y-4">
-          <div><p className="font-semibold mb-2">Load Preset:</p><Space wrap>{Object.keys(defaultParameters).map(t => <Button key={t} size="small" onClick={() => loadDefaultParams(t)}>{t}</Button>)}</Space></div>
-          <Divider />
-          <div><p className="font-semibold mb-2">Current Columns:</p><div className="flex flex-wrap gap-2">{customColumns.map(c => <Tag key={c} closable onClose={() => removeCustomColumn(c)}>{c}</Tag>)}</div></div>
-          <div className="flex gap-2"><Input placeholder="New column" value={newColumnName} onChange={e => setNewColumnName(e.target.value)} onPressEnter={addCustomColumn} /><Button icon={<Plus className="w-4 h-4" />} onClick={addCustomColumn}>Add</Button></div>
-          <Divider />
-          <div className="flex justify-between"><Button icon={<Save className="w-4 h-4" />} onClick={saveTemplate}>Save as Template</Button><Button onClick={() => setShowColumnConfig(false)}>Done</Button></div>
-          {templates.length > 0 && (<><Divider /><p className="font-semibold mb-2">Saved Templates:</p><div className="space-y-2">{templates.map(t => <div key={t.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded"><span>{t.name}</span><Space><Button size="small" icon={<Copy className="w-3 h-3" />} onClick={() => loadTemplate(t)}>Load</Button><Popconfirm title="Delete?" onConfirm={() => deleteTemplate(t.id)}><Button size="small" danger icon={<Trash2 className="w-3 h-3" />} /></Popconfirm></Space></div>)}</div></>)}
-        </div>
+      <Modal title={<span className="flex items-center gap-2"><History className="w-4 h-4" /> Asset Log History: {historyModal?.equipmentTag}</span>} open={!!historyModal} onCancel={() => setHistoryModal(null)} footer={null} width={900}>
+        {historyModal?.logs?.length ? (
+          <Table
+            dataSource={historyModal.logs}
+            columns={[
+              { title: 'Date', dataIndex: 'logDate', render: (value: string) => dayjs(value).format('DD/MM/YYYY') },
+              { title: 'Shift', dataIndex: 'shift' },
+              { title: 'Runtime', dataIndex: 'runtimeHours' },
+              { title: 'Downtime', dataIndex: 'downtimeHours' },
+              { title: 'State', dataIndex: 'operatingState', render: (value: string) => <Tag>{value || '-'}</Tag> },
+              { title: 'Source', dataIndex: 'sourceMode' },
+            ]}
+            rowKey="id"
+            pagination={{ pageSize: 8 }}
+            size="small"
+          />
+        ) : (
+          <Empty description="No historical operations logs" />
+        )}
       </Modal>
 
-      {/* History Modal */}
-      <Modal title={<span className="flex items-center gap-2"><History className="w-4 h-4" /> History: {historyModal?.equipmentTag}</span>} open={!!historyModal} onCancel={() => setHistoryModal(null)} footer={null} width={700}>
-        {historyModal?.logs?.length > 0 ? <Table dataSource={historyModal.logs} columns={columns.slice(0, 6)} rowKey="id" size="small" pagination={{ pageSize: 10 }} /> : <Empty description="No history" />}
-      </Modal>
-
-      {/* Trend Modal */}
-      <Modal title={<span className="flex items-center gap-2"><LineChart className="w-4 h-4" /> Trend: {trendModal?.equipmentTag}</span>} open={!!trendModal} onCancel={() => setTrendModal(null)} footer={null} width={500}>
-        {trendModal?.logs?.length > 0 ? (
+      <Modal title={<span className="flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Trend View: {trendModal?.equipmentTag}</span>} open={!!trendModal} onCancel={() => setTrendModal(null)} footer={null} width={820}>
+        {trendModal?.logs?.length ? (
           <div className="space-y-4">
             <div>
-              <h4 className="font-semibold mb-2">Run Hours Trend</h4>
-              {renderTrendChart(trendModal.logs.map((l: any) => ({ ...l, parameters: { 'Run Hours': l.runHours } })), 'Run Hours')}
+              <div className="mb-2 text-sm font-semibold">Runtime Trend</div>
+              {renderTrend(trendRuntime, '#2563eb')}
             </div>
-            {customColumns.slice(0, 2).map(param => (
-              <div key={param}>
-                <h4 className="font-semibold mb-2">{param} Trend</h4>
-                {renderTrendChart(trendModal.logs, param)}
-              </div>
-            ))}
+            <div>
+              <div className="mb-2 text-sm font-semibold">Downtime Trend</div>
+              {renderTrend(trendDowntime, '#d97706')}
+            </div>
           </div>
-        ) : <Empty description="No data for trends" />}
+        ) : (
+          <Empty description="No trend data" />
+        )}
       </Modal>
     </div>
   );

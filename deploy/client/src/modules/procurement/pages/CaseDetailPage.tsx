@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { ProcurementLayout } from "../components/ProcurementLayout";
 import { ArrowLeft, Send, Clock, User, FileText, DollarSign, Briefcase, Calendar, Edit2, Save, X, CheckCircle, Tag, Building } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { parseDiscipline } from "../../../utils/workspace";
 
 interface Comment {
   id: string;
@@ -70,7 +71,9 @@ const CATEGORIES = ["SPARES", "STORES", "SERVICES", "TOOLS", "CONSUMABLES"];
 export const CaseDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, token } = useAuth();
+  const discipline = parseDiscipline(searchParams.get("discipline"));
   const [caseItem, setCaseItem] = useState<Case | null>(null);
   const [newComment, setNewComment] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split("T")[0]);
@@ -107,7 +110,9 @@ export const CaseDetailPage = () => {
 
   const fetchCase = async () => {
     try {
-      const response = await axios.get(`/api/cases/${id}`);
+      const response = await axios.get(`/api/cases/${id}`, {
+        params: discipline ? { discipline } : undefined,
+      });
       setCaseItem(response.data);
       // Initialize edit form
       setEditForm({
@@ -166,7 +171,8 @@ export const CaseDetailPage = () => {
     try {
       await axios.put(`/api/cases/${id}/stage`, { 
           stage: selectedStage,
-          effectiveDate: stageUpdateDate 
+          effectiveDate: stageUpdateDate,
+          ...(discipline ? { primaryDiscipline: discipline } : {}),
       });
       await fetchCase();
     } catch (error) {
@@ -177,7 +183,10 @@ export const CaseDetailPage = () => {
 
   const handleSaveDetails = async () => {
       try {
-          await axios.put(`/api/cases/${id}`, editForm);
+          await axios.put(`/api/cases/${id}`, {
+            ...editForm,
+            ...(discipline ? { primaryDiscipline: discipline } : {}),
+          });
           setIsEditing(false);
           await fetchCase();
       } catch (error) {

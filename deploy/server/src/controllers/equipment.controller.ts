@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import {
+  applyDisciplineScope,
+  resolvePrimaryDisciplineForText,
+  resolveScopedDisciplines,
+} from '../services/disciplineAccess';
 
 const prisma = new PrismaClient();
 
@@ -64,7 +69,14 @@ export const updateInstrumentType = async (req: Request, res: Response) => {
 // --- Instruments ---
 export const getInstruments = async (req: Request, res: Response) => {
   try {
+    const where: any = {};
+    if (req.query.installationId) {
+      where.installationId = String(req.query.installationId);
+    }
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
+
     const instruments = await prisma.instrumentMaster.findMany({
+      where,
       include: { installation: true },
     });
     res.json(instruments);
@@ -76,7 +88,7 @@ export const getInstruments = async (req: Request, res: Response) => {
 
 export const createInstrument = async (req: Request, res: Response) => {
   try {
-    const { tagId, type, description, serviceLine, installationId, manufacturer, modelNo, serialNo, specifications } = req.body;
+    const { tagId, type, description, serviceLine, installationId, manufacturer, modelNo, serialNo, specifications, primaryDiscipline } = req.body;
     
     // Build proper data payload for InstrumentMaster
     const data: any = {
@@ -85,6 +97,7 @@ export const createInstrument = async (req: Request, res: Response) => {
       description: description || type + ' - ' + tagId,
       serviceLine,
       installationId,
+      primaryDiscipline: primaryDiscipline || 'INSTRUMENTATION',
       make: manufacturer || specifications?.manufacturer,
       model: modelNo || specifications?.model,
       serialNo: serialNo || specifications?.serialNo,
@@ -106,7 +119,13 @@ export const createInstrument = async (req: Request, res: Response) => {
 export const updateInstrument = async (req: Request, res: Response) => {
   try {
     const { tagId } = req.params;
-    const instrument = await prisma.instrumentMaster.update({ where: { tagId }, data: req.body });
+    const instrument = await prisma.instrumentMaster.update({
+      where: { tagId },
+      data: {
+        ...req.body,
+        ...(req.body.primaryDiscipline ? { primaryDiscipline: req.body.primaryDiscipline } : {}),
+      },
+    });
     res.json(instrument);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update instrument' });
@@ -310,7 +329,14 @@ export const getInstrumentHistory = async (req: Request, res: Response) => {
 // --- Running Equipment ---
 export const getRunningEquipment = async (req: Request, res: Response) => {
   try {
+    const where: any = {};
+    if (req.query.installationId) {
+      where.installationId = String(req.query.installationId);
+    }
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
+
     const equip = await prisma.runningEquipmentMaster.findMany({
+      where,
       include: { installation: true, equipmentType: true },
       orderBy: { createdAt: 'desc' }
     });
@@ -322,7 +348,16 @@ export const getRunningEquipment = async (req: Request, res: Response) => {
 
 export const createRunningEquipment = async (req: Request, res: Response) => {
   try {
-    const newEquip = await prisma.runningEquipmentMaster.create({ data: req.body });
+    const newEquip = await prisma.runningEquipmentMaster.create({
+      data: {
+        ...req.body,
+        primaryDiscipline:
+          req.body.primaryDiscipline ||
+          resolvePrimaryDisciplineForText(
+            `${req.body.serviceLine || ''} ${req.body.equipmentTypeName || ''} ${req.body.description || ''}`,
+          ),
+      },
+    });
     res.json(newEquip);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create equipment' });
@@ -332,7 +367,15 @@ export const createRunningEquipment = async (req: Request, res: Response) => {
 export const updateRunningEquipment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updated = await prisma.runningEquipmentMaster.update({ where: { equipmentTag: id }, data: req.body });
+    const updated = await prisma.runningEquipmentMaster.update({
+      where: { equipmentTag: id },
+      data: {
+        ...req.body,
+        ...(req.body.primaryDiscipline
+          ? { primaryDiscipline: req.body.primaryDiscipline }
+          : {}),
+      },
+    });
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Update failed' });
@@ -482,9 +525,11 @@ export const updatePerformer = async (req: Request, res: Response) => {
 export const getEquipmentByCategory = async (req: Request, res: Response) => {
   try {
     const { category } = req.params;
+    const where: any = { category };
+    applyDisciplineScope(where, 'primaryDiscipline', resolveScopedDisciplines(req.user, req.query.discipline));
     
     const equipment = await prisma.runningEquipmentMaster.findMany({
-      where: { category: category },
+      where,
       include: { installation: true },
       orderBy: { equipmentTag: 'asc' }
     });

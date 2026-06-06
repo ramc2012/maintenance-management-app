@@ -30,7 +30,7 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     query: str
     module: Optional[str] = None
-    model: Optional[str] = "tinyllama"
+    model: Optional[str] = llm_service.DEFAULT_MODEL
     use_rag: bool = True
     use_multi_hop: bool = True
     current_path: Optional[str] = None
@@ -44,6 +44,48 @@ class QueryResponse(BaseModel):
     sources: Optional[List[Dict]] = None
     tool_used: Optional[str] = None
     llm_enhanced: bool = False
+
+class SearchRequest(BaseModel):
+    query: str
+    module: Optional[str] = None
+    top_k: int = 8
+
+
+def source_from_hit(hit: Dict[str, Any]) -> Dict[str, Any]:
+    citation = hit.get("citation") or {}
+    metadata = hit.get("metadata") or {}
+    return {
+        "module": citation.get("module") or metadata.get("module", "unknown"),
+        "source": citation.get("source") or metadata.get("source", "unknown"),
+        "title": citation.get("title") or metadata.get("title", "untitled"),
+        "source_type": citation.get("source_type") or metadata.get("source_type", "unknown"),
+        "relevance": round(float(hit.get("similarity", hit.get("hybrid_score", 0)) or 0), 3),
+        "hop": hit.get("hop", 1),
+    }
+
+
+def build_rule_based_response(query: str, context: str, sources: List[Dict[str, Any]]) -> str:
+    """Fast non-LLM fallback for the chat endpoint."""
+    if not context and not sources:
+        return f"No indexed context was found for '{query}'. Try a more specific module, tag, or document reference."
+
+    parts: List[str] = []
+    if context:
+        condensed_context = " ".join(str(context).split())
+        if len(condensed_context) > 800:
+            condensed_context = f"{condensed_context[:800].rstrip()}..."
+        parts.append(condensed_context)
+
+    if sources:
+        source_labels = []
+        for source in sources[:3]:
+            label = source.get("title") or source.get("source") or source.get("module")
+            if label and label not in source_labels:
+                source_labels.append(label)
+        if source_labels:
+            parts.append(f"Sources: {', '.join(source_labels)}")
+
+    return "\n\n".join(parts)
 
 @app.get("/health")
 def health_check():
@@ -64,7 +106,7 @@ async def get_models():
         return {
             "models": llm_service.AVAILABLE_MODELS,
             "ollama_available": False,
-            "default": "tinyllama"
+            "default": llm_service.DEFAULT_MODEL
         }
 
 @app.get("/cognitive/models")
@@ -82,21 +124,31 @@ async def check_ollama():
 async def chat_basic(request: QueryRequest):
     """Basic chat endpoint (rule-based)."""
     try:
-        # Build context from RAG
-        context = rag_engine.build_context(request.query, request.module)
-        results = rag_engine.semantic_search(request.query, top_k=3, module=request.module)
-        
-        response_text = await llm_service.generate_response(
-            prompt=request.query,
-            context=context,
-            model=request.model
-        )
+        context = ""
+        results = []
+
+        if request.use_rag:
+            context = rag_engine.build_context(request.query, request.module)
+            results = rag_engine.semantic_search(request.query, top_k=3, module=request.module)
+
+        if request.use_llm:
+            response_text = await llm_service.generate_response(
+                prompt=request.query,
+                context=context,
+                model=request.model
+            )
+        else:
+            response_text = build_rule_based_response(
+                request.query,
+                context,
+                [r.get("citation", {}) for r in results],
+            )
         
         return {
             "response": response_text,
-            "tool_used": "rag_search",
-            "model_used": request.model,
-            "llm_enhanced": True,
+            "tool_used": "rag_search" if request.use_rag else "direct_lookup",
+            "model_used": request.model if request.use_llm else "rule-based",
+            "llm_enhanced": request.use_llm,
             "sources": [r.get("citation", {}) for r in results]
         }
     except Exception as e:
@@ -114,33 +166,40 @@ async def chat_enhanced(request: QueryRequest):
         context = ""
         sources = []
         
-        if HAS_ADVANCED and request.use_llm:
-            context = rag_engine_advanced.build_comprehensive_context(
-                request.query,
-                use_multi_hop=True
+        if request.use_rag:
+            if HAS_ADVANCED and request.use_multi_hop:
+                context = rag_engine_advanced.build_comprehensive_context(
+                    request.query,
+                    use_multi_hop=True
+                )
+                results = rag_engine_advanced.multi_hop_search(request.query)
+                sources = [source_from_hit(r) for r in results[:5]]
+            else:
+                context = rag_engine.build_context(request.query, request.module)
+                results = rag_engine.semantic_search(request.query, top_k=3, module=request.module)
+                sources = [
+                    {
+                        "module": r.get("citation", {}).get("module", "unknown"),
+                        "source": r.get("citation", {}).get("source", "unknown"),
+                        "title": r.get("citation", {}).get("title", "untitled"),
+                    }
+                    for r in results
+                ]
+
+        if request.use_llm:
+            response_text = await llm_service.generate_response(
+                prompt=request.query,
+                context=context,
+                model=request.model
             )
-            results = rag_engine_advanced.multi_hop_search(request.query)
-            sources = [
-                {
-                    "module": r['metadata'].get('module', 'unknown'),
-                    "relevance": round(r['similarity'], 2)
-                }
-                for r in results[:3]
-            ]
         else:
-            context = rag_engine.build_context(request.query, request.module)
-        
-        response_text = await llm_service.generate_response(
-            prompt=request.query,
-            context=context,
-            model=request.model
-        )
+            response_text = build_rule_based_response(request.query, context, sources)
         
         return {
             "response": response_text,
-            "tool_used": "enhanced_rag" if HAS_ADVANCED else "rag_search",
-            "model_used": request.model,
-            "llm_enhanced": True,
+            "tool_used": "enhanced_rag" if request.use_rag and HAS_ADVANCED and request.use_multi_hop else ("rag_search" if request.use_rag else "direct_lookup"),
+            "model_used": request.model if request.use_llm else "rule-based",
+            "llm_enhanced": request.use_llm,
             "sources": sources
         }
     except Exception as e:
@@ -165,14 +224,7 @@ async def query_with_rag(request: QueryRequest):
                     use_multi_hop=True
                 )
                 results = rag_engine_advanced.multi_hop_search(request.query)
-                sources = [
-                    {
-                        "module": r['metadata'].get('module', 'unknown'),
-                        "relevance": round(r['similarity'], 2),
-                        "hop": r.get('hop', 1)
-                    }
-                    for r in results[:5]
-                ]
+                sources = [source_from_hit(r) for r in results[:5]]
             else:
                 context = rag_engine.build_context(request.query, request.module)
                 results = rag_engine.semantic_search(request.query, top_k=5, module=request.module)
@@ -186,18 +238,21 @@ async def query_with_rag(request: QueryRequest):
                     for r in results
                 ]
         
-        response_text = await llm_service.generate_response(
-            prompt=request.query,
-            context=context,
-            model=request.model
-        )
+        if request.use_llm:
+            response_text = await llm_service.generate_response(
+                prompt=request.query,
+                context=context,
+                model=request.model
+            )
+        else:
+            response_text = build_rule_based_response(request.query, context, sources)
         
         return QueryResponse(
             response=response_text,
-            model_used=request.model,
+            model_used=request.model if request.use_llm else "rule-based",
             context_used=bool(context),
             sources=sources if sources else None,
-            llm_enhanced=True
+            llm_enhanced=request.use_llm
         )
     
     except Exception as e:
@@ -215,16 +270,64 @@ async def index_all_data():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/cognitive/index/status")
+async def index_status():
+    """Return RAG collection/module counts for diagnostics."""
+    try:
+        return rag_engine.index_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/cognitive/search")
+async def search_index(request: SearchRequest):
+    """Inspect raw RAG hits without invoking the LLM."""
+    try:
+        top_k = max(1, min(request.top_k, 20))
+        return rag_engine.search_diagnostics(
+            query=request.query,
+            top_k=top_k,
+            module=request.module,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/cognitive/index/{module}")
 async def index_module(module: str):
     """Index specific module data."""
     try:
+        module = module.strip().lower()
         if module == "procurement":
             result = rag_engine.index_procurement_cases()
         elif module == "workshop":
             result = rag_engine.index_workshop_jobs()
         elif module == "manuals":
             result = rag_engine.index_manual_documents()
+        elif module in {
+            "installation",
+            "equipment",
+            "instrument",
+            "asset_history",
+            "work_order",
+            "maintenance_request",
+            "maintenance_log",
+            "logbook",
+            "process_log",
+            "gas_compression",
+            "calibration",
+            "pm_schedule",
+            "moh",
+            "energy",
+            "electricity_bill",
+            "budget",
+            "contract",
+            "contractor_report",
+            "training",
+            "manpower",
+            "presentation",
+            "notification",
+            "inspection",
+        }:
+            result = rag_engine.index_app_database(module=module)
         elif HAS_ADVANCED:
             if module == "calibration":
                 result = rag_engine_advanced.index_calibration_data()
@@ -250,4 +353,3 @@ async def run_mcp_tool(tool_request: dict):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

@@ -24,7 +24,7 @@ const CATEGORIES = [
 export const ProcurementLayout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate  = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const { accentColor, themeMode } = useTheme();
 
   const isDark  = themeMode === "dark";
@@ -46,7 +46,11 @@ export const ProcurementLayout: React.FC<LayoutProps> = ({ children }) => {
   const [expandedDepts, setExpandedDepts] = useState<Record<string, boolean>>({});
   const [adminExpanded, setAdminExpanded] = useState(true);
 
-  useEffect(() => { fetchOrg(); }, []);
+  useEffect(() => {
+    if (token) {
+      void fetchOrg();
+    }
+  }, [token]);
 
   const fetchOrg = async () => {
     try {
@@ -67,7 +71,7 @@ export const ProcurementLayout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [location.search, orgData]);
 
-  const handleLogout = () => { logout(); navigate("/login"); };
+  const handleLogout = () => { logout(); navigate("/login", { replace: true }); };
   const handleToggleDept = (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
     setExpandedDepts(prev => ({ ...prev, [id]: !prev[id] }));

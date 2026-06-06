@@ -17,6 +17,8 @@ import { ClockCircleOutlined, FileTextOutlined, TeamOutlined, SettingOutlined, A
 import axios from 'axios';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuth } from '../../../context/AuthContext';
+import { disciplineToLabel, type Discipline } from '../../../utils/workspace';
+import { canonicalServiceKey, displayService, uniqueServiceOptions } from '../../../utils/serviceGroups';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -24,9 +26,10 @@ const { Option } = Select;
 interface DailyLogFormProps {
   onSuccess?: () => void;
   initialData?: any;
+  discipline?: Discipline;
 }
 
-export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialData }) => {
+export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialData, discipline }) => {
   const [form] = Form.useForm();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -36,32 +39,32 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialDa
   const [calculatedHours, setCalculatedHours] = useState<number>(0);
   
   // Cascading filter state
-  const [selectedDeptType, setSelectedDeptType] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedJobType, setSelectedJobType] = useState<string>('PM');
+  const lockedSection = discipline ? disciplineToLabel(discipline) : null;
 
   // Get user's default section from their profile
-  const userDefaultSection = (user as any)?.section || 'Instrumentation';
+  const userDefaultSection = lockedSection || (user as any)?.section || 'Instrumentation';
 
-  // Get unique department types from installations
-  const departmentTypes = useMemo(() => {
-    const types = [...new Set(installations.map(i => i.type))];
-    return types.filter(Boolean);
+  // Get unique services from installations
+  const serviceOptions = useMemo(() => {
+    return uniqueServiceOptions(installations.map(i => i.type));
   }, [installations]);
 
-  // Filter installations based on selected department type
+  // Filter installations based on selected service
   const filteredInstallations = useMemo(() => {
-    if (!selectedDeptType) return installations;
-    return installations.filter(inst => inst.type === selectedDeptType);
-  }, [installations, selectedDeptType]);
+    if (!selectedService) return installations;
+    return installations.filter(inst => canonicalServiceKey(inst.type) === selectedService);
+  }, [installations, selectedService]);
 
   // Fetch reference data
   useEffect(() => {
     const fetchData = async () => {
       try {
         const results = await Promise.allSettled([
-          axios.get('/api/equipment/installations'),
-          axios.get('/api/equipment/instruments'),
-          axios.get('/api/equipment/running-equip'),
+          axios.get('/api/equipment/installations', { params: discipline ? { discipline } : undefined }),
+          axios.get('/api/equipment/instruments', { params: discipline ? { discipline } : undefined }),
+          axios.get('/api/equipment/running-equip', { params: discipline ? { discipline } : undefined }),
           axios.get('/api/maintenance/manpower')
         ]);
 
@@ -104,11 +107,17 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialDa
       }
     };
     fetchData();
-  }, []);
+  }, [discipline]);
 
-  // Handle department type change - reset installation
-  const handleDeptTypeChange = (deptType: string) => {
-    setSelectedDeptType(deptType);
+  useEffect(() => {
+    if (lockedSection) {
+      form.setFieldValue('section', lockedSection);
+    }
+  }, [form, lockedSection]);
+
+  // Handle service change - reset installation
+  const handleServiceChange = (service: string) => {
+    setSelectedService(service);
     form.setFieldValue('installationId', undefined);
   };
 
@@ -142,8 +151,9 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialDa
       const payload: any = {
         date: values.date.format('YYYY-MM-DD'),
         installationId: values.installationId,
-        department: selectedDeptType || values.department,
+        department: displayService(selectedService || values.department),
         section: values.section,
+        ...(discipline ? { primaryDiscipline: discipline } : {}),
         jobType: values.jobType,
         reportCriticality: values.reportCriticality,
         equipmentTag: values.equipmentTag,
@@ -182,7 +192,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialDa
 
       form.resetFields();
       setCalculatedHours(0);
-      setSelectedDeptType(null);
+      setSelectedService(null);
       setSelectedJobType('PM');
       onSuccess?.();
     } catch (error) {
@@ -220,40 +230,40 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({ onSuccess, initialDa
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Form.Item name="department" label="Department (Type)" rules={[{ required: true }]}>
+            <Form.Item name="department" label="Service" rules={[{ required: true }]}>
               <Select 
-                placeholder="Select Department Type" 
-                onChange={handleDeptTypeChange}
+                placeholder="Select service" 
+                onChange={handleServiceChange}
                 allowClear
               >
-                {departmentTypes.map((type) => (
-                  <Option key={type} value={type}>{type}</Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Form.Item name="installationId" label="Installation" rules={[{ required: true }]}>
-              <Select 
-                placeholder={selectedDeptType ? "Select Installation" : "Select dept first"}
-                showSearch 
-                optionFilterProp="children"
-                disabled={!selectedDeptType}
-              >
-                {filteredInstallations.map((inst) => (
-                  <Option key={inst.id} value={inst.id}>
-                    {inst.installationId}
-                  </Option>
+                {serviceOptions.map((service) => (
+                  <Option key={service.value} value={service.value}>{service.label}</Option>
                 ))}
               </Select>
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Form.Item name="section" label="Section" rules={[{ required: true }]}>
-              <Select>
+              <Select disabled={Boolean(lockedSection)}>
                 <Option value="Mechanical">Mechanical</Option>
                 <Option value="Electrical">Electrical</Option>
                 <Option value="Instrumentation">Instrumentation</Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item name="installationId" label="Installation" rules={[{ required: true }]}>
+              <Select 
+                placeholder={selectedService ? "Select installation" : "Select service first"}
+                showSearch 
+                optionFilterProp="children"
+                disabled={!selectedService}
+              >
+                {filteredInstallations.map((inst) => (
+                  <Option key={inst.id} value={inst.id}>
+                    {inst.installationId}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
           </Col>

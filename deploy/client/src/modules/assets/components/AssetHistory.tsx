@@ -8,9 +8,10 @@ const { Option } = Select;
 
 interface AssetHistoryProps {
   initialTag?: string | null;
+  discipline?: 'MECHANICAL' | 'ELECTRICAL' | 'INSTRUMENTATION';
 }
 
-export const AssetHistory: React.FC<AssetHistoryProps> = ({ initialTag }) => {
+export const AssetHistory: React.FC<AssetHistoryProps> = ({ initialTag, discipline }) => {
   const [tagId, setTagId] = useState('');
   const [instruments, setInstruments] = useState<any[]>([]);
   const [equipment, setEquipment] = useState<any[]>([]);
@@ -20,9 +21,12 @@ export const AssetHistory: React.FC<AssetHistoryProps> = ({ initialTag }) => {
   const [searchType, setSearchType] = useState<'instrument' | 'equipment'>('instrument');
 
   useEffect(() => {
-    axios.get('/api/equipment/instruments').then(res => setInstruments(res.data || [])).catch(() => {});
-    axios.get('/api/equipment/running-equip').then(res => setEquipment(res.data || [])).catch(() => {});
-  }, []);
+    const params = discipline ? { discipline } : undefined;
+    axios.get('/api/equipment/instruments', { params }).then(res => setInstruments(res.data || [])).catch(() => {});
+    axios.get('/api/equipment/running-equip', { params }).then(res => setEquipment(res.data || [])).catch(() => {});
+    if (discipline === 'INSTRUMENTATION') setSearchType('instrument');
+    if (discipline === 'MECHANICAL' || discipline === 'ELECTRICAL') setSearchType('equipment');
+  }, [discipline]);
 
   // Auto-select if initialTag is provided
   useEffect(() => {

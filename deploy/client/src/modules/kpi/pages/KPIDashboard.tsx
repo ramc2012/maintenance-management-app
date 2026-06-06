@@ -71,7 +71,24 @@ export const KPIDashboard = () => {
       if (selectedInstallation) params.append('installationId', selectedInstallation);
       const res = await fetch(`${KPI_API}/summary?${params}`, { headers: jsonHeaders() });
       if (!res.ok) throw new Error();
-      setSummary(await res.json());
+      const raw = await res.json();
+      setSummary({
+        pmCompliance: raw?.kpis?.pmCompliance?.value ?? 0,
+        breakdownFrequency: raw?.kpis?.breakdownFrequency?.total ?? 0,
+        mtbf: raw?.kpis?.mtbf?.value ?? 0,
+        mttr: raw?.kpis?.mttr?.value ?? 0,
+        availability: raw?.kpis?.availability?.value ?? 0,
+        overdueWOs: raw?.kpis?.overdueWOs?.value ?? 0,
+        overdueList: raw?.kpis?.overdueWOs?.list ?? [],
+        avgResponseTime: raw?.kpis?.avgResponseTime?.value ?? 0,
+        calibrationCompliance: raw?.kpis?.calibrationCompliance?.value ?? 0,
+        repeatFailureRate: raw?.kpis?.repeatFailureRate?.value ?? 0,
+        indirectCost: raw?.kpis?.maintenanceCost?.total ?? 0,
+        period: raw?.period ?? {
+          from: dateRange[0].toISOString(),
+          to: dateRange[1].toISOString(),
+        },
+      });
     } catch { message.error('Failed to load KPI data'); }
     finally { setLoading(false); }
   }, [dateRange, selectedInstallation]);
@@ -83,7 +100,17 @@ export const KPIDashboard = () => {
       if (selectedInstallation) params.append('installationId', selectedInstallation);
       const res = await fetch(`${KPI_API}/health-table?${params}`, { headers: jsonHeaders() });
       if (!res.ok) throw new Error();
-      setHealthTable(await res.json());
+      const payload = await res.json();
+      const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.equipment) ? payload.equipment : [];
+      setHealthTable(rows.map((row: any) => ({
+        tag: row.equipmentTag || row.tag,
+        name: row.description || row.name,
+        grade: row.grade,
+        score: row.score,
+        openWOs: row.openWOs ?? (row.openPriority ? 1 : 0),
+        lastCalibration: row.lastCalibration || null,
+        breakdowns90d: row.breakdowns90d ?? row.breakdowns ?? 0,
+      })));
     } catch {}
     finally { setHealthLoading(false); }
   }, [selectedInstallation]);
@@ -210,7 +237,7 @@ export const KPIDashboard = () => {
               onChange={v => setSelectedInstallation(v || '')}
             >
               {installations.map((i: any) => (
-                <Select.Option key={i.id} value={i.id}>{i.name}</Select.Option>
+                <Select.Option key={i.id} value={i.id}>{i.installationId || i.name}</Select.Option>
               ))}
             </Select>
             <RangePicker

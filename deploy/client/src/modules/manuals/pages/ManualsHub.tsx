@@ -4,11 +4,13 @@ import {
   FileText, Folder, Upload, Plus, Home, Wrench, Zap, Gauge,
   FolderPlus, Trash2, Download, Eye, X, Loader2
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Tooltip, message, Popconfirm, Tag } from 'antd';
 import { useTheme } from '../../../context/ThemeContext';
+import { API_BASE_URL } from '../../../config/runtime';
+import { disciplineToManualCategory, parseDiscipline } from '../../../utils/workspace';
 
-const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003/api';
+const API = API_BASE_URL;
 
 const categories = [
   { id: 'mechanical',       label: 'Mechanical',       icon: Wrench, color: 'text-blue-500'   },
@@ -44,6 +46,7 @@ const formatSize = (bytes: number) => {
 
 export const ManualsHub = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { themeMode } = useTheme();
   const isDark = themeMode === 'dark';
   const isSepia = themeMode === 'sepia';
@@ -62,13 +65,16 @@ export const ManualsHub = () => {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scopedDiscipline = parseDiscipline(searchParams.get('discipline'));
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
   const fetchFolders = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API}/manuals/repository`, { headers: authHeaders });
+      const params = new URLSearchParams();
+      params.set('discipline', scopedDiscipline || category.toUpperCase());
+      const res = await fetch(`${API}/manuals/repository?${params.toString()}`, { headers: authHeaders });
       if (res.ok) {
         const raw = await res.json();
         const data: ManualFolder[] = Array.isArray(raw) ? raw : raw.folders || [];
@@ -86,7 +92,16 @@ export const ManualsHub = () => {
     }
   };
 
-  useEffect(() => { fetchFolders(); }, []);
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (scopedDiscipline) {
+      setCategory(disciplineToManualCategory(scopedDiscipline));
+    } else if (categoryParam && categories.some((item) => item.id === categoryParam)) {
+      setCategory(categoryParam);
+    }
+  }, [scopedDiscipline, searchParams]);
+
+  useEffect(() => { fetchFolders(); }, [category, scopedDiscipline]);
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;

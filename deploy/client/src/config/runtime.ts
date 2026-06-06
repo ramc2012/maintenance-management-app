@@ -14,12 +14,12 @@ const defaultApiBase = inCapacitor
   ? isAndroid
     ? "http://10.0.2.2:5000"
     : "http://localhost:5000"
-  : "";
+  : "/api";
 const defaultCognitiveBase = inCapacitor
   ? isAndroid
     ? "http://10.0.2.2:8001"
     : "http://localhost:8001"
-  : "";
+  : "/cognitive";
 
 export const API_BASE_URL = normalizeUrl(
   import.meta.env.VITE_API_BASE_URL || defaultApiBase

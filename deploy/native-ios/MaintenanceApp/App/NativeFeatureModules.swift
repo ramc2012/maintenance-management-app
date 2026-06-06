@@ -96,12 +96,15 @@ struct AssetsHubView: View {
             }
 
             Section("Section") {
-                Picker("Section", selection: $selectedSection) {
-                    ForEach(AssetNativeSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
-                    }
+                NativeChipSelector(
+                    title: "Section",
+                    selection: $selectedSection,
+                    options: AssetNativeSection.allCases
+                ) { section, isSelected in
+                    Text(section.rawValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
                 }
-                .pickerStyle(.segmented)
             }
 
             switch selectedSection {
@@ -250,12 +253,15 @@ struct LogbookHubView: View {
     var body: some View {
         List {
             Section("Category") {
-                Picker("Category", selection: $selectedCategory) {
-                    ForEach(NativeLogbookCategory.allCases) { category in
-                        Label(category.rawValue, systemImage: category.icon).tag(category)
-                    }
+                NativeChipSelector(
+                    title: "Category",
+                    selection: $selectedCategory,
+                    options: NativeLogbookCategory.allCases
+                ) { category, isSelected in
+                    Label(category.rawValue, systemImage: category.icon)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
                 }
-                .pickerStyle(.segmented)
             }
 
             Section("Summary") {
@@ -333,12 +339,15 @@ struct WorkshopHubView: View {
     var body: some View {
         List {
             Section("Shop Filter") {
-                Picker("Shop", selection: $selectedFilter) {
-                    ForEach(NativeWorkshopShop.allCases) { shop in
-                        Text(shop.displayName).tag(shop)
-                    }
+                NativeChipSelector(
+                    title: "Shop",
+                    selection: $selectedFilter,
+                    options: NativeWorkshopShop.allCases
+                ) { shop, isSelected in
+                    Text(shop.displayName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
                 }
-                .pickerStyle(.segmented)
             }
 
             Section("Workshop Snapshot") {
@@ -440,12 +449,15 @@ struct CalibrationHubView: View {
     var body: some View {
         List {
             Section("Section") {
-                Picker("Section", selection: $selectedSection) {
-                    ForEach(CalibrationNativeSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
-                    }
+                NativeChipSelector(
+                    title: "Section",
+                    selection: $selectedSection,
+                    options: CalibrationNativeSection.allCases
+                ) { section, isSelected in
+                    Text(section.rawValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
                 }
-                .pickerStyle(.segmented)
             }
 
             switch selectedSection {
@@ -555,12 +567,15 @@ struct EnergyHubView: View {
     var body: some View {
         List {
             Section("Section") {
-                Picker("Section", selection: $selectedSection) {
-                    ForEach(EnergyNativeSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
-                    }
+                NativeChipSelector(
+                    title: "Section",
+                    selection: $selectedSection,
+                    options: EnergyNativeSection.allCases
+                ) { section, isSelected in
+                    Text(section.rawValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
                 }
-                .pickerStyle(.segmented)
             }
 
             if selectedSection == .dashboard {
@@ -847,12 +862,15 @@ struct ProcurementHubView: View {
     var body: some View {
         List {
             Section("Section") {
-                Picker("Section", selection: $selectedSection) {
-                    ForEach(ProcurementNativeSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
-                    }
+                NativeChipSelector(
+                    title: "Section",
+                    selection: $selectedSection,
+                    options: ProcurementNativeSection.allCases
+                ) { section, isSelected in
+                    Text(section.rawValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
                 }
-                .pickerStyle(.segmented)
             }
 
             if selectedSection == .dashboard || selectedSection == .cases {
@@ -1168,9 +1186,16 @@ final class UserManagementViewModel: ObservableObject {
 // MARK: - Shared Views and Models
 private struct NativeMetricGrid: View {
     let metrics: [NativeMetric]
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var columns: [GridItem] {
+        horizontalSizeClass == .compact
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
+    }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        LazyVGrid(columns: columns, spacing: 12) {
             ForEach(metrics) { metric in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(metric.title)
@@ -1192,6 +1217,39 @@ private struct NativeMetricGrid: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 6)
+    }
+}
+
+private struct NativeChipSelector<Option: Hashable & Identifiable, Label: View>: View {
+    let title: String
+    @Binding var selection: Option
+    let options: [Option]
+    @ViewBuilder let label: (Option, Bool) -> Label
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(options) { option in
+                    let isSelected = selection == option
+
+                    Button {
+                        selection = option
+                    } label: {
+                        label(option, isSelected)
+                            .lineLimit(1)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .accessibilityLabel(title)
     }
 }
 

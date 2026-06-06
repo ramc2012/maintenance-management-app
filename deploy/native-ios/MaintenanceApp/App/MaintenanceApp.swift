@@ -2,9 +2,12 @@ import SwiftUI
 
 @main
 struct MaintenanceApp: App {
+    @State private var session = NativeAppSession()
+
     var body: some Scene {
         WindowGroup {
-            NativeShellView()
+            NativeAppRootView()
+                .environment(session)
         }
     }
 }
