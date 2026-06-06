@@ -140,6 +140,7 @@ export default function ChecklistsScreen() {
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [remarks, setRemarks] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
 
   // History detail
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -180,10 +181,25 @@ export default function ChecklistsScreen() {
       (tpl.headerFields || []).forEach((f) => {
         initialHeader[f.key] = f.default ?? '';
       });
-      setHeader(initialHeader);
       setDate(todayISO());
       setShift('DAY');
-      setResponses(buildInitialResponses(tpl));
+
+      // Prefill status lists from the latest submission (verify & change).
+      let prevResponses: Record<string, any> | null = null;
+      let prevHeader: Record<string, any> = {};
+      try {
+        const latest = await api.get<ChecklistSubmission[]>(
+          `/checklists/submissions?templateId=${tpl.id}&limit=1`,
+        );
+        if (latest && latest.length) {
+          prevResponses = (latest[0].responses as Record<string, any>) || null;
+          prevHeader = (latest[0].header as Record<string, any>) || {};
+        }
+      } catch { /* best-effort prefill */ }
+
+      setHeader({ ...prevHeader, ...initialHeader });
+      setPrefilled(Boolean(prevResponses));
+      setResponses(buildInitialResponses(tpl, prevResponses));
       setRemarks('');
       setTab('fill');
     } catch (e: unknown) {
@@ -204,6 +220,7 @@ export default function ChecklistsScreen() {
       }
       setActiveTemplate(tpl as ChecklistTemplate);
       setEditingId(sub.id);
+      setPrefilled(false);
       setHeader({ ...(sub.header || {}) });
       setDate(sub.date ? sub.date.slice(0, 10) : todayISO());
       setShift(sub.shift || 'DAY');
@@ -463,6 +480,15 @@ export default function ChecklistsScreen() {
                   </View>
                 </View>
 
+                {prefilled ? (
+                  <View style={[styles.prefillBanner, { backgroundColor: colors.infoBg, borderColor: colors.infoBorder }]}>
+                    <MaterialCommunityIcons name="history" size={16} color={colors.info} />
+                    <Text style={[styles.prefillText, { color: colors.info }]}>
+                      Status lists prefilled from the last report — verify and change only what differs.
+                    </Text>
+                  </View>
+                ) : null}
+
                 {/* Date + Shift */}
                 <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Report Details</Text>
@@ -687,23 +713,26 @@ function SectionRenderer({
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
 
       {section.type === 'PARAMETERS' &&
-        section.items.map((item) => (
-          <View key={item.key} style={styles.itemBlock}>
-            <Text style={[styles.itemLabel, { color: colors.textSecondary }]}>
+        section.items.map((item, i) => (
+          <View
+            key={item.key}
+            style={[styles.paramRow, i % 2 === 1 && { backgroundColor: colors.backgroundSecondary }]}
+          >
+            <Text style={[styles.paramLabel, { color: colors.textSecondary }]} numberOfLines={2}>
               {item.label}
               {item.unit ? <Text style={{ color: colors.textTertiary }}> ({item.unit})</Text> : null}
             </Text>
-            {item.note ? <Text style={[styles.itemNote, { color: colors.textTertiary }]}>{item.note}</Text> : null}
             {item.cols && item.cols.length > 0 ? (
-              <View style={styles.colRow}>
+              <View style={styles.paramCols}>
                 {item.cols.map((col) => (
-                  <View key={col.key} style={styles.colCell}>
-                    <Text style={[styles.colLabel, { color: colors.textTertiary }]}>{col.label}</Text>
+                  <View key={col.key} style={styles.paramColCell}>
+                    <Text style={[styles.paramColLabel, { color: colors.textTertiary }]}>{col.label}</Text>
                     <TextInput
-                      style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                      style={[styles.numInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                       placeholder="0"
                       placeholderTextColor={colors.inputPlaceholder}
                       keyboardType="numeric"
+                      maxLength={6}
                       value={responses[item.key]?.[col.key] ?? ''}
                       onChangeText={(v) => onParamValue(item.key, col.key, v)}
                     />
@@ -712,10 +741,11 @@ function SectionRenderer({
               </View>
             ) : (
               <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-                placeholder="Value"
+                style={[styles.numInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                placeholder="0"
                 placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="numeric"
+                maxLength={6}
                 value={responses[item.key]?.value ?? ''}
                 onChangeText={(v) => onParamValue(item.key, null, v)}
               />
@@ -724,24 +754,39 @@ function SectionRenderer({
         ))}
 
       {section.type === 'STATUS_LIST' &&
-        section.items.map((item) => {
+        section.items.map((item, i) => {
           const entry = responses[item.key] || {};
+          const attention = entry.status === 'ATTENTION';
           return (
-            <View key={item.key} style={styles.itemBlock}>
-              <Text style={[styles.itemLabel, { color: colors.textSecondary }]}>{item.label}</Text>
-              <StatusChips
-                value={entry.status}
-                colors={colors}
-                accent={accent}
-                onChange={(status) => onStatusEntry(item.key, { status })}
-              />
-              <TextInput
-                style={[styles.input, styles.smallInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
-                placeholder={item.defaultValue ? `e.g. ${item.defaultValue}` : 'Value / note'}
-                placeholderTextColor={colors.inputPlaceholder}
-                value={entry.value ?? ''}
-                onChangeText={(v) => onStatusEntry(item.key, { value: v })}
-              />
+            <View
+              key={item.key}
+              style={[
+                styles.statusItemRow,
+                i % 2 === 1 && { backgroundColor: colors.backgroundSecondary },
+                attention && { backgroundColor: colors.errorBg },
+              ]}
+            >
+              <Text style={[styles.statusItemLabel, { color: attention ? colors.error : colors.textSecondary }]} numberOfLines={1}>
+                {item.label}
+              </Text>
+              <View style={styles.statusControls}>
+                <View style={{ flex: 1 }}>
+                  <StatusChips
+                    value={entry.status}
+                    colors={colors}
+                    accent={accent}
+                    onChange={(status) => onStatusEntry(item.key, { status })}
+                  />
+                </View>
+                <TextInput
+                  style={[styles.numInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder={item.defaultValue ?? '—'}
+                  placeholderTextColor={colors.inputPlaceholder}
+                  maxLength={10}
+                  value={entry.value ?? ''}
+                  onChangeText={(v) => onStatusEntry(item.key, { value: v })}
+                />
+              </View>
             </View>
           );
         })}
@@ -750,14 +795,21 @@ function SectionRenderer({
         section.groups.map((group) => (
           <View key={group.key} style={styles.groupBlock}>
             <Text style={[styles.groupTitle, { color: colors.text }]}>{group.title}</Text>
-            {group.items.map((item) => {
+            {group.items.map((item, i) => {
               const entry = responses[item.key] || {};
               const attention = entry.status === 'ATTENTION';
               return (
-                <View key={item.key} style={styles.itemBlock}>
+                <View
+                  key={item.key}
+                  style={[
+                    styles.inspRow,
+                    i % 2 === 1 && { backgroundColor: colors.backgroundSecondary },
+                    attention && { backgroundColor: colors.warningBg },
+                  ]}
+                >
                   <Text
                     style={[
-                      styles.itemLabel,
+                      styles.inspLabel,
                       { color: attention ? colors.warning : colors.textSecondary },
                     ]}
                   >
@@ -1010,15 +1062,33 @@ function EmptyState({ message, colors }: { message: string; colors: any }) {
 }
 
 // ─── Response init + flag counting ────────────────────────────────────────────
-function buildInitialResponses(template: ChecklistTemplate): Record<string, any> {
+// Seeds status lists / inspection groups / sign-offs from the latest submission
+// (so the user only verifies & changes). Parameters & work-log left blank.
+function buildInitialResponses(
+  template: ChecklistTemplate,
+  prev?: Record<string, any> | null,
+): Record<string, any> {
   const out: Record<string, any> = {};
   (template.sections || []).forEach((section) => {
+    const prevSection = (prev && prev[section.key]) || {};
     if (section.type === 'STATUS_LIST') {
       const obj: Record<string, any> = {};
       section.items.forEach((item) => {
-        obj[item.key] = { status: undefined, value: item.defaultValue ?? '' };
+        const p = prevSection[item.key] || {};
+        obj[item.key] = { status: p.status ?? 'OK', value: p.value ?? item.defaultValue ?? '' };
       });
       out[section.key] = obj;
+    } else if (section.type === 'INSPECTION_GROUP') {
+      const obj: Record<string, any> = {};
+      section.groups.forEach((group) => {
+        group.items.forEach((item) => {
+          const p = prevSection[item.key] || {};
+          obj[item.key] = { status: p.status ?? 'OK', remark: p.remark ?? '' };
+        });
+      });
+      out[section.key] = obj;
+    } else if (section.type === 'SIGNOFF') {
+      out[section.key] = { ...prevSection };
     } else {
       out[section.key] = {};
     }
@@ -1069,6 +1139,8 @@ const styles = StyleSheet.create({
   // Fill
   fillContent: { padding: 16, paddingBottom: 110 },
   fillHeader: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12 },
+  prefillBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
+  prefillText: { flex: 1, fontSize: 12, lineHeight: 17 },
   fillTitle: { fontSize: 17, fontWeight: '800' },
   sectionCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12 },
   sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
@@ -1086,7 +1158,19 @@ const styles = StyleSheet.create({
   colCell: { flex: 1 },
   colLabel: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
   groupBlock: { marginBottom: 8 },
-  groupTitle: { fontSize: 14, fontWeight: '700', marginBottom: 10, marginTop: 4 },
+  groupTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8, marginTop: 4 },
+  // Compact + zebra rows
+  numInput: { width: 64, height: 36, borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, fontSize: 13, textAlign: 'center' },
+  paramRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8 },
+  paramLabel: { flex: 1, fontSize: 13, fontWeight: '500' },
+  paramCols: { flexDirection: 'row', gap: 8 },
+  paramColCell: { alignItems: 'center' },
+  paramColLabel: { fontSize: 9, fontWeight: '700', marginBottom: 2 },
+  statusItemRow: { paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginBottom: 2 },
+  statusItemLabel: { fontSize: 13, fontWeight: '600', marginBottom: 5 },
+  statusControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inspRow: { paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginBottom: 2 },
+  inspLabel: { fontSize: 12, fontWeight: '500', marginBottom: 5 },
   statusRow: { flexDirection: 'row', gap: 6 },
   statusChip: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
   statusChipText: { fontSize: 11, fontWeight: '600' },
