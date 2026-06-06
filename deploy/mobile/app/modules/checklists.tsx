@@ -12,6 +12,7 @@ import {
 import { Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Sharing from 'expo-sharing';
 
 import { Text } from '@/components/Themed';
 import api from '@/services/api';
@@ -328,6 +329,30 @@ export default function ChecklistsScreen() {
     }
   };
 
+  // ─── Download submission as Excel ────────────────────────────────────────────
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const downloadSubmission = async (submission: ChecklistSubmission) => {
+    const rig = (submission.header as any)?.rigName || submission.template?.code || 'DPR';
+    const dateStr = submission.date ? new Date(submission.date).toISOString().slice(0, 10) : 'undated';
+    const fileName = `${String(rig).replace(/[^a-z0-9]+/gi, '_')}_${dateStr}.xlsx`;
+    setDownloadingId(submission.id);
+    try {
+      const uri = await api.download(`/checklists/submissions/${submission.id}/export`, fileName);
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri);
+      } else {
+        Alert.alert('Downloaded', `Saved to ${uri}`);
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Download failed';
+      Alert.alert('Download failed', msg);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.backgroundSecondary }]}>
@@ -603,7 +628,23 @@ export default function ChecklistsScreen() {
                         </Pressable>
                       ) : null}
                       {detail ? (
-                        <SubmissionSummary submission={detail} colors={colors} />
+                        <>
+                          <SubmissionSummary submission={detail} colors={colors} />
+                          <Pressable
+                            style={[styles.downloadBtn, { backgroundColor: accent }]}
+                            onPress={() => downloadSubmission(detail)}
+                            disabled={downloadingId === sub.id}
+                          >
+                            {downloadingId === sub.id ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <MaterialCommunityIcons name="file-excel-outline" size={16} color="#ffffff" />
+                            )}
+                            <Text style={styles.downloadBtnText}>
+                              {downloadingId === sub.id ? 'Preparing…' : 'Download Excel'}
+                            </Text>
+                          </Pressable>
+                        </>
                       ) : (
                         <View style={styles.detailLoading}>
                           <ActivityIndicator size="small" color={accent} />
@@ -1064,6 +1105,8 @@ const styles = StyleSheet.create({
   flagBadgeText: { fontSize: 11, fontWeight: '700' },
   detailBox: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, gap: 10 },
   detailLoading: { paddingVertical: 16, alignItems: 'center' },
+  downloadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, borderRadius: 10, marginTop: 4 },
+  downloadBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
   resumeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10, borderWidth: 1, alignSelf: 'flex-start', paddingHorizontal: 14 },
   resumeBtnText: { fontSize: 12, fontWeight: '700' },
   summaryBlock: { gap: 6 },

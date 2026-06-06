@@ -4,7 +4,7 @@ import { Layout } from '../../core/components/Layout';
 import {
   Card, Button, Tag, Spin, message, Space, Descriptions, Popconfirm, Alert, Empty,
 } from 'antd';
-import { ClipboardCheck, ArrowLeft, Edit, Trash2, Flag, AlertTriangle } from 'lucide-react';
+import { ClipboardCheck, ArrowLeft, Edit, Trash2, Flag, AlertTriangle, Download } from 'lucide-react';
 import dayjs from 'dayjs';
 import { API, jsonHeaders } from '../api';
 import type { ChecklistSubmission, Section, ItemStatus } from '../types';
@@ -55,6 +55,32 @@ export const ChecklistDetail = () => {
       message.error('Delete failed');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const [downloading, setDownloading] = useState(false);
+  const handleDownload = async () => {
+    if (!id) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`${API}/checklists/submissions/${id}/export`, { headers: jsonHeaders() });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename=([^;]+)/);
+      const fileName = match ? match[1].trim() : `DPR_${id}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      message.error('Download failed');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -245,6 +271,15 @@ export const ChecklistDetail = () => {
                 Edit
               </Button>
             )}
+            <Button
+              type="primary"
+              ghost
+              loading={downloading}
+              icon={<Download className="w-4 h-4" />}
+              onClick={handleDownload}
+            >
+              Download Excel
+            </Button>
             <Popconfirm title="Delete this submission?" onConfirm={handleDelete} okType="danger">
               <Button danger loading={deleting} icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
             </Popconfirm>

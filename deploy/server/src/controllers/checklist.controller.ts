@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
+import ExcelJS from 'exceljs';
 
 const prisma = new PrismaClient();
 
@@ -240,5 +241,155 @@ export const deleteSubmission = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting checklist submission:', error);
     res.status(500).json({ error: 'Failed to delete checklist submission' });
+  }
+};
+
+// ─── EXPORT (xlsx) ──────────────────────────────────────────────────────────
+// Generic: renders any template's sections + the submission's responses into a
+// formatted workbook that mirrors the field DPR layout.
+
+const HEADER_FILL: any = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+const SECTION_FILL: any = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+const ATTENTION_FILL: any = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+
+export const exportSubmission = async (req: Request, res: Response) => {
+  try {
+    const submission = await prisma.checklistSubmission.findUnique({
+      where: { id: req.params.id },
+      include: { template: true },
+    });
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    const template = submission.template;
+    const sections = (template.sections as any[]) || [];
+    const headerFields = (template.headerFields as any[]) || [];
+    const header = (submission.header as Record<string, any>) || {};
+    const responses = (submission.responses as Record<string, any>) || {};
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'ONGC Maintenance Management';
+    const ws = wb.addWorksheet('DPR', { properties: { defaultColWidth: 22 } });
+    ws.columns = [{ width: 6 }, { width: 42 }, { width: 18 }, { width: 18 }, { width: 30 }];
+
+    let r = 1;
+    const titleRow = ws.getRow(r++);
+    titleRow.getCell(1).value = template.name;
+    ws.mergeCells(`A${titleRow.number}:E${titleRow.number}`);
+    titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+    titleRow.getCell(1).fill = HEADER_FILL;
+    titleRow.height = 22;
+
+    // Header block (well, rig, operation, section + date/shift/status)
+    const meta: [string, string][] = [];
+    headerFields.forEach((hf) => meta.push([hf.label, String(header[hf.key] ?? '')]));
+    meta.push(['Date', submission.date ? new Date(submission.date).toLocaleDateString('en-IN') : '']);
+    if (submission.shift) meta.push(['Shift', submission.shift]);
+    meta.push(['Status', submission.status]);
+    if (submission.submittedBy) meta.push(['Submitted By', submission.submittedBy]);
+    r++;
+    meta.forEach(([label, value]) => {
+      const row = ws.getRow(r++);
+      row.getCell(1).value = label;
+      row.getCell(1).font = { bold: true };
+      row.getCell(2).value = value;
+    });
+
+    const sectionHeader = (title: string) => {
+      r++;
+      const row = ws.getRow(r++);
+      row.getCell(1).value = title;
+      ws.mergeCells(`A${row.number}:E${row.number}`);
+      row.getCell(1).font = { bold: true, size: 12 };
+      row.getCell(1).fill = SECTION_FILL;
+    };
+    const colHeader = (cells: string[]) => {
+      const row = ws.getRow(r++);
+      cells.forEach((c, i) => {
+        row.getCell(i + 1).value = c;
+        row.getCell(i + 1).font = { bold: true };
+      });
+    };
+    const flagAttention = (row: ExcelJS.Row, status?: string) => {
+      if (status && ['ATTENTION', 'WARNING', 'CRITICAL', 'FAIL'].includes(String(status).toUpperCase())) {
+        for (let c = 1; c <= 5; c++) row.getCell(c).fill = ATTENTION_FILL;
+      }
+    };
+
+    for (const section of sections) {
+      sectionHeader(section.title || section.key);
+      const sresp = responses[section.key] || {};
+
+      if (section.type === 'PARAMETERS') {
+        colHeader(['#', 'Parameter', 'Value', 'Unit', '']);
+        (section.items || []).forEach((it: any, idx: number) => {
+          const row = ws.getRow(r++);
+          row.getCell(1).value = idx + 1;
+          row.getCell(2).value = it.label;
+          const v = sresp[it.key];
+          if (it.cols) {
+            row.getCell(3).value = it.cols.map((c: any) => `${c.label}: ${v?.[c.key] ?? ''}`).join('   ');
+          } else {
+            row.getCell(3).value = v?.value ?? '';
+          }
+          row.getCell(4).value = it.unit ?? '';
+        });
+      } else if (section.type === 'STATUS_LIST') {
+        colHeader(['#', 'Name', 'Status', 'Value', '']);
+        (section.items || []).forEach((it: any, idx: number) => {
+          const row = ws.getRow(r++);
+          row.getCell(1).value = idx + 1;
+          row.getCell(2).value = it.label;
+          row.getCell(3).value = sresp[it.key]?.status ?? '';
+          row.getCell(4).value = sresp[it.key]?.value ?? '';
+          flagAttention(row, sresp[it.key]?.status);
+        });
+      } else if (section.type === 'INSPECTION_GROUP') {
+        colHeader(['', 'Check', 'Status', 'Remark', '']);
+        (section.groups || []).forEach((g: any) => {
+          const grow = ws.getRow(r++);
+          grow.getCell(2).value = g.title;
+          grow.getCell(2).font = { bold: true, italic: true };
+          (g.items || []).forEach((it: any) => {
+            const row = ws.getRow(r++);
+            row.getCell(2).value = `   ${it.label}`;
+            row.getCell(3).value = sresp[it.key]?.status ?? '';
+            row.getCell(4).value = sresp[it.key]?.remark ?? '';
+            flagAttention(row, sresp[it.key]?.status);
+          });
+        });
+      } else if (section.type === 'WORK_LOG') {
+        colHeader(['', 'Shift', 'Crew', 'Job Details', '']);
+        (section.shifts || []).forEach((sh: any) => {
+          const row = ws.getRow(r++);
+          row.getCell(2).value = sh.label;
+          row.getCell(2).font = { bold: true };
+          row.getCell(3).value = sresp[sh.key]?.crew ?? '';
+          row.getCell(4).value = sresp[sh.key]?.jobs ?? '';
+          row.getCell(4).alignment = { wrapText: true };
+        });
+      } else if (section.type === 'SIGNOFF') {
+        (section.items || []).forEach((it: any) => {
+          const row = ws.getRow(r++);
+          row.getCell(2).value = it.label;
+          row.getCell(2).font = { bold: true };
+          row.getCell(3).value = sresp[it.key] ?? '';
+        });
+      }
+    }
+
+    if (submission.remarks) {
+      sectionHeader('Remarks');
+      ws.getRow(r++).getCell(2).value = submission.remarks;
+    }
+
+    const safe = (header.rigName || template.code || 'DPR').toString().replace(/[^a-z0-9]+/gi, '_');
+    const dateStr = submission.date ? new Date(submission.date).toISOString().slice(0, 10) : 'undated';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${safe}_${dateStr}.xlsx`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Error exporting checklist submission:', error);
+    res.status(500).json({ error: 'Failed to export checklist submission' });
   }
 };

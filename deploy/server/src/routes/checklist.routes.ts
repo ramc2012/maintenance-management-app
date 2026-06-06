@@ -10,6 +10,7 @@ import {
   createSubmission,
   updateSubmission,
   deleteSubmission,
+  exportSubmission,
 } from '../controllers/checklist.controller';
 
 const router = Router();
@@ -25,6 +26,7 @@ router.put('/templates/:id', updateTemplate);
 // Submissions (filled checklists + history)
 router.get('/submissions', getSubmissions);
 router.get('/submissions/:id', getSubmission);
+router.get('/submissions/:id/export', exportSubmission);
 router.post('/submissions', createSubmission);
 router.put('/submissions/:id', updateSubmission);
 router.delete('/submissions/:id', deleteSubmission);
