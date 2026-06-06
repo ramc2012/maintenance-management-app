@@ -22,6 +22,21 @@ function currentUser(req: Request) {
  * Count items flagged as needing attention so history views can show a badge.
  * Walks the responses object looking for status values that aren't OK/NA.
  */
+type Gate = 'SHIFT' | 'INSTRUMENT';
+
+/** Is this user allowed to approve the given gate for this template? */
+function canApprove(
+  gate: Gate,
+  template: { approvers?: any } | null,
+  user: { username?: string; role?: string },
+): boolean {
+  if (!user?.username) return false;
+  if (user.role === 'ADMIN') return true; // admins can approve any gate
+  const approvers = (template?.approvers as any) || {};
+  const list: string[] = gate === 'SHIFT' ? approvers.shiftIncharge || [] : approvers.instrumentIncharge || [];
+  return list.map((u) => String(u).toLowerCase()).includes(user.username.toLowerCase());
+}
+
 function countFlagged(responses: any): number {
   let count = 0;
   const ATTENTION = new Set(['ATTENTION', 'WARNING', 'CRITICAL', 'FAIL', 'NOT_OK', 'ABNORMAL']);
@@ -75,7 +90,7 @@ export const getTemplate = async (req: Request, res: Response) => {
 
 export const createTemplate = async (req: Request, res: Response) => {
   try {
-    const { code, name, discipline, description, rigType, headerFields, sections, isActive } = req.body;
+    const { code, name, discipline, description, rigType, headerFields, sections, approvers, isActive } = req.body;
     if (!code || !name || !sections) {
       return res.status(400).json({ error: 'code, name, and sections are required' });
     }
@@ -89,6 +104,7 @@ export const createTemplate = async (req: Request, res: Response) => {
         rigType: rigType ?? null,
         headerFields: headerFields ?? [],
         sections,
+        approvers: approvers ?? undefined,
         isActive: isActive ?? true,
         createdBy: username ?? null,
       },
@@ -105,7 +121,7 @@ export const createTemplate = async (req: Request, res: Response) => {
 
 export const updateTemplate = async (req: Request, res: Response) => {
   try {
-    const { name, description, rigType, headerFields, sections, isActive } = req.body;
+    const { name, description, rigType, headerFields, sections, approvers, isActive } = req.body;
     const template = await prisma.checklistTemplate.update({
       where: { id: req.params.id },
       data: {
@@ -114,6 +130,7 @@ export const updateTemplate = async (req: Request, res: Response) => {
         ...(rigType !== undefined && { rigType }),
         ...(headerFields !== undefined && { headerFields }),
         ...(sections !== undefined && { sections }),
+        ...(approvers !== undefined && { approvers }),
         ...(isActive !== undefined && { isActive }),
       },
     });
@@ -244,6 +261,56 @@ export const deleteSubmission = async (req: Request, res: Response) => {
   }
 };
 
+// ─── APPROVAL (two-gate: Shift Incharge + Instrument Incharge) ──────────────
+export const approveSubmission = async (req: Request, res: Response) => {
+  try {
+    const gate: Gate = req.body?.gate === 'INSTRUMENT' ? 'INSTRUMENT' : req.body?.gate === 'SHIFT' ? 'SHIFT' : (null as any);
+    if (!gate) return res.status(400).json({ error: "gate must be 'SHIFT' or 'INSTRUMENT'" });
+
+    const submission = await prisma.checklistSubmission.findUnique({
+      where: { id: req.params.id },
+      include: { template: true },
+    });
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    if (submission.status === 'DRAFT') {
+      return res.status(409).json({ error: 'Submit the checklist before it can be approved' });
+    }
+
+    const user = currentUser(req);
+    if (!canApprove(gate, submission.template, user)) {
+      return res.status(403).json({ error: `You are not a designated ${gate === 'SHIFT' ? 'Shift' : 'Instrument'} Incharge approver for this checklist` });
+    }
+
+    const now = new Date();
+    const data: any = {};
+    if (gate === 'SHIFT') {
+      if (submission.shiftApprovedBy) return res.status(409).json({ error: 'Already approved by Shift Incharge' });
+      data.shiftApprovedBy = user.username;
+      data.shiftApprovedAt = now;
+    } else {
+      if (submission.instrApprovedBy) return res.status(409).json({ error: 'Already approved by Instrument Incharge' });
+      data.instrApprovedBy = user.username;
+      data.instrApprovedAt = now;
+    }
+
+    // If both gates are now satisfied, the submission is COMPLETED.
+    const shiftDone = gate === 'SHIFT' ? true : Boolean(submission.shiftApprovedBy);
+    const instrDone = gate === 'INSTRUMENT' ? true : Boolean(submission.instrApprovedBy);
+    if (shiftDone && instrDone) data.status = 'COMPLETED';
+
+    const updated = await prisma.checklistSubmission.update({
+      where: { id: req.params.id },
+      data,
+      include: { template: { select: { id: true, code: true, name: true, approvers: true } } },
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error approving checklist submission:', error);
+    res.status(500).json({ error: 'Failed to approve checklist submission' });
+  }
+};
+
 // ─── EXPORT (xlsx) ──────────────────────────────────────────────────────────
 // Generic: renders any template's sections + the submission's responses into a
 // formatted workbook that mirrors the field DPR layout.
@@ -285,7 +352,13 @@ export const exportSubmission = async (req: Request, res: Response) => {
     meta.push(['Date', submission.date ? new Date(submission.date).toLocaleDateString('en-IN') : '']);
     if (submission.shift) meta.push(['Shift', submission.shift]);
     meta.push(['Status', submission.status]);
-    if (submission.submittedBy) meta.push(['Submitted By', submission.submittedBy]);
+    if (submission.submittedBy) meta.push(['Entered By', submission.submittedBy]);
+    if (submission.shiftApprovedBy) {
+      meta.push(['Shift Incharge Approval', `${submission.shiftApprovedBy} · ${submission.shiftApprovedAt ? new Date(submission.shiftApprovedAt).toLocaleString('en-IN') : ''}`]);
+    }
+    if (submission.instrApprovedBy) {
+      meta.push(['Instrument Incharge Approval', `${submission.instrApprovedBy} · ${submission.instrApprovedAt ? new Date(submission.instrApprovedAt).toLocaleString('en-IN') : ''}`]);
+    }
     r++;
     meta.forEach(([label, value]) => {
       const row = ws.getRow(r++);

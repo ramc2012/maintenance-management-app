@@ -19,6 +19,8 @@ type AnyTemplate = {
   rigType?: string;
   headerFields: any[];
   sections: any[];
+  // Usernames allowed to approve each gate. ADMIN role can always approve.
+  approvers?: { shiftIncharge: string[]; instrumentIncharge: string[] };
 };
 
 const INSTRUMENT_DPR: AnyTemplate = {
@@ -27,6 +29,12 @@ const INSTRUMENT_DPR: AnyTemplate = {
   discipline: 'INSTRUMENTATION',
   description: 'Daily Progress Report for rig instrumentation: drilling parameters, savers, inspection jobs, and maintenance work.',
   rigType: 'NG-1500-4',
+  // Designated approvers (usernames). ADMIN can always approve. Update via the
+  // template API or here to add real Shift/Instrument Incharge accounts.
+  approvers: {
+    shiftIncharge: ['admin'],
+    instrumentIncharge: ['admin'],
+  },
   headerFields: [
     { key: 'wellName', label: 'Well Name', type: 'text' },
     { key: 'rigName', label: 'Rig Name', type: 'text', default: 'NG-1500-4' },
@@ -165,6 +173,7 @@ async function main() {
           rigType: t.rigType ?? null,
           headerFields: t.headerFields,
           sections: t.sections,
+          approvers: t.approvers ?? undefined,
           isActive: true,
         },
       });
@@ -179,6 +188,7 @@ async function main() {
           rigType: t.rigType ?? null,
           headerFields: t.headerFields,
           sections: t.sections,
+          approvers: t.approvers ?? undefined,
           isActive: true,
           createdBy: 'seed',
         },

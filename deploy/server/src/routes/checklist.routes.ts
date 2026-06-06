@@ -10,6 +10,7 @@ import {
   createSubmission,
   updateSubmission,
   deleteSubmission,
+  approveSubmission,
   exportSubmission,
 } from '../controllers/checklist.controller';
 
@@ -29,6 +30,7 @@ router.get('/submissions/:id', getSubmission);
 router.get('/submissions/:id/export', exportSubmission);
 router.post('/submissions', createSubmission);
 router.put('/submissions/:id', updateSubmission);
+router.post('/submissions/:id/approve', approveSubmission);
 router.delete('/submissions/:id', deleteSubmission);
 
 export default router;

@@ -4,12 +4,13 @@ import { Layout } from '../../core/components/Layout';
 import {
   Card, Button, Tag, Spin, message, Space, Descriptions, Popconfirm, Alert, Empty,
 } from 'antd';
-import { ClipboardCheck, ArrowLeft, Edit, Trash2, Flag, AlertTriangle, Download } from 'lucide-react';
+import { ClipboardCheck, ArrowLeft, Edit, Trash2, Flag, AlertTriangle, Download, Stamp, CheckCircle2, Clock } from 'lucide-react';
 import dayjs from 'dayjs';
 import { API, jsonHeaders } from '../api';
+import { useAuth } from '../../../context/AuthContext';
 import type { ChecklistSubmission, Section, ItemStatus } from '../types';
 
-const STATUS_COLORS: Record<string, string> = { DRAFT: 'default', SUBMITTED: 'success' };
+const STATUS_COLORS: Record<string, string> = { DRAFT: 'default', SUBMITTED: 'processing', COMPLETED: 'success' };
 
 const statusTag = (s?: ItemStatus) => {
   if (!s) return <Tag>—</Tag>;
@@ -20,9 +21,11 @@ const statusTag = (s?: ItemStatus) => {
 export const ChecklistDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [submission, setSubmission] = useState<ChecklistSubmission | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [approving, setApproving] = useState<'SHIFT' | 'INSTRUMENT' | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -81,6 +84,39 @@ export const ChecklistDetail = () => {
       message.error('Download failed');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // ── Approval ──────────────────────────────────────────────────────────────
+  const approvers = submission?.template?.approvers;
+  const isAdmin = user?.role === 'ADMIN';
+  const eligibleFor = (gate: 'SHIFT' | 'INSTRUMENT'): boolean => {
+    if (!user?.username) return false;
+    if (isAdmin) return true;
+    const list = (gate === 'SHIFT' ? approvers?.shiftIncharge : approvers?.instrumentIncharge) || [];
+    return list.map((u) => u.toLowerCase()).includes(user.username.toLowerCase());
+  };
+
+  const approve = async (gate: 'SHIFT' | 'INSTRUMENT') => {
+    if (!id) return;
+    setApproving(gate);
+    try {
+      const res = await fetch(`${API}/checklists/submissions/${id}/approve`, {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ gate }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Approval failed');
+      }
+      const updated = await res.json();
+      setSubmission((prev) => (prev ? { ...prev, ...updated } : prev));
+      message.success(updated.status === 'COMPLETED' ? 'Approved — checklist completed' : 'Approval recorded');
+    } catch (e: any) {
+      message.error(e.message || 'Approval failed');
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -300,8 +336,8 @@ export const ChecklistDetail = () => {
                 <Tag color="green">0</Tag>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="Submitted By">{submission.submittedBy || '—'}</Descriptions.Item>
-            <Descriptions.Item label="Submitted At">
+            <Descriptions.Item label="Entered By">{submission.submittedBy || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Entered At">
               {submission.submittedAt ? dayjs(submission.submittedAt).format('DD-MM-YYYY HH:mm') : '—'}
             </Descriptions.Item>
             {template?.headerFields?.map((f) => (
@@ -311,6 +347,70 @@ export const ChecklistDetail = () => {
             ))}
           </Descriptions>
         </Card>
+
+        {/* Approvals — two gates: Shift Incharge + Instrument Incharge */}
+        {submission.status !== 'DRAFT' && (
+          <Card className="mb-4" title={<span className="flex items-center gap-2"><Stamp className="w-4 h-4" /> Approvals</span>}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {([
+                { gate: 'SHIFT' as const, label: 'Shift Incharge', by: submission.shiftApprovedBy, at: submission.shiftApprovedAt },
+                { gate: 'INSTRUMENT' as const, label: 'Instrument Incharge', by: submission.instrApprovedBy, at: submission.instrApprovedAt },
+              ]).map(({ gate, label, by, at }) => {
+                const approved = Boolean(by);
+                const canIApprove = !approved && eligibleFor(gate) && submission.status === 'SUBMITTED';
+                return (
+                  <div
+                    key={gate}
+                    className={`p-3 rounded-lg border ${
+                      approved
+                        ? 'border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-700'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-gray-700 dark:text-gray-200">{label}</div>
+                      {approved ? (
+                        <Tag color="green" icon={<CheckCircle2 className="w-3 h-3 inline" />}>Approved</Tag>
+                      ) : (
+                        <Tag icon={<Clock className="w-3 h-3 inline" />}>Pending</Tag>
+                      )}
+                    </div>
+                    {approved ? (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {by} · {at ? dayjs(at).format('DD-MM-YYYY HH:mm') : ''}
+                      </p>
+                    ) : (
+                      <div className="mt-2">
+                        {canIApprove ? (
+                          <Popconfirm
+                            title={`Approve as ${label}?`}
+                            okText="Approve"
+                            onConfirm={() => approve(gate)}
+                          >
+                            <Button
+                              type="primary"
+                              size="small"
+                              loading={approving === gate}
+                              icon={<Stamp className="w-3 h-3" />}
+                            >
+                              Approve as {label}
+                            </Button>
+                          </Popconfirm>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            {submission.status !== 'SUBMITTED'
+                              ? 'Awaiting submission'
+                              : 'Awaiting designated approver'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
         {submission.flaggedCount > 0 && (
           <Alert

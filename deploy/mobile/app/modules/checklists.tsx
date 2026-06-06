@@ -17,6 +17,7 @@ import * as Sharing from 'expo-sharing';
 import { Text } from '@/components/Themed';
 import api from '@/services/api';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 type SectionType = 'PARAMETERS' | 'STATUS_LIST' | 'INSPECTION_GROUP' | 'WORK_LOG' | 'SIGNOFF';
@@ -69,6 +70,11 @@ interface HeaderField {
   default?: string;
 }
 
+interface ChecklistApprovers {
+  shiftIncharge: string[];
+  instrumentIncharge: string[];
+}
+
 interface ChecklistTemplate {
   id: string;
   code: string;
@@ -78,11 +84,12 @@ interface ChecklistTemplate {
   rigType?: string;
   headerFields: HeaderField[];
   sections: Section[];
+  approvers?: ChecklistApprovers;
   isActive: boolean;
   _count?: { submissions: number };
 }
 
-type ChecklistStatus = 'DRAFT' | 'SUBMITTED';
+type ChecklistStatus = 'DRAFT' | 'SUBMITTED' | 'COMPLETED';
 
 interface ChecklistSubmission {
   id: string;
@@ -99,6 +106,10 @@ interface ChecklistSubmission {
   deptInchargeSign?: string;
   submittedBy?: string;
   submittedAt?: string;
+  shiftApprovedBy?: string;
+  shiftApprovedAt?: string;
+  instrApprovedBy?: string;
+  instrApprovedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -124,6 +135,7 @@ export default function ChecklistsScreen() {
   const { theme } = useTheme();
   const { colors } = theme;
   const accent = colors.primary;
+  const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>('templates');
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
@@ -367,6 +379,36 @@ export default function ChecklistsScreen() {
       Alert.alert('Download failed', msg);
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  // ─── Approval (two-gate) ─────────────────────────────────────────────────────
+  const [approvingKey, setApprovingKey] = useState<string | null>(null);
+  const eligibleFor = (gate: 'SHIFT' | 'INSTRUMENT', submission: ChecklistSubmission): boolean => {
+    if (!user?.username) return false;
+    if (user.role === 'ADMIN') return true;
+    const ap = submission.template?.approvers;
+    const list = (gate === 'SHIFT' ? ap?.shiftIncharge : ap?.instrumentIncharge) || [];
+    return list.map((u) => u.toLowerCase()).includes(user.username.toLowerCase());
+  };
+  const approveSubmission = async (submission: ChecklistSubmission, gate: 'SHIFT' | 'INSTRUMENT') => {
+    setApprovingKey(`${submission.id}:${gate}`);
+    try {
+      const updated = await api.post<ChecklistSubmission>(
+        `/checklists/submissions/${submission.id}/approve`,
+        { gate },
+      );
+      if (updated) {
+        setDetailCache((prev) => ({ ...prev, [submission.id]: { ...prev[submission.id], ...updated } }));
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(updated.status === 'COMPLETED' ? 'Completed' : 'Approved', updated.status === 'COMPLETED' ? 'Both approvals done — checklist completed.' : 'Approval recorded.');
+        fetchData();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Approval failed';
+      Alert.alert('Approval failed', msg);
+    } finally {
+      setApprovingKey(null);
     }
   };
 
@@ -656,6 +698,61 @@ export default function ChecklistsScreen() {
                       {detail ? (
                         <>
                           <SubmissionSummary submission={detail} colors={colors} />
+
+                          {/* Approvals — two gates */}
+                          {detail.status !== 'DRAFT' ? (
+                            <View style={styles.approvalWrap}>
+                              {([
+                                { gate: 'SHIFT' as const, label: 'Shift Incharge', by: detail.shiftApprovedBy, at: detail.shiftApprovedAt },
+                                { gate: 'INSTRUMENT' as const, label: 'Instr. Incharge', by: detail.instrApprovedBy, at: detail.instrApprovedAt },
+                              ]).map(({ gate, label, by, at }) => {
+                                const approved = Boolean(by);
+                                const canI = !approved && detail.status === 'SUBMITTED' && eligibleFor(gate, detail);
+                                const busy = approvingKey === `${detail.id}:${gate}`;
+                                return (
+                                  <View
+                                    key={gate}
+                                    style={[
+                                      styles.approvalGate,
+                                      { borderColor: approved ? colors.success : colors.border, backgroundColor: approved ? colors.successBg : colors.backgroundSecondary },
+                                    ]}
+                                  >
+                                    <View style={styles.approvalHead}>
+                                      <Text style={[styles.approvalLabel, { color: colors.text }]}>{label}</Text>
+                                      <MaterialCommunityIcons
+                                        name={approved ? 'check-circle' : 'clock-outline'}
+                                        size={15}
+                                        color={approved ? colors.success : colors.textTertiary}
+                                      />
+                                    </View>
+                                    {approved ? (
+                                      <Text style={[styles.approvalMeta, { color: colors.textTertiary }]} numberOfLines={1}>
+                                        {by}{at ? ` · ${new Date(at).toLocaleDateString()}` : ''}
+                                      </Text>
+                                    ) : canI ? (
+                                      <Pressable
+                                        style={[styles.approveBtn, { backgroundColor: accent }]}
+                                        onPress={() => approveSubmission(detail, gate)}
+                                        disabled={busy}
+                                      >
+                                        {busy ? (
+                                          <ActivityIndicator size="small" color="#ffffff" />
+                                        ) : (
+                                          <>
+                                            <MaterialCommunityIcons name="stamper" size={13} color="#ffffff" />
+                                            <Text style={styles.approveBtnText}>Approve</Text>
+                                          </>
+                                        )}
+                                      </Pressable>
+                                    ) : (
+                                      <Text style={[styles.approvalMeta, { color: colors.textTertiary }]}>Pending</Text>
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          ) : null}
+
                           <Pressable
                             style={[styles.downloadBtn, { backgroundColor: accent }]}
                             onPress={() => downloadSubmission(detail)}
@@ -1042,9 +1139,12 @@ function DisciplinePill({ value, colors }: { value: string; colors: any }) {
 }
 
 function StatusPill({ status, colors }: { status: ChecklistStatus; colors: any }) {
-  const submitted = status === 'SUBMITTED';
-  const color = submitted ? colors.success : colors.warning;
-  const bg = submitted ? colors.successBg : colors.warningBg;
+  const map: Record<ChecklistStatus, { color: string; bg: string }> = {
+    DRAFT: { color: colors.warning, bg: colors.warningBg },
+    SUBMITTED: { color: colors.info, bg: colors.infoBg },
+    COMPLETED: { color: colors.success, bg: colors.successBg },
+  };
+  const { color, bg } = map[status] || map.DRAFT;
   return (
     <View style={[styles.statusPill, { backgroundColor: bg }]}>
       <Text style={[styles.statusPillText, { color }]}>{status}</Text>
@@ -1191,6 +1291,13 @@ const styles = StyleSheet.create({
   detailLoading: { paddingVertical: 16, alignItems: 'center' },
   downloadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, borderRadius: 10, marginTop: 4 },
   downloadBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+  approvalWrap: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  approvalGate: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 10, gap: 6 },
+  approvalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  approvalLabel: { fontSize: 12, fontWeight: '700' },
+  approvalMeta: { fontSize: 11 },
+  approveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 7, borderRadius: 8 },
+  approveBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
   resumeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10, borderWidth: 1, alignSelf: 'flex-start', paddingHorizontal: 14 },
   resumeBtnText: { fontSize: 12, fontWeight: '700' },
   summaryBlock: { gap: 6 },

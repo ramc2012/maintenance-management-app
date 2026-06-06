@@ -504,29 +504,41 @@ export const ChecklistForm = () => {
           </div>
         </Card>
 
-        {/* Sections — flow into 2 side-by-side columns on wide screens (masonry). */}
+        {/* Compact data sections (parameters / status / inspection) flow into 2
+            side-by-side columns on wide screens (masonry). */}
         <div className="xl:columns-2 xl:gap-4">
-          {template.sections.map((section) => (
-            <Card
-              key={section.key}
-              size="small"
-              title={section.title}
-              className="mb-4 break-inside-avoid"
-            >
+          {template.sections
+            .filter((s) => s.type === 'PARAMETERS' || s.type === 'STATUS_LIST' || s.type === 'INSPECTION_GROUP')
+            .map((section) => (
+              <Card
+                key={section.key}
+                size="small"
+                title={section.title}
+                className="mb-4 break-inside-avoid"
+              >
+                {renderSection(section)}
+              </Card>
+            ))}
+        </div>
+
+        {/* Work log / sign-off span the full width for easier reading & entry. */}
+        {template.sections
+          .filter((s) => s.type === 'WORK_LOG' || s.type === 'SIGNOFF')
+          .map((section) => (
+            <Card key={section.key} size="small" title={section.title} className="mb-4">
               {renderSection(section)}
             </Card>
           ))}
 
-          {/* Remarks */}
-          <Card size="small" title="Remarks" className="mb-4 break-inside-avoid">
-            <Input.TextArea
-              rows={3}
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Additional remarks..."
-            />
-          </Card>
-        </div>
+        {/* Remarks — full width */}
+        <Card size="small" title="Remarks" className="mb-4">
+          <Input.TextArea
+            rows={3}
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            placeholder="Additional remarks..."
+          />
+        </Card>
 
         {/* Actions */}
         <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-3 px-4 -mx-4 flex justify-end">

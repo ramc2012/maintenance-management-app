@@ -89,6 +89,11 @@ export type Section =
   | WorkLogSection
   | SignoffSection;
 
+export interface ChecklistApprovers {
+  shiftIncharge: string[];
+  instrumentIncharge: string[];
+}
+
 export interface ChecklistTemplate {
   id: string;
   code: string;
@@ -98,11 +103,12 @@ export interface ChecklistTemplate {
   rigType?: string;
   headerFields: HeaderField[];
   sections: Section[];
+  approvers?: ChecklistApprovers;
   isActive: boolean;
   _count?: { submissions: number };
 }
 
-export type SubmissionStatus = 'DRAFT' | 'SUBMITTED';
+export type SubmissionStatus = 'DRAFT' | 'SUBMITTED' | 'COMPLETED';
 export type ItemStatus = 'OK' | 'ATTENTION' | 'NA';
 
 export interface ChecklistSubmission {
@@ -120,6 +126,10 @@ export interface ChecklistSubmission {
   deptInchargeSign?: string;
   submittedBy?: string;
   submittedAt?: string;
+  shiftApprovedBy?: string;
+  shiftApprovedAt?: string;
+  instrApprovedBy?: string;
+  instrApprovedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

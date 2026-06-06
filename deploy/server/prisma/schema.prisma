@@ -2363,6 +2363,7 @@ model ChecklistTemplate {
   rigType      String? // e.g. NG-1500-4 (optional scoping)
   headerFields Json // [{key,label,type,default?}] e.g. wellName, rigName, operation
   sections     Json // [{key,title,type,items|groups|shifts}] — drives the dynamic form
+  approvers    Json? // { shiftIncharge: string[], instrumentIncharge: string[] } — usernames allowed to approve
   isActive     Boolean               @default(true)
   submissions  ChecklistSubmission[]
   createdBy    String?
@@ -2380,13 +2381,18 @@ model ChecklistSubmission {
   shift             String? // DAY, NIGHT, GENERAL
   header            Json // {wellName, rigName, operation, section}
   responses         Json // {sectionKey: {itemKey: {value|status|remark|...}}}
-  status            String            @default("DRAFT") // DRAFT, SUBMITTED
+  status            String            @default("DRAFT") // DRAFT, SUBMITTED, COMPLETED
   flaggedCount      Int               @default(0) // # of ATTENTION/CRITICAL items (for history badges)
   remarks           String?
   shiftInchargeSign String?
   deptInchargeSign  String?
-  submittedBy       String?
+  submittedBy       String? // user who entered/submitted the checklist
   submittedAt       DateTime?
+  // Two-gate approval
+  shiftApprovedBy   String?
+  shiftApprovedAt   DateTime?
+  instrApprovedBy   String?
+  instrApprovedAt   DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

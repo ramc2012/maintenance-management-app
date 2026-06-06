@@ -9,7 +9,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { API, jsonHeaders } from '../api';
 import type { ChecklistTemplate, ChecklistSubmissionListItem } from '../types';
 
-const STATUS_COLORS: Record<string, string> = { DRAFT: 'default', SUBMITTED: 'success' };
+const STATUS_COLORS: Record<string, string> = { DRAFT: 'default', SUBMITTED: 'processing', COMPLETED: 'success' };
 
 const DISCIPLINE_COLORS: Record<string, string> = {
   MECHANICAL: 'blue',
