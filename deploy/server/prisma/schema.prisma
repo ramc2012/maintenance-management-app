@@ -2349,3 +2349,47 @@ model GasCompressionLog {
   @@index([installationId, date])
   @@index([compressorId, date])
 }
+
+// ============================================================================
+// DAILY CHECKLIST / DPR (template-driven, multi-discipline)
+// ============================================================================
+
+model ChecklistTemplate {
+  id           String                @id @default(uuid())
+  code         String                @unique // e.g. INST_DPR_RIG
+  name         String // "Instrumentation DPR - Drilling Rig"
+  discipline   Discipline            @default(INSTRUMENTATION)
+  description  String?
+  rigType      String? // e.g. NG-1500-4 (optional scoping)
+  headerFields Json // [{key,label,type,default?}] e.g. wellName, rigName, operation
+  sections     Json // [{key,title,type,items|groups|shifts}] — drives the dynamic form
+  isActive     Boolean               @default(true)
+  submissions  ChecklistSubmission[]
+  createdBy    String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([discipline, isActive])
+}
+
+model ChecklistSubmission {
+  id                String            @id @default(uuid())
+  templateId        String
+  template          ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  date              DateTime
+  shift             String? // DAY, NIGHT, GENERAL
+  header            Json // {wellName, rigName, operation, section}
+  responses         Json // {sectionKey: {itemKey: {value|status|remark|...}}}
+  status            String            @default("DRAFT") // DRAFT, SUBMITTED
+  flaggedCount      Int               @default(0) // # of ATTENTION/CRITICAL items (for history badges)
+  remarks           String?
+  shiftInchargeSign String?
+  deptInchargeSign  String?
+  submittedBy       String?
+  submittedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([templateId, date])
+  @@index([status, date])
+}

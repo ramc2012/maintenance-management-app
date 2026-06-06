@@ -49,6 +49,7 @@ const FIELD_MODULES: Record<Discipline, ModuleCardProps[]> = {
     { id: 'manuals', name: 'Manuals', caption: 'Docs', icon: 'file-document-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/manuals?discipline=MECHANICAL' },
     { id: 'procurement', name: 'Procurement', caption: 'MR', icon: 'cart-outline', color: '#7c3aed', bg: '#f5f3ff', link: '/modules/procurement?discipline=MECHANICAL' },
     { id: 'inspections', name: 'Rounds', caption: 'Optional', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections?discipline=MECHANICAL' },
+    { id: 'checklists', name: 'Checklist', caption: 'DPR', icon: 'clipboard-check-multiple-outline', color: '#0891b2', bg: '#ecfeff', link: '/modules/checklists' },
   ],
   ELECTRICAL: [
     { id: 'operations', name: 'Operations', caption: 'Summary', icon: 'chart-arc', color: '#059669', bg: '#ecfdf5', link: '/modules/operations' },
@@ -59,6 +60,7 @@ const FIELD_MODULES: Record<Discipline, ModuleCardProps[]> = {
     { id: 'manuals', name: 'Manuals', caption: 'Docs', icon: 'file-document-outline', color: '#9333ea', bg: '#faf5ff', link: '/modules/manuals?discipline=ELECTRICAL' },
     { id: 'procurement', name: 'Procurement', caption: 'MR', icon: 'cart-outline', color: '#059669', bg: '#ecfdf5', link: '/modules/procurement?discipline=ELECTRICAL' },
     { id: 'inspections', name: 'Rounds', caption: 'Optional', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections?discipline=ELECTRICAL' },
+    { id: 'checklists', name: 'Checklist', caption: 'DPR', icon: 'clipboard-check-multiple-outline', color: '#0891b2', bg: '#ecfeff', link: '/modules/checklists' },
   ],
   INSTRUMENTATION: [
     { id: 'operations', name: 'Operations', caption: 'Summary', icon: 'chart-arc', color: '#059669', bg: '#ecfdf5', link: '/modules/operations' },
@@ -69,6 +71,7 @@ const FIELD_MODULES: Record<Discipline, ModuleCardProps[]> = {
     { id: 'reports', name: 'View Reports', caption: 'Past', icon: 'file-search-outline', color: '#0f766e', bg: '#ecfeff', link: '/modules/reports?mode=view&discipline=INSTRUMENTATION' },
     { id: 'procurement', name: 'Procurement', caption: 'MR', icon: 'cart-outline', color: '#0f172a', bg: '#f8fafc', link: '/modules/procurement?discipline=INSTRUMENTATION' },
     { id: 'inspections', name: 'Rounds', caption: 'Optional', icon: 'clipboard-check-outline', color: '#0f766e', bg: '#ecfdf5', link: '/modules/inspections?discipline=INSTRUMENTATION' },
+    { id: 'checklists', name: 'Checklist', caption: 'DPR', icon: 'clipboard-check-multiple-outline', color: '#0891b2', bg: '#ecfeff', link: '/modules/checklists' },
   ],
 };
 
@@ -78,6 +81,7 @@ const MOBILE_MODULE_LINKS: Partial<Record<ModuleSubscriptionId, string>> = {
   workorders: '/modules/workorders',
   kpis: '/modules/kpis',
   inspections: '/modules/inspections',
+  checklists: '/modules/checklists',
   reports: '/modules/reports?mode=view',
   logbook: '/modules/logbook',
   manuals: '/modules/manuals',
@@ -102,6 +106,7 @@ const MODULE_ACCENTS: Partial<Record<ModuleSubscriptionId, { color: string; bg: 
   workorders: { color: '#2563eb', bg: '#eff6ff' },
   kpis: { color: '#6366f1', bg: '#eef2ff' },
   inspections: { color: '#0f766e', bg: '#ecfdf5' },
+  checklists: { color: '#0891b2', bg: '#ecfeff' },
   reports: { color: '#059669', bg: '#ecfdf5' },
   logbook: { color: '#d97706', bg: '#fff7ed' },
   manuals: { color: '#0f766e', bg: '#ecfeff' },

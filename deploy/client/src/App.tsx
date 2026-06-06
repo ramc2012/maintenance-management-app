@@ -38,6 +38,9 @@ import { PresentationsHub } from "./modules/presentations/pages/PresentationsHub
 import { WorkOrderHub } from "./modules/workorders/pages/WorkOrderHub";
 import { KPIDashboard } from "./modules/kpi/pages/KPIDashboard";
 import { InspectionHub } from "./modules/inspections/pages/InspectionHub";
+import { ChecklistHub } from "./modules/checklists/pages/ChecklistHub";
+import { ChecklistForm } from "./modules/checklists/pages/ChecklistForm";
+import { ChecklistDetail } from "./modules/checklists/pages/ChecklistDetail";
 import { getUserHomePath, getWorkspaceModuleHref, shouldRedirectFieldUserFromLegacyRoute, type Discipline } from "./utils/workspace";
 
 const FIELD_MODULES: Record<Discipline, string[]> = {
@@ -209,6 +212,9 @@ const AppContent = () => {
           <Route path="/workorders" element={<ProtectedRoute><WorkOrderHub /></ProtectedRoute>} />
           <Route path="/kpis" element={<ProtectedRoute><KPIDashboard /></ProtectedRoute>} />
           <Route path="/inspections" element={<ProtectedRoute><InspectionHub /></ProtectedRoute>} />
+          <Route path="/checklists" element={<ProtectedRoute><ChecklistHub /></ProtectedRoute>} />
+          <Route path="/checklists/new/:templateId" element={<ProtectedRoute><ChecklistForm /></ProtectedRoute>} />
+          <Route path="/checklists/:id" element={<ProtectedRoute><ChecklistDetail /></ProtectedRoute>} />
         </Routes>
         <ChatInterface />
       </AuthProvider>

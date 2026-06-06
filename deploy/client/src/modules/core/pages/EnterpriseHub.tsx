@@ -24,6 +24,7 @@ const ALL_APPS = [
   { id: "overhaul", name: "Major Overhaul", icon: Wrench, color: "text-orange-600", bg: "bg-orange-50", link: "/moh", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR'] },
   { id: "workshop", name: "Workshop", icon: Hammer, color: "text-yellow-500", bg: "bg-yellow-50", link: "/workshop", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN'] },
   { id: "inspections", name: "Inspections", icon: ClipboardCheck, color: "text-teal-700", bg: "bg-teal-50", link: "/inspections", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
+  { id: "checklists", name: "Daily Checklist", icon: ClipboardCheck, color: "text-teal-600", bg: "bg-teal-50", link: "/checklists", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR', 'TECHNICIAN', 'USER'] },
   { id: "kpis", name: "KPI Dashboard", icon: BarChart, color: "text-violet-600", bg: "bg-violet-50", link: "/kpis", roles: ['ADMIN', 'HOD', 'ENGINEER'] },
   { id: "procurement", name: "Procurement", icon: ShoppingCart, color: "text-purple-600", bg: "bg-purple-50", link: "/procurement", roles: ['ADMIN', 'HOD', 'ENGINEER', 'SUPERVISOR'] },
   { id: "contracts", name: "Contracts", icon: Briefcase, color: "text-blue-700", bg: "bg-blue-50", link: "/contracts", roles: ['ADMIN', 'HOD'] },

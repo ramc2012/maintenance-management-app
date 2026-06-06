@@ -41,6 +41,7 @@ import notificationRoutes from './routes/notification.routes';
 import auditRoutes from './routes/audit.routes';
 import kpiRoutes from './routes/kpi.routes';
 import inspectionRoutes from './routes/inspection.routes';
+import checklistRoutes from './routes/checklist.routes';
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -99,6 +100,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/kpi', kpiRoutes);
 app.use('/api/inspections', inspectionRoutes);
+app.use('/api/checklists', checklistRoutes);
 
 // Static file serving for WO attachments
 app.use('/storage/wo-attachments', express.static(

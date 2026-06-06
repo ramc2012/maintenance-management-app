@@ -14,6 +14,7 @@ export type ModuleSubscriptionId =
   | 'workorders'
   | 'kpis'
   | 'inspections'
+  | 'checklists'
   | 'reports'
   | 'logbook'
   | 'manuals'
@@ -184,6 +185,14 @@ export const SUBSCRIBABLE_MODULES: ModuleSubscription[] = [
     description: 'Optional inspection rounds',
     icon: 'clipboard-check-outline',
     defaultSubscribed: false,
+    category: 'field',
+  },
+  {
+    id: 'checklists',
+    name: 'Daily Checklist',
+    description: 'DPR daily checklists',
+    icon: 'clipboard-check-multiple-outline',
+    defaultSubscribed: true,
     category: 'field',
   },
   {

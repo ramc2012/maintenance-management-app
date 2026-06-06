@@ -8,6 +8,7 @@
     "build": "tsc",
     "test": "vitest run",
     "seed:dpr": "ts-node scripts/seed_dpr_reports.ts",
+    "seed:checklists": "ts-node scripts/seed_checklist_templates.ts",
     "seed:equipment-status": "ts-node scripts/seed_equipment_status.ts",
     "postinstall": "prisma generate"
   },
