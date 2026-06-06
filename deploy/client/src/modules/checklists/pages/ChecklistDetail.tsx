@@ -277,7 +277,7 @@ export const ChecklistDetail = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -422,13 +422,26 @@ export const ChecklistDetail = () => {
           />
         )}
 
-        {/* Sections */}
+        {/* Sections — parameters & checkpoints side by side; work log / sign-off full width */}
         {template ? (
-          template.sections.map((section) => (
-            <Card key={section.key} title={section.title} className="mb-4">
-              {renderSection(section, submission.responses || {})}
-            </Card>
-          ))
+          <>
+            <div className="lg:columns-2 lg:gap-4">
+              {template.sections
+                .filter((s) => s.type === 'PARAMETERS' || s.type === 'STATUS_LIST' || s.type === 'INSPECTION_GROUP')
+                .map((section) => (
+                  <Card key={section.key} title={section.title} className="mb-4 break-inside-avoid">
+                    {renderSection(section, submission.responses || {})}
+                  </Card>
+                ))}
+            </div>
+            {template.sections
+              .filter((s) => s.type === 'WORK_LOG' || s.type === 'SIGNOFF')
+              .map((section) => (
+                <Card key={section.key} title={section.title} className="mb-4">
+                  {renderSection(section, submission.responses || {})}
+                </Card>
+              ))}
+          </>
         ) : (
           <Card><Empty description="Template details unavailable" /></Card>
         )}

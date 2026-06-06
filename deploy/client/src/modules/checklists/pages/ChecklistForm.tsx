@@ -504,9 +504,9 @@ export const ChecklistForm = () => {
           </div>
         </Card>
 
-        {/* Compact data sections (parameters / status / inspection) flow into 2
-            side-by-side columns on wide screens (masonry). */}
-        <div className="xl:columns-2 xl:gap-4">
+        {/* Compact data sections (parameters / status / inspection) sit side by
+            side in 2 columns on desktop (masonry). */}
+        <div className="lg:columns-2 lg:gap-4">
           {template.sections
             .filter((s) => s.type === 'PARAMETERS' || s.type === 'STATUS_LIST' || s.type === 'INSPECTION_GROUP')
             .map((section) => (
